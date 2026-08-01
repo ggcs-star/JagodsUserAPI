@@ -34,40 +34,53 @@ class CuisineController extends BackendController
     public function index(Request $request)
     {
         try {
-            $cuisines = CuisineResource::collection($this->cuisineService->allCuisines($request));
 
-            return $this->successResponse(['status' => 200, 'data' => $cuisines]);
+            $cuisines = CuisineResource::collection(
+                $this->cuisineService->allCuisines($request)
+            );
+
+            return $this->successResponse(
+                message: 'Cuisine list fetched successfully',
+                data: $cuisines
+            );
 
         } catch (\Exception $e) {
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => config('app.debug') ? $e->getTrace() : [],
-            ], 500);
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
+            );
         }
     }
 
-    public function show($id)
+    public function show(Request $request)
     {
         try {
+
+            $id = $request->input('id');
+
             $cuisine = $this->cuisineService->show($id);
 
             $activeRestaurants = $cuisine->restaurants()
                 ->where('restaurants.status', \App\Enums\RestaurantStatus::ACTIVE)
                 ->get();
 
-
             $this->data['cuisine'] = new CuisineResource($cuisine);
             $this->data['restaurants'] = PopularRestaurantResource::collection($activeRestaurants);
 
-            return $this->successResponse(['status' => 200, 'data' => $this->data]);
+            return $this->successResponse(
+                message: 'Cuisine details fetched successfully',
+                data: $this->data
+            );
 
         } catch (\Exception $e) {
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => config('app.debug') ? $e->getTrace() : [],
-            ], 500);
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
+            );
         }
     }
 
