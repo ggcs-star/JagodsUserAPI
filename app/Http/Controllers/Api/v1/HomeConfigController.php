@@ -35,7 +35,7 @@ class HomeConfigController extends BackendController
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://images.jagods.com/banner/banner.svg',
+                        'image_url' => 'https://images.jagods.in/landing/banner.svg',
 
                         'action' => [
                             'type' => 'navigation',
@@ -74,8 +74,8 @@ class HomeConfigController extends BackendController
                             'id' => 1,
                             'title' => 'Home',
                             'slug' => 'home',
-                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
-                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'icon_url' => 'https://images.jagods.in/landing/Home.svg',
+                            'selected_icon_url' => 'https://images.jagods.in/landing/home_fill.svg',
 
                             'redirection' => [
                                 'navigation_type' => 'home',
@@ -86,8 +86,8 @@ class HomeConfigController extends BackendController
                             'id' => 2,
                             'title' => 'Reels',
                             'slug' => 'reels',
-                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
-                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'icon_url' => 'https://images.jagods.in/landing/Reel.svg',
+                            'selected_icon_url' => 'https://images.jagods.in/landing/Reel_fill.svg',
 
                             'redirection' => [
                                 'navigation_type' => 'reels',
@@ -98,8 +98,8 @@ class HomeConfigController extends BackendController
                             'id' => 3,
                             'title' => 'Cart',
                             'slug' => 'cart',
-                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
-                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'icon_url' => 'https://images.jagods.in/landing/Cart.svg',
+                            'selected_icon_url' => 'https://images.jagods.in/landing/Cart_fill.svg',
                             'badge_count' => 1,
 
                             'redirection' => [
@@ -183,8 +183,8 @@ class HomeConfigController extends BackendController
                             'id' => 1,
                             'title' => 'Home',
                             'slug' => 'home',
-                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
-                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'icon_url' => 'https://images.jagods.in/landing/home_fill.svg',
+                            'selected_icon_url' => 'https://images.jagods.in/landing/home_fill.svg',
 
                             'redirection' => [
                                 'navigation_type' => 'home',
@@ -193,13 +193,13 @@ class HomeConfigController extends BackendController
 
                         [
                             'id' => 2,
-                            'title' => 'Categories',
-                            'slug' => 'categories',
-                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
-                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'title' => 'Reels',
+                            'slug' => 'Reels',
+                            'icon_url' => 'https://images.jagods.in/landing/Reel.svg',
+                            'selected_icon_url' => 'https://images.jagods.in/landing/Reel_fill.svg',
 
                             'redirection' => [
-                                'navigation_type' => 'categories',
+                                'navigation_type' => 'Reels',
                             ],
                         ],
 
@@ -207,8 +207,8 @@ class HomeConfigController extends BackendController
                             'id' => 3,
                             'title' => 'Cart',
                             'slug' => 'cart',
-                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
-                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'icon_url' => 'https://images.jagods.in/landing/Cart.svg',
+                            'selected_icon_url' => 'https://images.jagods.in/landing/Cart_fill.svg',
                             'badge_count' => 1,
 
                             'redirection' => [

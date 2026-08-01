@@ -32,19 +32,22 @@ class BannerController extends BackendController
     //     return $this->successresponse(['success'=>200, 'data'=> BannerResource::collection($banners)]);
     // }
     
-    public function index()
-    {
-        $banners = Banner::where('status', BannerStatus::ACTIVE)->orderBy('sort', 'asc')->get();
-        $imageUrl = "https://images.jagods.com/banner/banner.svg";
+   public function index()
+{
+    $banners = Banner::where('status', BannerStatus::ACTIVE)
+        ->orderBy('sort', 'asc')
+        ->get();
 
-        return $this->successresponse([
-            'success' => 200,
-            'data' => [
-                'image_url' => $imageUrl,
-                'banners' => BannerResource::collection($banners),
-            ],
-        ]);
-    }
+    $imageUrl = "https://images.jagods.com/banner/banner.svg";
+
+    return $this->successResponse(
+        message: 'Banner list fetched successfully.',
+        data: [
+            'image_url' => $imageUrl,
+            'banners'   => BannerResource::collection($banners),
+        ]
+    );
+}
     
     
     
