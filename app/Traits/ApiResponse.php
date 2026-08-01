@@ -230,23 +230,71 @@ trait ApiResponse
     }
 
     public function tooManyRequestsResponse(
-    string $message = 'Too many attempts. Please try again later.',
-    int $retryAfter = 60,
-    bool $requiresOtp = false,
-    mixed $risk = null,
-    array $errors = []
-): JsonResponse {
+        string $message = 'Too many attempts. Please try again later.',
+        int $retryAfter = 60,
+        bool $requiresOtp = false,
+        mixed $risk = null,
+        array $errors = []
+    ): JsonResponse {
 
-    return response()->json([
-        'status' => false,
-        'success' => false,
-        'status_code' => Response::HTTP_TOO_MANY_REQUESTS,
-        'message' => $message,
-        'errors' => $errors,
-        'requires_otp' => $requiresOtp,
-        'risk' => $risk,
-        'retry_after' => $retryAfter,
-        'data' => [],
-    ], Response::HTTP_TOO_MANY_REQUESTS);
-}
+        return response()->json([
+            'status' => false,
+            'success' => false,
+            'status_code' => Response::HTTP_TOO_MANY_REQUESTS,
+            'message' => $message,
+            'errors' => $errors,
+            'requires_otp' => $requiresOtp,
+            'risk' => $risk,
+            'retry_after' => $retryAfter,
+            'data' => [],
+        ], Response::HTTP_TOO_MANY_REQUESTS);
+    }
+
+    public function paginationResponse($paginator, array $extraData = []): array
+    {
+        $currentPage = $paginator->currentPage();
+        $lastPage = $paginator->lastPage();
+
+        $links = [];
+
+        // Previous
+        $links[] = [
+            'url' => $paginator->previousPageUrl(),
+            'label' => 'Previous',
+            'active' => false,
+        ];
+
+        // Page Numbers
+        for ($page = 1; $page <= $lastPage; $page++) {
+            $links[] = [
+                'url' => $paginator->url($page),
+                'label' => (string) $page,
+                'active' => $page === $currentPage,
+            ];
+        }
+
+        // Next
+        $links[] = [
+            'url' => $paginator->nextPageUrl(),
+            'label' => 'Next',
+            'active' => false,
+        ];
+
+        $pagination = [
+            'current_page' => $currentPage,
+            'first_page_url' => $paginator->url(1),
+            'from' => $paginator->firstItem(),
+            'last_page' => $lastPage,
+            'last_page_url' => $paginator->url($lastPage),
+            'links' => $links,
+            'next_page_url' => $paginator->nextPageUrl(),
+            'path' => $paginator->path(),
+            'per_page' => (int) $paginator->perPage(),
+            'prev_page_url' => $paginator->previousPageUrl(),
+            'to' => $paginator->lastItem(),
+            'total' => (int) $paginator->total(),
+        ];
+
+        return array_merge($pagination, $extraData);
+    }
 }

@@ -30,69 +30,77 @@ class PopularRestaurantController extends BackendController
 
 
     public function index(Request $request)
-    {
-        try {
+{
+    try {
 
-            $filterType = $request->get('restaurants') === 'all' ? 'all' : 'popular';
-            $cacheKey = "home_restaurants_{$filterType}";
+        $filterType = $request->get('restaurants') === 'all' ? 'all' : 'popular';
 
-            $ttl = now()->addMinutes(5);
+        $perPage = (int) $request->get('per_page', 10);
+        $page    = (int) $request->get('page', 1);
 
-            $cachedData = Cache::remember($cacheKey, $ttl, function () use ($filterType) {
+        $cacheKey = "home_restaurants_{$filterType}_{$page}_{$perPage}";
 
-                $query = Restaurant::select([
-                    'id',
-                    'name',
-                    'slug',
-                    'coverImg',
-                    'opening_time',
-                    'closing_time',
-                    'restroType',
-                    'sort_order',
-                    'total_orders',
-                    'description',
-                    'address',
-                    'avg_rating',
-                    'total_reviews',
-                ])
-                    ->where('status', RestaurantStatus::ACTIVE)
-                    ->where('current_status', CurrentStatus::YES)
-                    ->where('id', '!=', 28);
+        $ttl = now()->addMinutes(5);
 
-                if ($filterType === 'all') {
-                    $query->orderByRaw("
+        $restaurants = Cache::remember($cacheKey, $ttl, function () use ($filterType, $perPage) {
+
+            $query = Restaurant::select([
+                'id',
+                'name',
+                'slug',
+                'coverImg',
+                'opening_time',
+                'closing_time',
+                'restroType',
+                'sort_order',
+                'total_orders',
+                'description',
+                'address',
+                'avg_rating',
+                'total_reviews',
+            ])
+            ->where('status', RestaurantStatus::ACTIVE)
+            ->where('current_status', CurrentStatus::YES)
+            ->where('id', '!=', 28);
+
+            if ($filterType === 'all') {
+
+                $query->orderByRaw("
                     CASE
                         WHEN sort_order = 0 THEN 999
                         ELSE sort_order
                     END ASC
                 ")->orderByDesc('total_orders');
-                } else {
-                    $query->orderByDesc('total_orders');
-                }
 
-                return PopularRestaurantResource::collection(
-                    $query->get()
-                )->resolve();
-            });
+            } else {
 
-            return $this->successResponse(
-                message: 'Restaurants fetched successfully.',
-                data: $cachedData
-            );
+                $query->orderByDesc('total_orders');
 
-        } catch (Throwable $e) {
+            }
 
-            Log::error('PopularRestaurant API Error', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
+            return $query->paginate($perPage);
 
-            return $this->serverErrorResponse(
-                message: config('app.debug')
+        });
+
+        return $this->successResponse(
+            message: 'Restaurants fetched successfully.',
+            data: PopularRestaurantResource::collection($restaurants->items()),
+            pagination: $this->paginationResponse($restaurants)
+        );
+
+    } catch (Throwable $e) {
+
+        Log::error('PopularRestaurant API Error', [
+            'message' => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine(),
+        ]);
+
+        return $this->serverErrorResponse(
+            message: config('app.debug')
                 ? $e->getMessage()
                 : 'Something went wrong while fetching restaurants.'
-            );
-        }
+        );
     }
+}
 }

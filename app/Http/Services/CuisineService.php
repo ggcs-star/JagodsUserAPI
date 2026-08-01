@@ -9,18 +9,28 @@ use Illuminate\Http\Request;
 
 class CuisineService
 {
-    public function allCuisines($request)
-    {
-        
-        $q = trim($request->id);
-        if ($q) {
-            $this->data['cuisines'] = Cuisine::where('name', 'like', '%' . $q . '%')->where('status',CuisinesStatus::ACTIVE)->orWhere('description', 'like', '%' . $q . '%')->descending()->get();
-        } else {
-            $this->data['cuisines'] = Cuisine::where('status',CuisinesStatus::ACTIVE)->descending()->get();
-        }
+    public function allCuisines(Request $request)
+{
+    $perPage = (int) $request->get('per_page', 10);
 
-        return $this->data['cuisines'];
+    $query = Cuisine::where('status', CuisinesStatus::ACTIVE);
+
+    if ($request->filled('id')) {
+
+        $search = trim($request->id);
+
+        $query->where(function ($q) use ($search) {
+
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%");
+
+        });
     }
+
+    return $query
+        ->descending()
+        ->paginate($perPage);
+}
     public function show($id)
     {
         return Cuisine::find($id);
