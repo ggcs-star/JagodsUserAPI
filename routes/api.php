@@ -135,11 +135,10 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('category/{id}', [CategoryController::class, 'index']);
     Route::get('category/{id}/show', [CategoryController::class, 'show']);
 
-    Route::get('cuisine', [CuisineController::class, 'index']);
-    Route::get('cuisine/{id}', [CuisineController::class, 'index']);
-    Route::get('cuisine/{id}/show', [CuisineController::class, 'show']);
+    Route::post('cuisine/index', [CuisineController::class, 'index']);
+    Route::post('cuisine/show', [CuisineController::class, 'show']);
 
-    Route::get('popular-restaurant', [PopularRestaurantController::class, 'index']);
+    Route::post('popular-restaurant', [PopularRestaurantController::class, 'index']);
     Route::post('/restaurant/index', [RestaurantController::class, 'index']);
     Route::post('/restaurant/show', [RestaurantController::class, 'show']);
     // Route::get('/search', [SearchController::class, 'index']);
