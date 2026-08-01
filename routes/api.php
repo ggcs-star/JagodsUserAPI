@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\v1\DeviceVerificationController;
 use App\Http\Controllers\Api\v1\Auth\RefreshTokenController;
 use App\Http\Controllers\Api\v1\UniversalOtpController;
 use App\Http\Controllers\Api\v1\Auth\ActiveSessionController;
+use App\Http\Controllers\Api\v1\HomeConfigController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -53,6 +54,7 @@ use App\Http\Controllers\Api\v1\Auth\ActiveSessionController;
 */
 
 Route::group(['prefix' => 'v1'], function () {
+    Route::get('/home/config', [HomeConfigController::class, 'index']);
 
     Route::post('login', [LoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('refresh-token', [RefreshTokenController::class, 'refresh']);
