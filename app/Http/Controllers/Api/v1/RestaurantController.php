@@ -149,6 +149,7 @@ class RestaurantController extends BackendController
                 return [
                     'id'   => $category->id,
                     'name' => $category->name,
+                    'image' => $category->image,
                 ];
             })
             ->values();
