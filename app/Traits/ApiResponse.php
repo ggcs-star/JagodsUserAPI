@@ -228,4 +228,25 @@ trait ApiResponse
             data: $data
         );
     }
+
+    public function tooManyRequestsResponse(
+    string $message = 'Too many attempts. Please try again later.',
+    int $retryAfter = 60,
+    bool $requiresOtp = false,
+    mixed $risk = null,
+    array $errors = []
+): JsonResponse {
+
+    return response()->json([
+        'status' => false,
+        'success' => false,
+        'status_code' => Response::HTTP_TOO_MANY_REQUESTS,
+        'message' => $message,
+        'errors' => $errors,
+        'requires_otp' => $requiresOtp,
+        'risk' => $risk,
+        'retry_after' => $retryAfter,
+        'data' => [],
+    ], Response::HTTP_TOO_MANY_REQUESTS);
+}
 }

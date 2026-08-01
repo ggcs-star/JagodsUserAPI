@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
-
+use Illuminate\Http\JsonResponse;
 class RouteServiceProvider extends ServiceProvider
 {
     /**
@@ -79,70 +79,95 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login_attempts', function (Request $request) {
-            $deviceId = $this->resolveDeviceIdentifier($request);
-            $identifier = $request->input('email', $request->input('phone', '')) . '|' . $deviceId;
 
-            return Limit::perMinute(5)->by($identifier)
-                ->response(function () {
-                    return response()->json([
-                        'status' => 429,
-                        'message' => 'Too many login attempts. Please try again later.'
-                    ], 429);
+            $identifier = $request->input('email', $request->input('phone', ''))
+                . '|'
+                . $this->resolveDeviceIdentifier($request);
+
+            return Limit::perMinute(5)
+                ->by($identifier)
+                ->response(function () use ($identifier) {
+
+                    return $this->rateLimitResponse(
+                        'Too many login attempts. Please try again later.',
+                        RateLimiter::availableIn($identifier)
+                    );
                 });
         });
 
         RateLimiter::for('otp_send', function (Request $request) {
-            $deviceId = $this->resolveDeviceIdentifier($request);
-            return Limit::perMinutes(1, 2)->by($request->user()?->id ?: $deviceId)
-                ->response(function () {
-                    return response()->json([
-                        'status' => 429,
-                        'message' => 'Too many OTP requests. Please wait a minute.'
-                    ], 429);
+
+            $key = $this->rateLimitKey($request);
+
+            return Limit::perMinutes(1, 2)
+                ->by($key)
+                ->response(function () use ($key) {
+
+                    return $this->rateLimitResponse(
+                        'Too many OTP requests. Please wait a minute.',
+                        RateLimiter::availableIn($key),
+                        true
+                    );
                 });
         });
 
         RateLimiter::for('cart_actions', function (Request $request) {
-            $deviceId = $this->resolveDeviceIdentifier($request);
-            return Limit::perMinute(20)->by($request->user()?->id ?: $deviceId)
-                ->response(function () {
-                    return response()->json([
-                        'status' => 429,
-                        'message' => 'Too many cart requests. Please slow down.'
-                    ], 429);
+
+            $key = $this->rateLimitKey($request);
+
+            return Limit::perMinute(20)
+                ->by($key)
+                ->response(function () use ($key) {
+
+                    return $this->rateLimitResponse(
+                        'Too many cart requests. Please slow down.',
+                        RateLimiter::availableIn($key)
+                    );
                 });
         });
 
         RateLimiter::for('cart_fetch', function (Request $request) {
-            $deviceId = $this->resolveDeviceIdentifier($request);
-            return Limit::perMinute(30)->by($request->user()?->id ?: $deviceId)
-                ->response(function () {
-                    return response()->json([
-                        'status' => 429,
-                        'message' => 'You are refreshing the cart too quickly. Please wait.'
-                    ], 429);
+
+            $key = $this->rateLimitKey($request);
+
+            return Limit::perMinute(30)
+                ->by($key)
+                ->response(function () use ($key) {
+
+                    return $this->rateLimitResponse(
+                        'You are refreshing the cart too quickly.',
+                        RateLimiter::availableIn($key)
+                    );
                 });
         });
 
         RateLimiter::for('checkout_strict', function (Request $request) {
-            $deviceId = $this->resolveDeviceIdentifier($request);
-            return Limit::perMinute(5)->by($request->user()?->id ?: $deviceId)
-                ->response(function () {
-                    return response()->json([
-                        'status' => 429,
-                        'message' => 'Too many checkout attempts. Please try again after a minute.'
-                    ], 429);
+
+            $key = $this->rateLimitKey($request);
+
+            return Limit::perMinute(5)
+                ->by($key)
+                ->response(function () use ($key) {
+
+                    return $this->rateLimitResponse(
+                        'Too many checkout attempts. Please try again after a minute.',
+                        RateLimiter::availableIn($key)
+                    );
                 });
         });
 
         RateLimiter::for('payment_verify', function (Request $request) {
-            $deviceId = $this->resolveDeviceIdentifier($request);
-            return Limit::perMinute(10)->by($request->user()?->id ?: $deviceId)
-                ->response(function () {
-                    return response()->json([
-                        'status' => 429,
-                        'message' => 'Suspicious payment activity detected. Please wait.'
-                    ], 429);
+
+            $key = $this->rateLimitKey($request);
+
+            return Limit::perMinute(10)
+                ->by($key)
+                ->response(function () use ($key) {
+
+                    return $this->rateLimitResponse(
+                        'Suspicious payment activity detected. Please wait.',
+                        RateLimiter::availableIn($key)
+                    );
                 });
         });
     }
@@ -164,7 +189,12 @@ class RouteServiceProvider extends ServiceProvider
         }
     }
 
+    protected function rateLimitKey(Request $request, string $prefix = ''): string
+    {
+        $deviceId = $this->resolveDeviceIdentifier($request);
 
+        return $prefix . ($request->user()?->id ?: $deviceId);
+    }
     protected function mapApiRoutes()
     {
         if (file_exists(storage_path('installed'))) {
@@ -181,5 +211,26 @@ class RouteServiceProvider extends ServiceProvider
                 }
             }
         }
+    }
+
+    protected function rateLimitResponse(
+        string $message,
+        int $retryAfter = 60,
+        bool $requiresOtp = false,
+        mixed $risk = null,
+        array $errors = []
+    ): JsonResponse {
+
+        return response()->json([
+            'status' => false,
+            'success' => false,
+            'status_code' => 429,
+            'message' => $message,
+            'errors' => $errors,
+            'requires_otp' => $requiresOtp,
+            'risk' => $risk,
+            'retry_after' => $retryAfter,
+            'data' => [],
+        ], 429);
     }
 }
