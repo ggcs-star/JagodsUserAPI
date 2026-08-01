@@ -31,7 +31,7 @@ class HomeConfigController extends BackendController
                         ],
                     ],
 
-                    'icon_url' => 'https://globalgarnerdev.s3.ap-south-1.amazonaws.com/images/franchise360/gg-multistore/header/lS7QjVEWh0v05AQLNx7m5RDuBJVlL6EaPGDWlqQE.svg',
+                    'icon_url' => 'https://images.jagods.com/banner/banner.svg',
 
                     'promo_banner' => [
                         'type' => 'gif',
@@ -74,8 +74,8 @@ class HomeConfigController extends BackendController
                             'id' => 1,
                             'title' => 'Home',
                             'slug' => 'home',
-                            'icon_url' => 'https://cdn.example.com/icons/home_outline.svg',
-                            'selected_icon_url' => 'https://cdn.example.com/icons/home_filled.svg',
+                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
 
                             'redirection' => [
                                 'navigation_type' => 'home',
@@ -86,8 +86,8 @@ class HomeConfigController extends BackendController
                             'id' => 2,
                             'title' => 'Reels',
                             'slug' => 'reels',
-                            'icon_url' => 'https://cdn.example.com/icons/reels_outline.svg',
-                            'selected_icon_url' => 'https://cdn.example.com/icons/reels_filled.svg',
+                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
 
                             'redirection' => [
                                 'navigation_type' => 'reels',
@@ -98,8 +98,8 @@ class HomeConfigController extends BackendController
                             'id' => 3,
                             'title' => 'Cart',
                             'slug' => 'cart',
-                            'icon_url' => 'https://cdn.example.com/icons/cart_outline.svg',
-                            'selected_icon_url' => 'https://cdn.example.com/icons/cart_filled.svg',
+                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
                             'badge_count' => 1,
 
                             'redirection' => [
@@ -140,11 +140,11 @@ class HomeConfigController extends BackendController
                         ],
                     ],
 
-                    'icon_url' => 'https://globalgarnerdev.s3.ap-south-1.amazonaws.com/images/franchise360/gg-multistore/header/Z0nLjSXDv812RMu4Zcytidg4WfBCskpd82qPDuur.svg',
+                    'icon_url' => 'https://images.jagods.com/banner/banner.svg',
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://globalgarnerdev.s3.ap-south-1.amazonaws.com/images/franchise360/gg-multistore/header/EsGp3aJD6Dem88ZcZqs4BRrU8G1qJZs19jukC3kk.gif',
+                        'image_url' => 'https://images.jagods.com/banner/banner.svg',
 
                         'action' => [
                             'type' => 'navigation',
@@ -183,8 +183,8 @@ class HomeConfigController extends BackendController
                             'id' => 1,
                             'title' => 'Home',
                             'slug' => 'home',
-                            'icon_url' => 'https://cdn.example.com/icons/home_outline.svg',
-                            'selected_icon_url' => 'https://cdn.example.com/icons/home_filled.svg',
+                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
 
                             'redirection' => [
                                 'navigation_type' => 'home',
@@ -195,8 +195,8 @@ class HomeConfigController extends BackendController
                             'id' => 2,
                             'title' => 'Categories',
                             'slug' => 'categories',
-                            'icon_url' => 'https://cdn.example.com/icons/categories_outline.svg',
-                            'selected_icon_url' => 'https://cdn.example.com/icons/categories_filled.svg',
+                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
 
                             'redirection' => [
                                 'navigation_type' => 'categories',
@@ -207,8 +207,8 @@ class HomeConfigController extends BackendController
                             'id' => 3,
                             'title' => 'Cart',
                             'slug' => 'cart',
-                            'icon_url' => 'https://cdn.example.com/icons/cart_outline.svg',
-                            'selected_icon_url' => 'https://cdn.example.com/icons/cart_filled.svg',
+                            'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                            'selected_icon_url' => 'https://images.jagods.com/banner/banner.svg',
                             'badge_count' => 1,
 
                             'redirection' => [
