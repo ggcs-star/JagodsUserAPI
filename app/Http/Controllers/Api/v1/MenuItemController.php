@@ -33,14 +33,17 @@ class   MenuItemController extends BackendController
     {
         try{
             $menuItems = $this->menuItemService->allMenuItems($request);
-            $data = new MenuItemResource($menuItems);
-            return $this->successResponse($data);
-        } catch (\Exception $e){
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => $e->getTrace(),
-            ]);
+
+        return $this->successResponse(
+            message: 'Menu item list fetched successfully',
+            data: MenuItemResource::collection($menuItems)
+        );
+                } catch (\Exception $e) {
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
+            );
         }
     }
 
@@ -97,17 +100,28 @@ class   MenuItemController extends BackendController
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function show($id)
+    public function show(Request $request)
     {
-        try{
-            $menuitem= new MenuItemResource($this->menuItemService->show($id));
-            return $this->successResponse(['status'=>200,'data'=>$menuitem]);
-        } catch(\Exception $e){
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => $e->getTrace(),
-            ]);
+        try {
+
+            $id = $request->input('id');
+
+            $menuitem = new MenuItemResource(
+                $this->menuItemService->show($id)
+            );
+
+            return $this->successResponse(
+                message: 'Menu item details fetched successfully',
+                data: $menuitem
+            );
+
+        } catch (\Exception $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
+            );
         }
     }
 
