@@ -127,64 +127,110 @@ class RestaurantController extends BackendController
     // }
 
     public function show(Request $request)
-    {
-        try {
+{
+    try {
+
         $id = $request->input('id');
+
         $restaurant = Restaurant::with([
-            'banners',
-            'menuItems' => function ($query) {
-                $query->where('status', MenuItemStatus::ACTIVE);
-            }
+            'banners'
         ])->findOrFail($id);
 
         $rating = new RatingsService();
         $ratingArray = $rating->avgRating($restaurant->id);
 
         $categoriesData = \App\Models\Category::whereHas('menuItems', function ($query) use ($id) {
-            $query->where('restaurant_id', $id)
-                ->where('status', MenuItemStatus::ACTIVE);
-        })
+                $query->where('restaurant_id', $id)
+                      ->where('status', MenuItemStatus::ACTIVE);
+            })
             ->select('id', 'name')
             ->get()
-            ->map(function ($cat) {
+            ->map(function ($category) {
                 return [
-                    'id' => $cat->id,
-                    'name' => $cat->name,
+                    'id'   => $category->id,
+                    'name' => $category->name,
+                    'image' => $category->image,
                 ];
             })
-            ->toArray();
+            ->values();
 
         $restaurantRatings = RestaurantRating::where([
             'restaurant_id' => $restaurant->id,
-            'status' => RatingStatus::ACTIVE
+            'status'        => RatingStatus::ACTIVE,
         ])->get();
 
         $timeSlots = TimeSlot::where('restaurant_id', $restaurant->id)->get();
 
-        $this->data['restaurant'] = new RestaurantResource($restaurant);
-        $this->data['banners'] = RestaurantBannerResource::collection($restaurant->banners);
-        $this->data['categories'] = $categoriesData;
-        $this->data['menuItems'] = MenuItemResource::collection($restaurant->menuItems);
-        $this->data['reviews'] = RatingResource::collection($restaurantRatings);
-        $this->data['timeSlots'] = $timeSlots;
-        $this->data['countUser'] = $ratingArray['countUser'];
-        $this->data['avgRating'] = $ratingArray['avgRating'];
-        $this->data['vouchers'] = [];
+        $this->data['restaurant']   = new RestaurantResource($restaurant);
+        $this->data['banners']      = RestaurantBannerResource::collection($restaurant->banners);
+        $this->data['categories']   = $categoriesData;
+
+        // Menu Items removed (Separate API)
+        // $this->data['menuItems'] = MenuItemResource::collection($restaurant->menuItems);
+
+        $this->data['reviews']      = RatingResource::collection($restaurantRatings);
+        $this->data['timeSlots']    = $timeSlots;
+        $this->data['countUser']    = $ratingArray['countUser'];
+        $this->data['avgRating']    = $ratingArray['avgRating'];
+        $this->data['vouchers']     = [];
         $this->data['order_status'] = true;
 
         return $this->successResponse(
-            message: 'Restaurant details fetched successfully',
+            message: 'Restaurant details fetched successfully.',
             data: $this->data
         );
 
-            } catch (\Exception $e) {
+    } catch (\Throwable $e) {
 
-                return $this->serverErrorResponse(
-                    message: config('app.debug')
-                        ? $e->getMessage()
-                        : 'Internal Server Error'
-                );
-            }
+        return $this->serverErrorResponse(
+            message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+        );
+    }
+}
+public function menuItems(Request $request)
+{
+    try {
+
+        $request->validate([
+            'restaurant_id' => 'required|exists:restaurants,id',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'category_id' => 'nullable|exists:categories,id',
+        ]);
+
+        $perPage = $request->input('per_page', 10);
+
+        $query = MenuItem::where('restaurant_id', $request->restaurant_id)
+            ->where('status', MenuItemStatus::ACTIVE);
+
+        // Optional Category Filter
+        if ($request->filled('category_id')) {
+
+            $query->whereHas('categories', function ($q) use ($request) {
+                $q->where('categories.id', $request->category_id);
+            });
+
         }
 
+        $menuItems = $query
+            ->latest()
+            ->paginate($perPage);
+
+        return $this->successResponse(
+            message: 'Menu items fetched successfully.',
+            data: MenuItemResource::collection($menuItems->items()),
+            pagination: $this->paginationResponse($menuItems)
+        );
+
+    } catch (\Throwable $e) {
+
+        return $this->serverErrorResponse(
+            message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+        );
+    }
+}
 }

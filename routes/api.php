@@ -141,6 +141,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('popular-restaurant', [PopularRestaurantController::class, 'index']);
     Route::post('restaurant/index', [RestaurantController::class, 'index']);
     Route::post('restaurant/show', [RestaurantController::class, 'show']);
+    Route::post('restaurant/menu-items', [RestaurantController::class, 'menuItems']);
     // Route::get('/search', [SearchController::class, 'index']);
     Route::get('/search', [SearchController::class, 'globalSearch']);
     Route::get('restaurant-menuItem/menuItem', [MenuItemController::class, 'index']);
