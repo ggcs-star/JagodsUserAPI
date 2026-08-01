@@ -41,17 +41,28 @@ class RestaurantController extends BackendController
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function index($id = null, $status = null, $applied = null)
+    public function index(Request $request)
     {
         try {
+
+            $id = $request->input('id');
+            $status = $request->input('status');
+            $applied = $request->input('applied');
+
             $restaurants = $this->restaurantService->getallrestaurant($id, $status, $applied);
-            return $this->successResponse(['status' => 200, 'data' => RestaurantResource::collection($restaurants)]);
+
+            return $this->successResponse(
+                message: 'Restaurant list fetched successfully',
+                data: RestaurantResource::collection($restaurants)
+            );
+
         } catch (\Exception $e) {
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => $e->getTrace(),
-            ]);
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
+            );
         }
     }
 
@@ -115,8 +126,10 @@ class RestaurantController extends BackendController
     //     }
     // }
 
-    public function show($id)
+    public function show(Request $request)
     {
+        try {
+        $id = $request->input('id');
         $restaurant = Restaurant::with([
             'banners',
             'menuItems' => function ($query) {
@@ -159,15 +172,19 @@ class RestaurantController extends BackendController
         $this->data['vouchers'] = [];
         $this->data['order_status'] = true;
 
-        try {
-            return $this->successResponse(['status' => 200, 'data' => $this->data]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => config('app.debug') ? $e->getTrace() : [],
-            ], 500);
+        return $this->successResponse(
+            message: 'Restaurant details fetched successfully',
+            data: $this->data
+        );
+
+            } catch (\Exception $e) {
+
+                return $this->serverErrorResponse(
+                    message: config('app.debug')
+                        ? $e->getMessage()
+                        : 'Internal Server Error'
+                );
+            }
         }
-    }
 
 }

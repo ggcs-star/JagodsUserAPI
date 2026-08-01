@@ -140,13 +140,13 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('cuisine/{id}/show', [CuisineController::class, 'show']);
 
     Route::get('popular-restaurant', [PopularRestaurantController::class, 'index']);
-    Route::get('/restaurant/index/{id?}/{status?}/{applied?}', [RestaurantController::class, 'index']);
-    Route::get('restaurant/{id}', [RestaurantController::class, 'show']); 
+    Route::post('/restaurant/index', [RestaurantController::class, 'index']);
+    Route::post('/restaurant/show', [RestaurantController::class, 'show']);
     // Route::get('/search', [SearchController::class, 'index']);
     Route::get('/search', [SearchController::class, 'globalSearch']);
     Route::get('restaurant-menuItem/menuItem', [MenuItemController::class, 'index']);
     Route::get('restaurant-menuItem/menuItem/{id}', [MenuItemController::class, 'index']);
-    Route::get('restaurant-menuItem/menuItem/{id}/show', [MenuItemController::class, 'show']);
+    Route::post('restaurant-menuItem/menuItem/show', [MenuItemController::class, 'show']);
 
     Route::get('restaurant-table/table', [TableController::class, 'index']);
     Route::get('restaurant-table/table/{id}', [TableController::class, 'show']);
