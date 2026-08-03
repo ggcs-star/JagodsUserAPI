@@ -30,77 +30,78 @@ class PopularRestaurantController extends BackendController
 
 
     public function index(Request $request)
-{
-    try {
+    {
+        try {
 
-        $filterType = $request->get('restaurants') === 'all' ? 'all' : 'popular';
+            $filterType = $request->get('restaurants') === 'all' ? 'all' : 'popular';
 
-        $perPage = (int) $request->get('per_page', 10);
-        $page    = (int) $request->get('page', 1);
+            $perPage = (int) $request->get('per_page', 10);
+            $page = (int) $request->get('page', 1);
 
-        $cacheKey = "home_restaurants_{$filterType}_{$page}_{$perPage}";
+            $cacheKey = "home_restaurants_{$filterType}_{$page}_{$perPage}";
 
-        $ttl = now()->addMinutes(5);
+            $ttl = now()->addMinutes(5);
 
-        $restaurants = Cache::remember($cacheKey, $ttl, function () use ($filterType, $perPage) {
+            $restaurants = Cache::remember($cacheKey, $ttl, function () use ($filterType, $perPage) {
 
-            $query = Restaurant::select([
-                'id',
-                'name',
-                'slug',
-                'coverImg',
-                'opening_time',
-                'closing_time',
-                'restroType',
-                'sort_order',
-                'total_orders',
-                'description',
-                'address',
-                'avg_rating',
-                'total_reviews',
-            ])
-            ->where('status', RestaurantStatus::ACTIVE)
-            ->where('current_status', CurrentStatus::YES)
-            ->where('id', '!=', 28);
+                $query = Restaurant::select([
+                    'id',
+                    'name',
+                    'slug',
+                    'coverImg',
+                    'opening_time',
+                    'closing_time',
+                    'restroType',
+                    'sort_order',
+                    'total_orders',
+                    'description',
+                    'address',
+                    'avg_rating',
+                    'total_reviews',
+                ])
+                    ->where('status', RestaurantStatus::ACTIVE)
+                    ->where('current_status', CurrentStatus::YES)
+                    ->where('id', '!=', 28);
 
-            if ($filterType === 'all') {
+                if ($filterType === 'all') {
 
-                $query->orderByRaw("
+                    $query->orderByRaw("
                     CASE
                         WHEN sort_order = 0 THEN 999
                         ELSE sort_order
                     END ASC
                 ")->orderByDesc('total_orders');
 
-            } else {
+                } else {
 
-                $query->orderByDesc('total_orders');
+                    $query->orderByDesc('total_orders');
 
-            }
+                }
 
-            return $query->paginate($perPage);
+                return $query->paginate($perPage);
 
-        });
+            });
 
-        return $this->successResponse(
-            message: 'Restaurants fetched successfully.',
-            data: PopularRestaurantResource::collection($restaurants->items()),
-            pagination: $this->paginationResponse($restaurants)
-        );
+            return $this->successPaginationResponse(
+                message: 'Restaurants fetched successfully.',
+                paginator: $restaurants,
+                data: PopularRestaurantResource::collection($restaurants->items())
+            );
+        } catch (Throwable $e) {
 
-    } catch (Throwable $e) {
+            Log::error('PopularRestaurant API Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
-        Log::error('PopularRestaurant API Error', [
-            'message' => $e->getMessage(),
-            'file'    => $e->getFile(),
-            'line'    => $e->getLine(),
-        ]);
-
-        return $this->serverErrorResponse(
-            message: config('app.debug')
+            return $this->serverErrorResponse(
+                message: config('app.debug')
                 ? $e->getMessage()
                 : 'Something went wrong while fetching restaurants.'
-        );
+            );
+        }
     }
-}
+
+
 }

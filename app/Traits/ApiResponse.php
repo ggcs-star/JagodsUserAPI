@@ -19,22 +19,24 @@ trait ApiResponse
         ?array $pagination = null,
         ?array $meta = null
     ): JsonResponse {
+
         if ($data === null) {
             $data = [];
         }
 
-        $response = [
-            'status' => true,
-            'success' => true,
-            'status_code' => $statusCode,
-            'errors' => [],
-            'message' => $message,
-            'data' => $data,
-        ];
-
         if (!empty($pagination)) {
-            $response['pagination'] = $pagination;
+            $pagination['data'] = $data;
+            $data = $pagination;
         }
+
+        $response = [
+            'status'      => true,
+            'success'     => true,
+            'status_code' => $statusCode,
+            'errors'      => [],
+            'message'     => $message,
+            'data'        => $data,
+        ];
 
         if (!empty($meta)) {
             $response['meta'] = $meta;
@@ -255,53 +257,65 @@ trait ApiResponse
         );
     }
 
-   public function paginationResponse($paginator, array $extraData = []): array
+    /**
+     * =====================================================
+     * Build Pagination Data Format
+     * =====================================================
+     */
+  /**
+     * =====================================================
+     * Build Pagination Data Format
+     * =====================================================
+     */
+    public function paginationResponse($paginator, mixed $data = [], array $extraData = []): array
     {
         $currentPage = $paginator->currentPage();
         $lastPage = $paginator->lastPage();
 
         $links = [];
 
-        // Previous
+        // Updated label with &laquo;
         $links[] = [
             'url' => $paginator->previousPageUrl(),
-            'label' => 'Previous',
+            'label' => '&laquo; Previous',
             'active' => false,
         ];
 
-        // Page Numbers
         for ($page = 1; $page <= $lastPage; $page++) {
             $links[] = [
                 'url' => $paginator->url($page),
                 'label' => (string) $page,
-                'active' => $page === $currentPage,
+                'active' => $page == $currentPage,
             ];
         }
 
-        // Next
+        // Updated label with &raquo;
         $links[] = [
             'url' => $paginator->nextPageUrl(),
-            'label' => 'Next',
+            'label' => 'Next &raquo;',
             'active' => false,
         ];
 
-        $pagination = [
-            'current_page' => $currentPage,
+        return array_merge([
+            'current_page'   => $currentPage,
+            
+            // 👇 Yaha 'data' ko exactly second position par set kar diya
+            'data'           => $data, 
+            
             'first_page_url' => $paginator->url(1),
-            'from' => $paginator->firstItem(),
-            'last_page' => $lastPage,
-            'last_page_url' => $paginator->url($lastPage),
-            'links' => $links,
-            'next_page_url' => $paginator->nextPageUrl(),
-            'path' => $paginator->path(),
-            'per_page' => (int) $paginator->perPage(),
-            'prev_page_url' => $paginator->previousPageUrl(),
-            'to' => $paginator->lastItem(),
-            'total' => (int) $paginator->total(),
-        ];
-
-        return array_merge($pagination, $extraData);
+            'from'           => $paginator->firstItem(),
+            'last_page'      => $lastPage,
+            'last_page_url'  => $paginator->url($lastPage),
+            'links'          => $links,
+            'next_page_url'  => $paginator->nextPageUrl(),
+            'path'           => $paginator->path(),
+            'per_page'       => (int) $paginator->perPage(),
+            'prev_page_url'  => $paginator->previousPageUrl(),
+            'to'             => $paginator->lastItem(),
+            'total'          => (int) $paginator->total(),
+        ], $extraData);
     }
+
     public function noContentResponse(): JsonResponse
     {
         return response()->json([], Response::HTTP_NO_CONTENT);
@@ -336,5 +350,43 @@ trait ApiResponse
             'device_id'     => $deviceId,
             'data'          => [],
         ], Response::HTTP_UNAUTHORIZED);
+    }
+
+    /**
+     * =====================================================
+     * Pagination Success Response
+     * =====================================================
+     * Used For:
+     * - Product Listing
+     * - Restaurant Listing
+     * - Customer Listing
+     * - Orders Listing
+     * - Notifications
+     * =====================================================
+     */
+    public function successPaginationResponse(
+        string $message,
+        $paginator,
+        mixed $data,
+        int $statusCode = Response::HTTP_OK,
+        ?array $meta = null
+    ): JsonResponse {
+
+        $response = [
+            'status'      => true,
+            'success'     => true,
+            'status_code' => $statusCode,
+            'errors'      => [],
+            'message'     => $message,
+            
+            // DRY: Code yaha dobara nahi likha, seedha method call kiya
+            'data'        => $this->paginationResponse($paginator, $data),
+        ];
+
+        if (!empty($meta)) {
+            $response['meta'] = $meta;
+        }
+
+        return response()->json($response, $statusCode);
     }
 }
