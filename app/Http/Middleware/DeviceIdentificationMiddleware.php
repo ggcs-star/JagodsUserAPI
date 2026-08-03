@@ -20,21 +20,14 @@ class DeviceIdentificationMiddleware
 
     public function handle(Request $request, Closure $next)
     {
-        $rawDeviceId = $request->header('X-Device-ID');
+        $deviceId = resolveDeviceId($request);
+
         $userAgent   = $request->userAgent();
         $language    = $request->header('Accept-Language');
         $ip          = $request->ip();
 
         $agent = new Agent();
         $agent->setUserAgent($userAgent);
-
-        if (empty($rawDeviceId)) {
-            $platform = $agent->platform() ?: 'Unknown';
-            $browser  = $agent->browser() ?: 'Unknown';
-            $deviceId = 'fb_' . hash('sha256', $userAgent . $language . $ip);
-        } else {
-            $deviceId = $rawDeviceId;
-        }
 
         $isDeviceBlocked = Cache::remember("blocked_device:{$deviceId}", 300, function () use ($deviceId) {
             return UserDevice::where('device_id', $deviceId)->where('trust_level', 'BLOCKED')->exists();
@@ -58,7 +51,15 @@ class DeviceIdentificationMiddleware
         $user       = auth('api')->user();
         $appVersion = $request->header('X-App-Version', '1.0.0');
 
-        $device = $this->deviceService->processDevice($user, $deviceId, $appVersion, $ip, $userAgent, $language, $agent);
+        $device = $this->deviceService->processDevice(
+            $user, 
+            $deviceId, 
+            $appVersion, 
+            $ip, 
+            $userAgent, 
+            $language, 
+            $agent
+        );
 
         $request->attributes->set('current_device', $device);
 

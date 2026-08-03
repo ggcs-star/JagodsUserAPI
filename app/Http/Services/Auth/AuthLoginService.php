@@ -18,6 +18,8 @@ use App\Http\Services\OtpService;
 
 class AuthLoginService
 {
+    // Yaha ApiResponse trait use mat karein kyunki service array return karti hai, JsonResponse nahi.
+    
     protected $deviceService;
     protected $riskService;
     protected $otpService;
@@ -60,12 +62,8 @@ class AuthLoginService
         $agent = new Agent();
         $agent->setUserAgent($userAgent);
 
-        $rawDeviceId = $request->header('X-Device-ID');
-        if (empty($rawDeviceId)) {
-            $deviceId = 'fb_' . hash('sha256', $userAgent . $language . $ip);
-        } else {
-            $deviceId = $rawDeviceId;
-        }
+        // Helper function ka use kiya gaya hai (Raw if-else logic hata diya)
+        $deviceId = resolveDeviceId($request);
 
         $device = $this->deviceService->processDevice(
             $user,
@@ -110,12 +108,12 @@ class AuthLoginService
             }
 
             return [
-                'status' => false,
-                'code' => 401,
+                'status'       => false,
+                'code'         => 401,
+                'message'      => 'Suspicious login detected. OTP sent to your registered contact.',
                 'requires_otp' => true,
-                'message' => 'Suspicious login detected. OTP sent to your registered contact.',
-                'risk' => $riskAnalysis,
-                'device_id' => $device->id
+                'risk'         => $riskAnalysis,
+                'device_id'    => $device->id
             ];
         }
 
@@ -179,24 +177,20 @@ class AuthLoginService
         $customClaims = $session ? ['sid' => $session->id] : [];
         $token = auth('api')->claims($customClaims)->login($user);
 
-        $restaurant = [];
         $waiterId = 0;
 
         if ($role == UserRole::WAITER && $user->waiter) {
-            $restaurant = !blank($user->waiter->restaurant) ? new RestaurantResource($user->waiter->restaurant) : [];
             $waiterId = $user->waiter->id;
-        } else {
-            $restaurant = !blank($user->restaurant) ? new RestaurantResource($user->restaurant) : [];
-        }
+        } 
 
         return [
             'status' => true,
+            'code' => 200,
             'token' => $token,
             'refresh_token' => $refreshToken,
             'expires_in' => auth('api')->factory()->getTTL() * 60,
             'user' => $user,
             'device' => $device,
-            'restaurant_data' => $restaurant,
             'waiter_id_data' => $waiterId,
         ];
     }

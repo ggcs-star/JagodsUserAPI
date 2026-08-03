@@ -11,12 +11,6 @@ trait ApiResponse
      * =====================================================
      * Success Response
      * =====================================================
-     * Used For:
-     * - Success API Response
-     * - List API
-     * - Details API
-     * - Create/Update/Delete Response
-     * =====================================================
      */
     public function successResponse(
         string $message = 'Success',
@@ -25,7 +19,6 @@ trait ApiResponse
         ?array $pagination = null,
         ?array $meta = null
     ): JsonResponse {
-
         if ($data === null) {
             $data = [];
         }
@@ -54,11 +47,6 @@ trait ApiResponse
      * =====================================================
      * Error Response
      * =====================================================
-     * Used For:
-     * - Validation Error
-     * - Business Logic Error
-     * - Exception
-     * =====================================================
      */
     public function errorResponse(
         string $message = 'Something went wrong',
@@ -66,7 +54,6 @@ trait ApiResponse
         array $errors = [],
         mixed $data = []
     ): JsonResponse {
-
         if ($data === null) {
             $data = [];
         }
@@ -79,6 +66,74 @@ trait ApiResponse
             'message' => $message,
             'data' => $data,
         ], $statusCode);
+    }
+
+    /**
+     * =====================================================
+     * Login Success Response (NEW)
+     * =====================================================
+     */
+    public function loginSuccessResponse(
+        string $message = 'Login successful',
+        mixed $userResource = [],
+        array $additionalData = [],
+        int $statusCode = Response::HTTP_OK
+    ): JsonResponse {
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'status_code' => $statusCode,
+            'errors' => [],
+            'message' => $message,
+            'data' => $userResource,
+            'meta' => $additionalData
+        ], $statusCode);
+    }
+
+    /**
+     * =====================================================
+     * Login / Auth Failure Response (NEW)
+     * =====================================================
+     */
+    public function loginFailedResponse(
+        string $message = 'Authentication failed',
+        int $statusCode = Response::HTTP_UNAUTHORIZED,
+        bool $requiresOtp = false,
+        mixed $risk = null,
+        mixed $deviceId = null,
+        array $errors = []
+    ): JsonResponse {
+        return response()->json([
+            'status' => false,
+            'success' => false,
+            'status_code' => $statusCode,
+            'message' => $message,
+            'errors' => $errors,
+            'requires_otp' => $requiresOtp,
+            'risk' => $risk,
+            'device_id' => $deviceId,
+            'data' => [],
+        ], $statusCode);
+    }
+
+    /**
+     * =====================================================
+     * Rate Limiting / Too Many Attempts Response (NEW)
+     * =====================================================
+     */
+    public function rateLimitResponse(
+        string $message = 'Too many attempts. Please try again later.',
+        int $retryAfterSeconds = 60
+    ): JsonResponse {
+        return response()->json([
+            'status' => false,
+            'success' => false,
+            'status_code' => Response::HTTP_TOO_MANY_REQUESTS,
+            'message' => $message,
+            'errors' => [],
+            'retry_after' => $retryAfterSeconds,
+            'data' => [],
+        ], Response::HTTP_TOO_MANY_REQUESTS);
     }
 
     /**
@@ -103,7 +158,6 @@ trait ApiResponse
     public function unauthorizedResponse(
         string $message = 'Unauthorized access'
     ): JsonResponse {
-
         return $this->errorResponse(
             message: $message,
             statusCode: Response::HTTP_UNAUTHORIZED,
@@ -124,7 +178,6 @@ trait ApiResponse
     public function forbiddenResponse(
         string $message = 'Access Forbidden'
     ): JsonResponse {
-
         return $this->errorResponse(
             message: $message,
             statusCode: Response::HTTP_FORBIDDEN,
@@ -145,7 +198,6 @@ trait ApiResponse
     public function notFoundResponse(
         string $message = 'Record Not Found'
     ): JsonResponse {
-
         return $this->errorResponse(
             message: $message,
             statusCode: Response::HTTP_NOT_FOUND,
@@ -167,7 +219,6 @@ trait ApiResponse
         string $message = 'Created Successfully',
         mixed $data = []
     ): JsonResponse {
-
         return $this->successResponse(
             message: $message,
             data: $data,
@@ -184,7 +235,6 @@ trait ApiResponse
         string $message = 'Updated Successfully',
         mixed $data = []
     ): JsonResponse {
-
         return $this->successResponse(
             message: $message,
             data: $data
@@ -199,58 +249,13 @@ trait ApiResponse
     public function deletedResponse(
         string $message = 'Deleted Successfully'
     ): JsonResponse {
-
         return $this->successResponse(
             message: $message,
             data: []
         );
     }
 
-    /**
-     * =====================================================
-     * No Content Response
-     * =====================================================
-     */
-    public function noContentResponse(): JsonResponse
-    {
-        return response()->json([], Response::HTTP_NO_CONTENT);
-    }
-    public function serverErrorResponse(
-        string $message = 'Internal Server Error',
-        array $errors = [],
-        mixed $data = []
-    ): JsonResponse {
-
-        return $this->errorResponse(
-            message: $message,
-            statusCode: Response::HTTP_INTERNAL_SERVER_ERROR,
-            errors: $errors,
-            data: $data
-        );
-    }
-
-    public function tooManyRequestsResponse(
-        string $message = 'Too many attempts. Please try again later.',
-        int $retryAfter = 60,
-        bool $requiresOtp = false,
-        mixed $risk = null,
-        array $errors = []
-    ): JsonResponse {
-
-        return response()->json([
-            'status' => false,
-            'success' => false,
-            'status_code' => Response::HTTP_TOO_MANY_REQUESTS,
-            'message' => $message,
-            'errors' => $errors,
-            'requires_otp' => $requiresOtp,
-            'risk' => $risk,
-            'retry_after' => $retryAfter,
-            'data' => [],
-        ], Response::HTTP_TOO_MANY_REQUESTS);
-    }
-
-    public function paginationResponse($paginator, array $extraData = []): array
+   public function paginationResponse($paginator, array $extraData = []): array
     {
         $currentPage = $paginator->currentPage();
         $lastPage = $paginator->lastPage();
@@ -296,5 +301,40 @@ trait ApiResponse
         ];
 
         return array_merge($pagination, $extraData);
+    }
+    public function noContentResponse(): JsonResponse
+    {
+        return response()->json([], Response::HTTP_NO_CONTENT);
+    }
+
+    public function serverErrorResponse(
+        string $message = 'Internal Server Error',
+        array $errors = [],
+        mixed $data = []
+    ): JsonResponse {
+        return $this->errorResponse(
+            message: $message,
+            statusCode: Response::HTTP_INTERNAL_SERVER_ERROR,
+            errors: $errors,
+            data: $data
+        );
+    }
+
+    public function otpRequiredResponse(
+        string $message = 'OTP verification required.',
+        mixed $risk = null,
+        mixed $deviceId = null
+    ): JsonResponse {
+        return response()->json([
+            'status'        => false,
+            'success'       => false,
+            'status_code'   => Response::HTTP_UNAUTHORIZED,
+            'message'       => $message,
+            'errors'        => [],
+            'requires_otp'  => true,
+            'risk'          => $risk,
+            'device_id'     => $deviceId,
+            'data'          => [],
+        ], Response::HTTP_UNAUTHORIZED);
     }
 }
