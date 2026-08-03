@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use App\Notifications\OneTimePasswordSend;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class OtpService
 {
@@ -14,13 +15,16 @@ class OtpService
 
     public function generateAndSend($user, $purpose, $deviceId, $ip)
     {
-
         $identifier = $user->email ?: ($user->phone ?: $deviceId);
         $rateLimitKey = "send_otp_{$purpose}_" . md5($identifier);
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, 1)) {
             $seconds = RateLimiter::availableIn($rateLimitKey);
-            return ['status' => false, 'code' => 429, 'message' => "Too many attempts. Wait {$seconds} seconds."];
+            return [
+                'status' => false, 
+                'code' => Response::HTTP_TOO_MANY_REQUESTS, 
+                'message' => "Too many attempts. Wait {$seconds} seconds."
+            ];
         }
 
         $otpCode = rand(100000, 999999);
@@ -35,22 +39,23 @@ class OtpService
 
         try {
             $user->notify(new OneTimePasswordSend($otpCode));
-
             RateLimiter::hit($rateLimitKey, 60);
-
         } catch (Exception $e) {
             Log::error("Universal OTP Failed", ['error' => $e->getMessage()]);
-            return ['status' => false, 'code' => 500, 'message' => 'Failed to send OTP. Try again later.'];
+            return [
+                'status' => false, 
+                'code' => Response::HTTP_INTERNAL_SERVER_ERROR, 
+                'message' => 'Failed to send OTP. Try again later.'
+            ];
         }
 
         return [
             'status' => true,
-            'code' => 200,
+            'code' => Response::HTTP_OK,
             'message' => 'OTP sent successfully.',
             'expires_in' => self::OTP_EXPIRY_MINUTES
         ];
     }
-
 
     public function verify($user, $purpose, $otpInput, $deviceId, $ip)
     {
@@ -64,12 +69,20 @@ class OtpService
         $cachedOtp = Cache::get($cacheKey);
 
         if (!$cachedOtp || $cachedOtp != $otpInput) {
-            return ['status' => false, 'message' => 'Invalid or expired OTP.'];
+            return [
+                'status' => false, 
+                'code' => Response::HTTP_BAD_REQUEST,
+                'message' => 'Invalid or expired OTP.'
+            ];
         }
 
         Cache::forget($cacheKey);
 
-        return ['status' => true, 'message' => 'OTP verified.'];
+        return [
+            'status' => true, 
+            'code' => Response::HTTP_OK,
+            'message' => 'OTP verified.'
+        ];
     }
 
     private function buildOtpCacheKey(
@@ -78,7 +91,6 @@ class OtpService
         $deviceId,
         $ip
     ): string {
-
         return sprintf(
             'otp:%s:%s:%s:%s',
             $userId,

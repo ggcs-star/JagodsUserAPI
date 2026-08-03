@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\v1\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Resources\v1\PrivateUserResource;
+use App\Http\Resources\v1\MeResource; 
 use App\Http\Services\Auth\AuthLoginService;
+use App\Traits\ApiResponse;
 
 class LoginController extends Controller
 {
+    use ApiResponse; 
     protected $authLoginService;
 
     public function __construct(AuthLoginService $authLoginService)
@@ -31,21 +33,32 @@ class LoginController extends Controller
         $response = $this->authLoginService->login($credentials, $request, $request->role);
 
         if (!$response['status']) {
-            return response()->json([
-                'status' => $response['code'],
-                'message' => $response['message'],
-                'requires_otp' => $response['requires_otp'] ?? false,
-                'risk' => $response['risk'] ?? null,
-            ], $response['code']);
+            if (isset($response['requires_otp']) && $response['requires_otp']) {
+                return $this->otpRequiredResponse(
+                    message: $response['message'],
+                    risk: $response['risk'] ?? null,
+                    deviceId: $response['device_id'] ?? null
+                );
+            }
+
+            return $this->errorResponse(
+                message: $response['message'], 
+                statusCode: $response['code'] ?? 400
+            );
         }
 
-        return (new PrivateUserResource($response['user']))
-            ->additional([
-                'token' => $response['token'],
-                'refresh_token' => $response['refresh_token'],
-                'expires_in' => $response['expires_in'],
-                'restaurant' => $response['restaurant_data'],
-                'waiter_id' => $response['waiter_id_data'],
-            ]);
+        $userData = (new MeResource($response['user']))->resolve();
+
+        $mergedData = array_merge($userData, [
+            'token' => $response['token'],
+            'refresh_token' => $response['refresh_token'],
+            'expires_in' => $response['expires_in'],
+            'waiter_id' => $response['waiter_id_data'], 
+        ]);
+
+        return $this->successResponse(
+            message: 'Successfully Logged In',
+            data: $mergedData
+        );
     }
 }

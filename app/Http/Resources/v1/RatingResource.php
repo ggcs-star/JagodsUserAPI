@@ -16,15 +16,15 @@ class RatingResource extends JsonResource
     public function toArray($request)
     {
         return [
-            'id'                => $this->id,
-            'restaurant_id'     =>$this->restaurant_id,
-            'rating'            =>$this->rating,
-            'user_id'           =>(int)$this->user_id,
-            'user'              =>$this->user->name,
-            'userImage'         =>$this->user->image,
-            'image'             =>$this->image,
-            'review'            =>$this->review,
-            'created_at'        =>$this->created_at->format('d M Y, h:i A'),
+            'id'            => $this->id,
+            'restaurant_id' => $this->restaurant_id,
+            'rating'        => $this->rating,
+            'user_id'       => (int) $this->user_id,
+            'user'          => $this->user?->name ?? 'Anonymous',
+            'userImage'     => $this->user?->image,
+            'image'         => $this->image,
+            'review'        => $this->review,
+            'created_at'    => optional($this->created_at)->format('d M Y, h:i A'),
         ];
     }
 

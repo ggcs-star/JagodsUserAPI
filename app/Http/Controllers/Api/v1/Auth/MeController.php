@@ -34,20 +34,26 @@ class MeController extends Controller
         $this->middleware('auth:api');
         $this->otpService = $otpService;
     }
-    public function action(Request $request)
-    {
-        try {
-            $data = new MeResource($request->user());
-        } catch (\Exception $e) {
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => $e->getTrace(),
-            ]);
-        }
+   public function action(Request $request)
+{
+    try {
 
-        return $this->successResponse($data);
+        $data = new MeResource($request->user());
+
+        return $this->successResponse(
+            message: 'Profile fetched successfully.',
+            data: $data
+        );
+
+    } catch (\Throwable $e) {
+
+        return $this->serverErrorResponse(
+            message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+        );
     }
+}
 
     public function refresh()
     {

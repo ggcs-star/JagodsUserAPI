@@ -14,6 +14,7 @@ use App\Http\Services\DeviceIdentificationService;
 use App\Enums\UserStatus;
 use Exception;
 use Jenssegers\Agent\Agent;
+
 class AuthRegisterService
 {
     protected $otpService;
@@ -29,7 +30,6 @@ class AuthRegisterService
         $this->authLoginService = $authLoginService;
         $this->deviceService = $deviceService;
     }
-
 
     public function processRegistrationOtp(array $requestData, string $deviceId, string $ip): array
     {
@@ -77,7 +77,7 @@ class AuthRegisterService
         ];
     }
 
-  public function verifyAndRegister($request, string $tempToken, string $otp, string $deviceId): array
+    public function verifyAndRegister($request, string $tempToken, string $otp, string $deviceId): array
     {
         $rateLimitKey = "verify_reg_" . $tempToken;
         if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
@@ -162,7 +162,6 @@ class AuthRegisterService
 
         \Illuminate\Support\Facades\Cache::forget($cacheKey);
 
-        // 🚨 YAHAN FIX KIYA GAYA HAI - Agent aur Fallback ID Generate karke pass karna
         $userAgent = $request->userAgent();
         $language = $request->header('Accept-Language');
         $ip = $request->ip();
@@ -170,22 +169,16 @@ class AuthRegisterService
         $agent = new \Jenssegers\Agent\Agent();
         $agent->setUserAgent($userAgent);
 
-        $rawDeviceId = $request->header('X-Device-ID');
-        if (empty($rawDeviceId)) {
-            $finalDeviceId = 'fb_' . hash('sha256', $userAgent . $language . $ip);
-        } else {
-            $finalDeviceId = $rawDeviceId;
-        }
+      
 
-        // 🚨 Ab 7 arguments pass ho rahe hain properly
         $device = $this->deviceService->processDevice(
             $mainuser,
-            $finalDeviceId,
+            $deviceId,
             $request->header('X-App-Version', '1.0.0'),
             $ip,
             $userAgent,
             $language,
-            $agent // 7th Argument!
+            $agent 
         );
 
         $loginResponse = $this->authLoginService->otpLogin($mainuser, $device, $request, $userData['role']);
