@@ -33,6 +33,7 @@ class AddressRequest extends FormRequest
             'long'        => ['required'],
             'new_address' => ['required', 'max:200'],
             'apartment'   => ['max:200'],
+            'pincode'     => ['required', 'numeric', 'digits:6'],
         ];
     }
 

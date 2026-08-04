@@ -30,12 +30,32 @@ class PasswordUpdateRequest extends Request
      *
      * @return array
      */
-    public function rules()
-    {
-        return [
-            'password_current'      => ['required', new CurrentPassword()],
-            'password'              => 'required|string|min:6|confirmed',
-            'password_confirmation' => 'required|string|min:6',
-        ];
-    }
+  public function rules()
+{
+    return [
+        'password_current' => [
+            'required',
+            new CurrentPassword(),
+        ],
+
+        'password' => [
+            'required',
+            'string',
+            'min:6',
+            'confirmed',
+            'different:password_current',
+        ],
+
+        'password_confirmation' => [
+            'required',
+            'string',
+            'min:6',
+        ],
+
+        'logout_other_devices' => [
+            'nullable',
+            'boolean',
+        ],
+    ];
+}
 }

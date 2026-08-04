@@ -24,16 +24,21 @@ use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use App\Http\Services\OtpService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
-
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+use App\Http\Services\Security\ActiveSessionService;
+use Throwable;
 class MeController extends Controller
 {
     use ApiResponse;
     protected $otpService;
+    protected $sessionService;
 
-    public function __construct(OtpService $otpService)
+    public function __construct(OtpService $otpService, ActiveSessionService $sessionService)
     {
         $this->middleware('auth:api');
         $this->otpService = $otpService;
+        $this->sessionService = $sessionService;
     }
 
     public function action(Request $request)
@@ -193,30 +198,44 @@ class MeController extends Controller
 
     private function performDirectUpdate($profile, $request, $firstName, $lastName)
     {
+        $oldAddress = $profile->address;
+
         $profile->first_name = $firstName;
         $profile->last_name = $lastName;
-        $profile->address = $request->get('address');
+        $profile->address = $request->address;
 
-        if ($request->username) {
+        if ($request->filled('username')) {
             $profile->username = $request->username;
         }
+
         $profile->save();
 
-        if ($profile->address != $request->get('address') && !empty($request->get('address'))) {
-            Address::create([
-                'label' => AddressType::HOME,
-                'address' => $request->get('address'),
-                'label_name' => trans('address_types.' . AddressType::HOME),
-                'user_id' => $profile->id,
-            ]);
+        if ($oldAddress != $request->address && !empty($request->address)) {
+            Address::updateOrCreate(
+                [
+                    'user_id' => $profile->id,
+                    'label' => AddressType::HOME,
+                ],
+                [
+                    'address' => $request->address,
+                    'label_name' => trans('address_types.' . AddressType::HOME),
+                ]
+            );
         }
 
-        if ($request->file('image')) {
+        if ($request->hasFile('image')) {
             $profile->media()->delete();
-            $profile->addMedia($request->file('image'))->toMediaCollection('user');
+            $profile->addMedia($request->file('image'))
+                ->toMediaCollection('user');
         }
 
-        return $this->updatedResponse('Successfully Updated Profile');
+        // Fresh data reload
+        $profile->refresh();
+
+        return $this->successResponse(
+            message: 'Profile updated successfully!',
+            data: new MeResource($profile)
+        );
     }
 
     private function splitName($name)
@@ -229,18 +248,63 @@ class MeController extends Controller
 
     public function changePassword(Request $request)
     {
-        $validator = new PasswordUpdateRequest();
-        $validator = Validator::make($request->all(), $validator->rules());
+        try {
 
-        if ($validator->fails()) {
-            return $this->validationResponse($validator->errors()->toArray());
+            $validator = Validator::make(
+                $request->all(),
+                (new PasswordUpdateRequest())->rules()
+            );
+
+            if ($validator->fails()) {
+
+                return $this->validationResponse(
+                    $validator->errors()->toArray()
+                );
+            }
+
+            $profile = auth()->user();
+
+            if (!$profile) {
+
+                return $this->unauthorizedResponse(
+                    'Unauthorized access.'
+                );
+            }
+
+            $profile->password = Hash::make($request->password);
+            $profile->save();
+
+            // Optional: Logout other devices
+            if ($request->boolean('logout_other_devices')) {
+
+                $currentDevice = $request->attributes->get('current_device');
+
+                if ($currentDevice) {
+                    $this->sessionService->logoutAllOtherDevices(
+                        $profile->id,
+                        $currentDevice->id
+                    );
+                }
+            }
+
+            return $this->updatedResponse(
+                message: 'Password updated successfully.'
+            );
+
+        } catch (ValidationException $e) {
+
+            return $this->validationResponse(
+                $e->errors()
+            );
+
+        } catch (Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
         }
-
-        $profile = auth()->user();
-        $profile->password = bcrypt($request->get('password'));
-        $profile->save();
-
-        return $this->updatedResponse('Successfully Updated Password');
     }
 
     public function device(Request $request)

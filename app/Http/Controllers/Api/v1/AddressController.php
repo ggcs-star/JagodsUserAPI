@@ -2,89 +2,129 @@
 
 namespace App\Http\Controllers\Api\v1;
 
+use App\Http\Controllers\BackendController;
+use App\Http\Requests\AddressRequest;
+use App\Http\Resources\v1\AddressResource;
+use App\Http\Services\AddressService;
 use App\Models\Address;
-use App\Models\Cuisine;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Http\Requests\AddressRequest;
-use App\Http\Services\AddressService;
-use App\Http\Services\CuisineService;
-use App\Http\Requests\Api\CuisineRequest;
-use Illuminate\Support\Facades\Validator;
-use App\Http\Resources\v1\AddressResource;
-use App\Http\Resources\v1\CuisineResource;
-use App\Http\Controllers\BackendController;
-use App\Http\Resources\v1\RestaurantResource;
-use App\Http\Resources\v1\PopularRestaurantResource;
 
 class AddressController extends BackendController
 {
     use ApiResponse;
-    protected  $addressService;
+
+    protected AddressService $addressService;
 
     public function __construct(AddressService $addressService)
     {
         parent::__construct();
-        $this->middleware('auth:api');
-        $this->addressService = $addressService;
 
+        $this->middleware('auth:api');
+
+        $this->addressService = $addressService;
     }
-    /**
-     * Display a listing of the resource.
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+
+
     public function index()
     {
-        try{
-            $addresses = AddressResource::collection($this->addressService->allAddresses());
-            return response()->json(['status'=> 200, 'data' => $addresses]);
+        try {
 
-        } catch (\Exception $e){
-            return response()->json([
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'trace' => $e->getTrace(),
-            ]);
+            $addresses = $this->addressService->allAddresses();
+
+            return $this->successResponse(
+                message: 'Address list fetched successfully.',
+                data: AddressResource::collection($addresses)
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
         }
     }
+
 
     public function store(AddressRequest $request)
     {
-        $address = app(AddressService::class)->store($request);
-        if ($address) {
-            return $this->successResponse(['status'=> 200, 
-                                            'address'=>new AddressResource($address), 
-                                            'message' => "Address Added Successfully !"
-                                        ]);
+        try {
+
+            $address = $this->addressService->store($request);
+
+            return $this->createdResponse(
+                message: 'Address added successfully.',
+                data: new AddressResource($address)
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
         }
-        return $this->successResponse(['status'=> 401, 'message' => "Something Wrong !"]);
     }
+
 
     public function update(AddressRequest $request, $id)
     {
-        $address = Address::findOrFail($id);
-        $address = app(AddressService::class)->update($address,$request);
-        if ($address) {
-            return $this->successResponse(['status'=> 200,
-                                            'address'=>new AddressResource($address), 
-                                            'message' => "Address Updated Successfully !"]);
-        }
-        return $this->successResponse(['status'=> 401, 'message' => "Something Wrong !"]);
+        try {
 
+            $address = Address::find($id);
+
+            if (!$address) {
+                return $this->notFoundResponse('Address not found.');
+            }
+
+            $address = $this->addressService->update($address, $request);
+
+            return $this->updatedResponse(
+                message: 'Address updated successfully.',
+                data: new AddressResource($address)
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
+        }
     }
 
-    public function destroy($id)
-    {
-        $address = Address::find($id);
-        if($address){
-            $address->delete();
-            return $this->successResponse(['status'=> 200, 'message' => "Address Deleted Successfully !"]);
+
+   public function destroy($id)
+{
+    try {
+
+        $address = Address::where('id', $id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$address) {
+            return $this->notFoundResponse(
+                'Address not found.'
+            );
         }
-        return $this->successResponse(['status'=> 401, 'message' => "Something Wrong !"]);
 
+        $address->delete();
 
+        return $this->deletedResponse(
+            message: 'Address deleted successfully.'
+        );
+
+    } catch (\Throwable $e) {
+
+        return $this->serverErrorResponse(
+            message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+        );
     }
-
+}
 }

@@ -185,7 +185,7 @@ Route::group(['prefix' => 'v1'], function () {
 
     Route::get('address', [AddressController::class, 'index']);
     Route::post('address-store', [AddressController::class, 'store']);
-    Route::put('address-update/update/{id}', [AddressController::class, 'update']);
+    Route::put('address-update/{id}', [AddressController::class, 'update']);
     Route::delete('address-delete/{id}', [AddressController::class, 'destroy']);
 });
 
