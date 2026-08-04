@@ -99,7 +99,7 @@ class RouteServiceProvider extends ServiceProvider
 
             $key = $this->rateLimitKey($request);
 
-            return Limit::perMinutes(1, 2)
+            return Limit::perMinutes(1, 5)
                 ->by($key)
                 ->response(function () use ($key) {
 

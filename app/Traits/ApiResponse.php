@@ -7,11 +7,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 trait ApiResponse
 {
-    /**
-     * =====================================================
-     * Success Response
-     * =====================================================
-     */
+
     public function successResponse(
         string $message = 'Success',
         mixed $data = [],
@@ -30,12 +26,12 @@ trait ApiResponse
         }
 
         $response = [
-            'status'      => true,
-            'success'     => true,
+            'status' => true,
+            'success' => true,
             'status_code' => $statusCode,
-            'errors'      => [],
-            'message'     => $message,
-            'data'        => $data,
+            'errors' => [],
+            'message' => $message,
+            'data' => $data,
         ];
 
         if (!empty($meta)) {
@@ -45,11 +41,7 @@ trait ApiResponse
         return response()->json($response, $statusCode);
     }
 
-    /**
-     * =====================================================
-     * Error Response
-     * =====================================================
-     */
+
     public function errorResponse(
         string $message = 'Something went wrong',
         int $statusCode = Response::HTTP_BAD_REQUEST,
@@ -70,11 +62,6 @@ trait ApiResponse
         ], $statusCode);
     }
 
-    /**
-     * =====================================================
-     * Login Success Response (NEW)
-     * =====================================================
-     */
     public function loginSuccessResponse(
         string $message = 'Login successful',
         mixed $userResource = [],
@@ -92,11 +79,7 @@ trait ApiResponse
         ], $statusCode);
     }
 
-    /**
-     * =====================================================
-     * Login / Auth Failure Response (NEW)
-     * =====================================================
-     */
+
     public function loginFailedResponse(
         string $message = 'Authentication failed',
         int $statusCode = Response::HTTP_UNAUTHORIZED,
@@ -118,11 +101,7 @@ trait ApiResponse
         ], $statusCode);
     }
 
-    /**
-     * =====================================================
-     * Rate Limiting / Too Many Attempts Response (NEW)
-     * =====================================================
-     */
+
     public function rateLimitResponse(
         string $message = 'Too many attempts. Please try again later.',
         int $retryAfterSeconds = 60
@@ -138,11 +117,7 @@ trait ApiResponse
         ], Response::HTTP_TOO_MANY_REQUESTS);
     }
 
-    /**
-     * =====================================================
-     * Validation Error Response
-     * =====================================================
-     */
+
     public function validationResponse(array $errors): JsonResponse
     {
         return $this->errorResponse(
@@ -152,11 +127,7 @@ trait ApiResponse
         );
     }
 
-    /**
-     * =====================================================
-     * Unauthorized Response
-     * =====================================================
-     */
+
     public function unauthorizedResponse(
         string $message = 'Unauthorized access'
     ): JsonResponse {
@@ -172,11 +143,7 @@ trait ApiResponse
         );
     }
 
-    /**
-     * =====================================================
-     * Forbidden Response
-     * =====================================================
-     */
+
     public function forbiddenResponse(
         string $message = 'Access Forbidden'
     ): JsonResponse {
@@ -192,11 +159,7 @@ trait ApiResponse
         );
     }
 
-    /**
-     * =====================================================
-     * Not Found Response
-     * =====================================================
-     */
+
     public function notFoundResponse(
         string $message = 'Record Not Found'
     ): JsonResponse {
@@ -212,11 +175,7 @@ trait ApiResponse
         );
     }
 
-    /**
-     * =====================================================
-     * Created Response
-     * =====================================================
-     */
+
     public function createdResponse(
         string $message = 'Created Successfully',
         mixed $data = []
@@ -228,11 +187,7 @@ trait ApiResponse
         );
     }
 
-    /**
-     * =====================================================
-     * Updated Response
-     * =====================================================
-     */
+
     public function updatedResponse(
         string $message = 'Updated Successfully',
         mixed $data = []
@@ -243,11 +198,7 @@ trait ApiResponse
         );
     }
 
-    /**
-     * =====================================================
-     * Deleted Response
-     * =====================================================
-     */
+
     public function deletedResponse(
         string $message = 'Deleted Successfully'
     ): JsonResponse {
@@ -257,64 +208,8 @@ trait ApiResponse
         );
     }
 
-    /**
-     * =====================================================
-     * Build Pagination Data Format
-     * =====================================================
-     */
-  /**
-     * =====================================================
-     * Build Pagination Data Format
-     * =====================================================
-     */
-    public function paginationResponse($paginator, mixed $data = [], array $extraData = []): array
-    {
-        $currentPage = $paginator->currentPage();
-        $lastPage = $paginator->lastPage();
 
-        $links = [];
 
-        // Updated label with &laquo;
-        $links[] = [
-            'url' => $paginator->previousPageUrl(),
-            'label' => '&laquo; Previous',
-            'active' => false,
-        ];
-
-        for ($page = 1; $page <= $lastPage; $page++) {
-            $links[] = [
-                'url' => $paginator->url($page),
-                'label' => (string) $page,
-                'active' => $page == $currentPage,
-            ];
-        }
-
-        // Updated label with &raquo;
-        $links[] = [
-            'url' => $paginator->nextPageUrl(),
-            'label' => 'Next &raquo;',
-            'active' => false,
-        ];
-
-        return array_merge([
-            'current_page'   => $currentPage,
-            
-            // 👇 Yaha 'data' ko exactly second position par set kar diya
-            'data'           => $data, 
-            
-            'first_page_url' => $paginator->url(1),
-            'from'           => $paginator->firstItem(),
-            'last_page'      => $lastPage,
-            'last_page_url'  => $paginator->url($lastPage),
-            'links'          => $links,
-            'next_page_url'  => $paginator->nextPageUrl(),
-            'path'           => $paginator->path(),
-            'per_page'       => (int) $paginator->perPage(),
-            'prev_page_url'  => $paginator->previousPageUrl(),
-            'to'             => $paginator->lastItem(),
-            'total'          => (int) $paginator->total(),
-        ], $extraData);
-    }
 
     public function noContentResponse(): JsonResponse
     {
@@ -334,10 +229,83 @@ trait ApiResponse
         );
     }
 
+  
+
+    protected function paginationResponse($paginator, mixed $data = [], array $extraData = []): array
+    {
+        $currentPage = $paginator->currentPage();
+        $lastPage = $paginator->lastPage();
+
+        $links = [];
+
+        $links[] = [
+            'url' => $paginator->previousPageUrl(),
+            'label' => '&laquo; Previous',
+            'active' => false,
+        ];
+
+        for ($page = 1; $page <= $lastPage; $page++) {
+            $links[] = [
+                'url' => $paginator->url($page),
+                'label' => (string) $page,
+                'active' => $page == $currentPage,
+            ];
+        }
+
+        $links[] = [
+            'url' => $paginator->nextPageUrl(),
+            'label' => 'Next &raquo;',
+            'active' => false,
+        ];
+
+        return array_merge([
+            'current_page' => $currentPage,
+
+            'data' => $data,
+
+            'first_page_url' => $paginator->url(1),
+            'from' => $paginator->firstItem(),
+            'last_page' => $lastPage,
+            'last_page_url' => $paginator->url($lastPage),
+            'links' => $links,
+            'next_page_url' => $paginator->nextPageUrl(),
+            'path' => $paginator->path(),
+            'per_page' => (int) $paginator->perPage(),
+            'prev_page_url' => $paginator->previousPageUrl(),
+            'to' => $paginator->lastItem(),
+            'total' => (int) $paginator->total(),
+        ], $extraData);
+    }
+    public function successPaginationResponse(
+        string $message,
+        $paginator,
+        mixed $data,
+        int $statusCode = Response::HTTP_OK,
+        ?array $meta = null
+    ): JsonResponse {
+
+        $response = [
+            'status' => true,
+            'success' => true,
+            'status_code' => $statusCode,
+            'errors' => [],
+            'message' => $message,
+
+            'data' => $this->paginationResponse($paginator, $data),
+        ];
+
+        if (!empty($meta)) {
+            $response['meta'] = $meta;
+        }
+
+        return response()->json($response, $statusCode);
+    }
+
     public function otpRequiredResponse(
         string $message = 'OTP verification required.',
         mixed $risk = null,
-        mixed $deviceId = null
+        mixed $deviceId = null,
+        array $data = [] // 👇 Yaha $data array add kiya hai
     ): JsonResponse {
         return response()->json([
             'status'        => false,
@@ -348,45 +316,7 @@ trait ApiResponse
             'requires_otp'  => true,
             'risk'          => $risk,
             'device_id'     => $deviceId,
-            'data'          => [],
+            'data'          => $data, // 👇 Yaha data bind kiya hai
         ], Response::HTTP_UNAUTHORIZED);
-    }
-
-    /**
-     * =====================================================
-     * Pagination Success Response
-     * =====================================================
-     * Used For:
-     * - Product Listing
-     * - Restaurant Listing
-     * - Customer Listing
-     * - Orders Listing
-     * - Notifications
-     * =====================================================
-     */
-    public function successPaginationResponse(
-        string $message,
-        $paginator,
-        mixed $data,
-        int $statusCode = Response::HTTP_OK,
-        ?array $meta = null
-    ): JsonResponse {
-
-        $response = [
-            'status'      => true,
-            'success'     => true,
-            'status_code' => $statusCode,
-            'errors'      => [],
-            'message'     => $message,
-            
-            // DRY: Code yaha dobara nahi likha, seedha method call kiya
-            'data'        => $this->paginationResponse($paginator, $data),
-        ];
-
-        if (!empty($meta)) {
-            $response['meta'] = $meta;
-        }
-
-        return response()->json($response, $statusCode);
     }
 }

@@ -19,7 +19,7 @@ class LoginController extends Controller
         $this->authLoginService = $authLoginService;
     }
 
-    public function action(LoginRequest $request)
+  public function action(LoginRequest $request)
     {
         $login = trim($request->email);
 
@@ -37,7 +37,14 @@ class LoginController extends Controller
                 return $this->otpRequiredResponse(
                     message: $response['message'],
                     risk: $response['risk'] ?? null,
-                    deviceId: $response['device_id'] ?? null
+                    deviceId: $response['device_id'] ?? null,
+                    // 👇 Data me frontend ke liye instructions bhej diye
+                    data: [
+                        'temp_token' => $response['temp_token'],
+                        'purpose'    => $response['purpose'],
+                        'expires_in' => 10,
+                        'verify_instructions' => 'Pass this temp_token and otp to the /verify endpoint.'
+                    ]
                 );
             }
 

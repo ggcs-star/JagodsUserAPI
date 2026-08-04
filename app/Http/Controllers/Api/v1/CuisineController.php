@@ -31,27 +31,27 @@ class CuisineController extends BackendController
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-   public function index(Request $request)
-{
-    try {
+    public function index(Request $request)
+    {
+        try {
 
-        $cuisines = $this->cuisineService->allCuisines($request);
+            $cuisines = $this->cuisineService->allCuisines($request);
 
-        return $this->successResponse(
-            message: 'Cuisine list fetched successfully.',
-            data: CuisineResource::collection($cuisines->items()),
-            pagination: $this->paginationResponse($cuisines)
-        );
+            return $this->successPaginationResponse(
+                message: 'Cuisine list fetched successfully.',
+                paginator: $cuisines,
+                data: CuisineResource::collection($cuisines->items())
+            );
 
-    } catch (\Throwable $e) {
+        } catch (\Throwable $e) {
 
-        return $this->serverErrorResponse(
-            message: config('app.debug')
+            return $this->serverErrorResponse(
+                message: config('app.debug')
                 ? $e->getMessage()
                 : 'Internal Server Error'
-        );
+            );
+        }
     }
-}
 
     public function show(Request $request)
     {
@@ -77,8 +77,8 @@ class CuisineController extends BackendController
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Internal Server Error'
+                ? $e->getMessage()
+                : 'Internal Server Error'
             );
         }
     }

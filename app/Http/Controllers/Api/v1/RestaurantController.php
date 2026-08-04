@@ -219,11 +219,11 @@ public function menuItems(Request $request)
             ->latest()
             ->paginate($perPage);
 
-        return $this->successResponse(
-            message: 'Menu items fetched successfully.',
-            data: MenuItemResource::collection($menuItems->items()),
-            pagination: $this->paginationResponse($menuItems)
-        );
+   return $this->successPaginationResponse(
+    message: 'Menu items fetched successfully.',
+    paginator: $menuItems,
+    data: MenuItemResource::collection($menuItems->items())
+);
 
     } catch (\Throwable $e) {
 

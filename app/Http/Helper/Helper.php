@@ -466,7 +466,6 @@ if (!function_exists('greeting')) {
                 return $rawDeviceId;
             }
 
-            // Fallback Device ID using hash
             return 'fb_' . hash(
                 'sha256',
                 $request->userAgent() . $request->header('Accept-Language', '') . $request->ip()
