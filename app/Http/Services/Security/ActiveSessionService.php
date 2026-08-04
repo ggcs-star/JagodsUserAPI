@@ -6,7 +6,7 @@ use App\Models\UserDevice;
 use App\Models\DeviceSession;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache; // 🚨 CACHE IMPORT ADDED
+use Illuminate\Support\Facades\Cache; 
 use Exception;
 
 class ActiveSessionService
@@ -113,7 +113,7 @@ class ActiveSessionService
         return ['status' => true, 'code' => 200, 'message' => 'Remote device logged out successfully.'];
     }
 
-    private function logoutAllOtherDevices($userId, $currentDbId)
+    public function logoutAllOtherDevices($userId, $currentDbId)
     {
         $activeSessions = DeviceSession::where('user_id', $userId)
             ->where('user_device_id', '!=', $currentDbId)

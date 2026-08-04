@@ -51,6 +51,7 @@ public function allAddresses()
     $address->apartment  = $request->apartment;
     $address->latitude   = $request->lat;
     $address->longitude  = $request->long;
+    $address->pincode    = $request->pincode;
     $address->user_id    = auth()->id();
 
     $address->is_default = $request->is_default ?? 0;
@@ -82,6 +83,7 @@ public function allAddresses()
     $address->apartment  = $request->apartment;
     $address->latitude   = $request->lat;
     $address->longitude  = $request->long;
+    $address->pincode    = $request->pincode;
     $address->user_id    = auth()->id();
 
     $address->is_default = $request->is_default ?? 0;

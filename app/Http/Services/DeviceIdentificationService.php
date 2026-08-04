@@ -6,6 +6,7 @@ use App\Models\UserDevice;
 use Jenssegers\Agent\Agent;
 use App\Jobs\ProcessDeviceLocationJob;
 use Carbon\Carbon;
+
 class DeviceIdentificationService
 {
     const TRUST_NEW = 'NEW';
@@ -89,7 +90,9 @@ class DeviceIdentificationService
         $deviceName = $agent->device() ?: 'Unknown Device';
 
         $isBot = $this->isBot($userAgent);
-        $isEmulator = $this->isEmulator($userAgent) || $agent->isRobot();
+        
+        // FIX 1: Removed || $agent->isRobot() to prevent Flutter User-Agent from triggering emulator logic
+        $isEmulator = $this->isEmulator($userAgent); 
 
         $deviceType = 'UNKNOWN';
         if ($isBot) $deviceType = 'BOT';
@@ -124,8 +127,19 @@ class DeviceIdentificationService
             $device->browser = $context['browser'];
             $device->platform = $context['platform'];
             $device->device_type = $context['device_type'];
-            $device->is_emulator = ($context['is_emulator'] || $context['is_bot']);
-            $device->trust_level = ($isFallback || $context['is_bot'] || $context['is_emulator']) ? self::TRUST_SUSPICIOUS : self::TRUST_NEW;
+            
+            // FIX: Removed $context['is_bot'] cross-contamination
+            $device->is_emulator = $context['is_emulator'];
+            
+            // FIX 2: Updated Trust Level Logic
+            if ($context['is_bot']) {
+                $device->trust_level = self::TRUST_BLOCKED;
+            } elseif ($context['is_emulator']) {
+                $device->trust_level = self::TRUST_SUSPICIOUS;
+            } else {
+                $device->trust_level = self::TRUST_NEW;
+            }
+            
         } else {
             $riskScore = 0;
             if ($device->platform !== $context['platform']) $riskScore += 40;
@@ -165,11 +179,21 @@ class DeviceIdentificationService
         $device->browser = $context['browser'];
         $device->device_name = $context['device_name'];
         $device->device_type = $context['device_type'];
-        $device->is_emulator = ($context['is_bot'] || $context['is_emulator']);
+        
+        // FIX: Removed $context['is_bot'] cross-contamination
+        $device->is_emulator = $context['is_emulator'];
         $device->fingerprint_hash = $fingerprintHash;
         
         $device->trusted_at = null;
-        $device->trust_level = ($isFallback || $context['is_bot'] || $context['is_emulator']) ? self::TRUST_SUSPICIOUS : self::TRUST_NEW;
+        
+        // FIX 2: Updated Trust Level Logic (Fallback no longer causes SUSPICIOUS)
+        if ($context['is_bot']) {
+            $device->trust_level = self::TRUST_BLOCKED;
+        } elseif ($context['is_emulator']) {
+            $device->trust_level = self::TRUST_SUSPICIOUS;
+        } else {
+            $device->trust_level = self::TRUST_NEW;
+        }
 
         return $device;
     }
