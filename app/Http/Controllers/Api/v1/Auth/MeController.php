@@ -24,6 +24,7 @@ use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use App\Http\Services\OtpService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+
 class MeController extends Controller
 {
     use ApiResponse;
@@ -34,122 +35,159 @@ class MeController extends Controller
         $this->middleware('auth:api');
         $this->otpService = $otpService;
     }
-   public function action(Request $request)
-{
-    try {
 
-        $data = new MeResource($request->user());
+    public function action(Request $request)
+    {
+        try {
+            $data = new MeResource($request->user());
 
-        return $this->successResponse(
-            message: 'Profile fetched successfully.',
-            data: $data
-        );
+            return $this->successResponse(
+                message: 'Profile fetched successfully.',
+                data: $data
+            );
 
-    } catch (\Throwable $e) {
-
-        return $this->serverErrorResponse(
-            message: config('app.debug')
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse(
+                message: config('app.debug')
                 ? $e->getMessage()
                 : 'Internal Server Error'
-        );
+            );
+        }
     }
-}
 
     public function refresh()
     {
         $token = JWTAuth::getToken();
         if (!$token) {
-            return response()->json([
-                'status' => 401,
-                'message' => 'Token not provided',
-            ], 401);
+            return $this->unauthorizedResponse('Token not provided.');
         }
 
         try {
             $token = JWTAuth::refresh($token);
-        } catch (TokenInvalidException $e) {
-            return response()->json([
-                'status' => 401,
-                'message' => $e->getMessage(),
-            ], 401);
-        }
 
-        return response()->json([
-            'success' => true,
-            'token' => $token,
-            "token_type" => "bearer",
-            'expires_in' => config('jwt.ttl') * 3600000000000,
-        ], 200);
+            return $this->successResponse(
+                message: 'Token refreshed successfully.',
+                data: [
+                    'token' => $token,
+                    'token_type' => 'bearer',
+                    'expires_in' => config('jwt.ttl') * 3600000000000,
+                ]
+            );
+        } catch (TokenInvalidException $e) {
+            return $this->unauthorizedResponse($e->getMessage());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse(
+                config('app.debug') ? $e->getMessage() : 'Internal Server Error'
+            );
+        }
     }
 
     public function update(Request $request)
     {
-        $profile = auth()->user();
+        try {
 
-        if (blank($profile)) {
-            return response()->json(['status' => 401, 'message' => 'Unauthorized access.'], 401);
-        }
+            $profile = auth()->user();
 
-        $validator = new ProfileUpdateRequest($profile->id);
-        $validator = Validator::make($request->all(), $validator->rules());
-
-        if ($validator->fails()) {
-            return response()->json(['status' => 422, 'message' => $validator->errors()], 422);
-        }
-
-        $firstName = '';
-        $lastName = '';
-        if ($request->has('name')) {
-            $parts = $this->splitName($request->get('name'));
-            $firstName = $parts[0];
-            $lastName = $parts[1];
-        }
-
-        $newEmail = $request->get('email');
-        $newPhone = $request->get('phone');
-
-        $isSensitiveChange = ($newEmail !== $profile->email) || ($newPhone !== $profile->phone);
-
-        if ($isSensitiveChange) {
-
-            $tempToken = Str::uuid()->toString();
-
-            $updateData = [
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'email' => $newEmail,
-                'phone' => $newPhone,
-                'address' => $request->get('address'),
-                'username' => $request->username ?? $profile->username,
-                'device_id' => $request->header('X-Device-ID')
-            ];
-
-            Cache::put("profile_update_{$tempToken}", $updateData, now()->addMinutes(10));
-
-            $tempUser = clone $profile;
-            $tempUser->email = $newEmail; 
-            $tempUser->phone = $newPhone; 
-
-            $result = $this->otpService->generateAndSend(
-                $tempUser,
-                'profile_update', 
-                $request->header('X-Device-ID'),
-                $request->ip()
-            );
-
-            if (!$result['status']) {
-                return response()->json(['status' => 400, 'message' => 'Failed to send OTP to new contact details.'], 400);
+            if (blank($profile)) {
+                return $this->unauthorizedResponse('Unauthorized access.');
             }
 
-            return response()->json([
-                'status' => 202,
-                'requires_otp' => true,
-                'temp_token' => $tempToken,
-                'message' => 'OTP sent to your new contact details. Please verify to confirm changes.'
-            ], 202);
-        }
+            $validator = Validator::make(
+                $request->all(),
+                (new ProfileUpdateRequest($profile->id))->rules()
+            );
 
-        return $this->performDirectUpdate($profile, $request, $firstName, $lastName);
+            if ($validator->fails()) {
+                return $this->validationResponse($validator->errors()->toArray());
+            }
+
+            $firstName = '';
+            $lastName = '';
+
+            if ($request->filled('name')) {
+                [$firstName, $lastName] = $this->splitName($request->name);
+            }
+
+            $newEmail = $request->email;
+            $newPhone = $request->phone;
+
+            $isSensitiveChange =
+                ($newEmail !== $profile->email) ||
+                ($newPhone !== $profile->phone);
+
+            if ($isSensitiveChange) {
+
+                $tempToken = Str::uuid()->toString();
+
+                $updateData = [
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'email' => $newEmail,
+                    'phone' => $newPhone,
+                    'address' => $request->address,
+                    'username' => $request->username ?? $profile->username,
+                    'device_id' => resolveDeviceId($request),
+                ];
+
+                Cache::put(
+                    "profile_update_{$tempToken}",
+                    $updateData,
+                    now()->addMinutes(10)
+                );
+
+                // Resend OTP ke liye bhi session save karo
+                Cache::put(
+                    "otp_session_{$tempToken}",
+                    [
+                        'email_or_phone' => $newEmail ?: $newPhone,
+                        'purpose' => 'profile_update',
+                    ],
+                    now()->addMinutes(10)
+                );
+
+                $tempUser = clone $profile;
+                $tempUser->email = $newEmail;
+                $tempUser->phone = $newPhone;
+
+                $result = $this->otpService->generateAndSend(
+                    $tempUser,
+                    'profile_update',
+                    resolveDeviceId($request),
+                    $request->ip()
+                );
+
+                if (!$result['status']) {
+                    return $this->errorResponse(
+                        message: $result['message'] ?? 'Failed to send OTP.',
+                        statusCode: $result['code'] ?? 400
+                    );
+                }
+
+                return $this->otpRequiredResponse(
+                    message: 'OTP sent to your new contact details. Please verify to confirm changes.',
+                    data: [
+                        'temp_token' => $tempToken,
+                        'purpose' => 'profile_update',
+                        'expires_in' => $result['expires_in'] ?? 600,
+                    ]
+                );
+            }
+
+            return $this->performDirectUpdate(
+                $profile,
+                $request,
+                $firstName,
+                $lastName
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
+        }
     }
 
 
@@ -178,13 +216,8 @@ class MeController extends Controller
             $profile->addMedia($request->file('image'))->toMediaCollection('user');
         }
 
-        return response()->json([
-            'status' => 200,
-            'message' => 'Successfully Updated Profile',
-        ], 200);
+        return $this->updatedResponse('Successfully Updated Profile');
     }
-
-
 
     private function splitName($name)
     {
@@ -200,20 +233,14 @@ class MeController extends Controller
         $validator = Validator::make($request->all(), $validator->rules());
 
         if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => $validator->errors(),
-            ], 422);
+            return $this->validationResponse($validator->errors()->toArray());
         }
 
         $profile = auth()->user();
         $profile->password = bcrypt($request->get('password'));
         $profile->save();
 
-        return response()->json([
-            'status' => 200,
-            'message' => 'Successfully Updated Password',
-        ], 200);
+        return $this->updatedResponse('Successfully Updated Password');
     }
 
     public function device(Request $request)
@@ -221,20 +248,14 @@ class MeController extends Controller
         $validator = Validator::make($request->all(), ['device_token' => 'required']);
 
         if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => $validator->errors(),
-            ], 422);
+            return $this->validationResponse($validator->errors()->toArray());
         }
 
         $user = auth()->user();
         $user->device_token = $request->device_token;
         $user->save();
 
-        return response()->json([
-            'status' => 200,
-            'message' => 'Successfully device updated',
-        ], 200);
+        return $this->updatedResponse('Successfully device updated.');
     }
 
     public function review($id)
@@ -242,55 +263,42 @@ class MeController extends Controller
         $ratingReview = RestaurantRating::where(['user_id' => auth()->user()->id, 'restaurant_id' => $id])->first();
 
         if (blank($ratingReview)) {
-            return response()->json([
-                'status' => 401,
-                'message' => 'Review not found.',
-            ], 401);
+            return $this->notFoundResponse('Review not found.');
         }
 
-
-        return response()->json([
-            'status' => 200,
-            'data' => $ratingReview,
-        ], 200);
+        return $this->successResponse(
+            message: 'Review fetched successfully.',
+            data: $ratingReview
+        );
     }
 
     public function saveReview(Request $request)
     {
-        // 🚨 NAYI LINE: Validation check hone se pehle logged-in user ki ID request me daal do
         $request->merge([
             'user_id' => auth()->id()
         ]);
 
         $validator = Validator::make($request->all(), $this->reviewValidateArray());
-        
+
         if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => $validator->errors(),
-            ], 422);
+            return $this->validationResponse($validator->errors()->toArray());
         }
 
-        // 💡 OPTIMIZATION: updateOrCreate check karega ki pehle se record hai ya nahi.
-        // Agar hai, toh update karega. Agar nahi hai, toh naya create kar dega.
         RestaurantRating::updateOrCreate(
             [
-                // Yeh conditions search karegi
-                'user_id' => auth()->id(), 
+                'user_id' => auth()->id(),
                 'restaurant_id' => $request->restaurant_id
             ],
             [
-                // Agar mila ya naya banana hua, toh in values ko save karegi
                 'rating' => $request->rating,
                 'review' => $request->review,
                 'status' => RatingStatus::ACTIVE,
             ]
         );
 
-        return response()->json([
-            'status' => 200,
-            'message' => 'Your rating successfully saved.',
-        ], 200);
+        return $this->successResponse(
+            message: 'Your rating successfully saved.'
+        );
     }
 
     public function reviewValidateArray()
@@ -306,33 +314,33 @@ class MeController extends Controller
     public function reportCheck($id)
     {
         $report = Report::where('order_id', $id)->first();
+
         if (blank($report)) {
-            return response()->json([
-                'status' => 200,
-                'isNew' => true,
-                'message' => 'No reports yet.',
-            ], 200);
+            return $this->successResponse(
+                message: 'No reports yet.',
+                data: ['isNew' => true]
+            );
         } else {
-            return response()->json([
-                'status' => 200,
-                'isNew' => false,
-                'message' => trans('report_statues_frontend.' . $report->status),
-            ], 200);
+            return $this->successResponse(
+                message: trans('report_statues_frontend.' . $report->status),
+                data: ['isNew' => false]
+            );
         }
     }
+
     public function storeReport(ReportRequest $request)
     {
         $report = app(ComplaintService::class)->storeReport($request);
+
         if ($report) {
-            return response()->json([
-                'status' => 200,
-                'message' => 'Reported successfully',
-            ], 200);
+            return $this->successResponse(
+                message: 'Reported successfully.'
+            );
         } else {
-            return response()->json([
-                'status' => 502,
-                'message' => 'Something\'s Wrong !',
-            ], 200);
+            return $this->errorResponse(
+                message: "Something's Wrong!",
+                statusCode: 502
+            );
         }
     }
 }

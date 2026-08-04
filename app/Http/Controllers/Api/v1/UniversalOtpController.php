@@ -13,6 +13,7 @@ use App\Http\Resources\v1\PrivateUserResource;
 use App\Http\Resources\v1\MeResource;
 use App\Http\Services\DeviceIdentificationService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Jenssegers\Agent\Agent;
 use App\Traits\ApiResponse;
 
@@ -34,14 +35,42 @@ class UniversalOtpController extends Controller
         $this->deviceService = $deviceService;
     }
 
-    public function send(Request $request)
+  public function send(Request $request)
     {
         $request->validate([
-            'email_or_phone' => 'required',
-            'purpose' => 'required|in:login,device_verification,forgot_password'
+            'temp_token' => 'required|string',
+            'purpose' => 'required|in:login,device_verification,forgot_password,profile_update',
         ]);
 
-        $user = $this->findUser($request->email_or_phone);
+        // 👇 FIX: Agar purpose profile_update hai, to strictly wahi cache uthao jisme naya email/phone hai
+        if ($request->purpose === 'profile_update') {
+            $sessionData = Cache::get("profile_update_{$request->temp_token}");
+        } else {
+            $sessionData = Cache::get("otp_session_{$request->temp_token}");
+        }
+
+        if (!$sessionData) {
+            return $this->errorResponse(
+                message: 'OTP session expired.',
+                statusCode: 400
+            );
+        }
+
+        if ($request->purpose === 'profile_update') {
+            $currentUser = auth('api')->user();
+
+            if (!$currentUser) {
+                return $this->unauthorizedResponse('Unauthorized access.');
+            }
+
+            $user = clone $currentUser;
+            // Ab yahan strictly NAYA email/phone assign hoga kyunki profile_update cache read hua hai
+            $user->email = $sessionData['email'] ?? $user->email;
+            $user->phone = $sessionData['phone'] ?? $user->phone;
+        } else {
+            $user = $this->findUser($sessionData['email_or_phone'] ?? null);
+        }
+
         if (!$user) {
             return $this->notFoundResponse('User not found.');
         }
@@ -56,23 +85,69 @@ class UniversalOtpController extends Controller
         );
 
         if (!$result['status']) {
-            return $this->errorResponse($result['message'], $result['code'] ?? 400);
+            return $this->errorResponse(
+                message: $result['message'],
+                statusCode: $result['code'] ?? 400
+            );
         }
 
-        return $this->successResponse($result['message'], [
-            'expires_in' => $result['expires_in'] ?? null
-        ]);
+        return $this->successResponse(
+            message: 'OTP resent successfully.',
+            data: [
+                'temp_token' => $request->temp_token,
+                'purpose' => $request->purpose,
+                'expires_in' => $result['expires_in'] ?? 600,
+            ]
+        );
     }
 
     public function verify(Request $request)
     {
         $request->validate([
-            'email_or_phone' => 'required',
+            'temp_token' => 'required|string',
             'otp' => 'required|numeric',
-            'purpose' => 'required|in:login,device_verification,forgot_password,profile_update',
         ]);
 
-        $user = $this->findUser($request->email_or_phone);
+        $emailOrPhone = null;
+        $purpose = null;
+        $isOtpSession = false;
+        $sessionData = null;
+
+        // 👇 FIX: Verify me bhi pehle profile_update cache check karenge taaki full details milen
+        $profileSession = Cache::get("profile_update_{$request->temp_token}");
+
+        if ($profileSession) {
+            $sessionData = $profileSession;
+            $purpose = 'profile_update';
+            $isOtpSession = false;
+        } else {
+            $otpSession = Cache::get("otp_session_{$request->temp_token}");
+            if ($otpSession) {
+                $sessionData = $otpSession;
+                $emailOrPhone = $sessionData['email_or_phone'] ?? null;
+                $purpose = $sessionData['purpose'] ?? null;
+                $isOtpSession = true;
+            }
+        }
+
+        if (!$sessionData || !$purpose) {
+            return $this->errorResponse('Session expired or missing details. Please provide a valid temp_token.', 400);
+        }
+
+        if ($purpose === 'profile_update') {
+            $currentUser = auth('api')->user();
+            if (!$currentUser) {
+                return $this->unauthorizedResponse('Unauthorized access.');
+            }
+
+            $user = clone $currentUser;
+            // Naya email/phone inject kar rahe hain OTP verify hone ke liye
+            $user->email = $sessionData['email'] ?? $user->email;
+            $user->phone = $sessionData['phone'] ?? $user->phone;
+        } else {
+            $user = $this->findUser($emailOrPhone);
+        }
+
         if (!$user) {
             return $this->notFoundResponse('User not found.');
         }
@@ -81,24 +156,28 @@ class UniversalOtpController extends Controller
 
         $verification = $this->otpService->verify(
             $user,
-            $request->purpose,
+            $purpose,
             $request->otp,
             $deviceId,
             $request->ip()
         );
 
         if (!$verification['status']) {
-            return $this->badRequestResponse($verification['message']);
+            return $this->errorResponse($verification['message'], 400);
         }
 
-        switch ($request->purpose) {
+        if ($isOtpSession) {
+            Cache::forget("otp_session_{$request->temp_token}");
+        }
+
+        switch ($purpose) {
             case 'login':
             case 'device_verification':
                 return $this->handleSuccessfulLogin($user, $request);
 
             case 'forgot_password':
                 return $this->successResponse('OTP verified. Please set new password.', [
-                    'reset_token' => 'xyz...'
+                    'reset_token' => Str::random(60)
                 ]);
 
             case 'profile_update':
@@ -108,6 +187,8 @@ class UniversalOtpController extends Controller
 
     private function findUser($input)
     {
+        if (!$input)
+            return null;
         $field = filter_var($input, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
         $input = $field === 'phone' ? preg_replace('/[^0-9]/', '', $input) : trim($input);
         return User::where($field, $input)->first();
@@ -162,15 +243,11 @@ class UniversalOtpController extends Controller
 
     private function handleProfileUpdate($user, $request)
     {
-        $request->validate([
-            'temp_token' => 'required|string'
-        ]);
-
         $cacheKey = "profile_update_" . $request->temp_token;
         $updateData = Cache::get($cacheKey);
 
         if (!$updateData) {
-            return $this->badRequestResponse('Update session expired. Please try again.');
+            return $this->errorResponse('Update session expired. Please try again.', 400);
         }
 
         if ($updateData['device_id'] !== resolveDeviceId($request)) {
@@ -196,7 +273,7 @@ class UniversalOtpController extends Controller
 
         return $this->successResponse(
             message: 'Profile updated successfully!',
-            data: new PrivateUserResource($user)
+            data: new MeResource($user)
         );
     }
 }
