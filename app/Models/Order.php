@@ -51,8 +51,8 @@ class Order extends Model implements HasMedia
         'surge_fee',
         'tip_amount',
         'order_instructions',
-        'user_device_id'
-
+        'user_device_id',
+        'module_id'
     ];
     protected $casts = [
         'status' => 'int',
@@ -63,6 +63,7 @@ class Order extends Model implements HasMedia
         'user_id' => 'int',
         'restaurant_id' => 'int',
         'delivery_boy_id' => 'int',
+        'module_id' => 'int',
     ];
 
     public function items()
@@ -200,9 +201,9 @@ class Order extends Model implements HasMedia
         }
     }
 
-  public function getStatusNameAttribute()
+    public function getStatusNameAttribute()
     {
-        
+
         if ($this->status == OrderStatus::PAYMENT_PENDING) {
             return '<span class="db-table-badge text-orange-600 bg-orange-100">' . trans('order_status.' . $this->status) . '</span>';
         } elseif ($this->status == OrderStatus::ACCEPT) {
@@ -238,7 +239,19 @@ class Order extends Model implements HasMedia
     }
 
     public function device()
-{
-    return $this->belongsTo(UserDevice::class, 'user_device_id');
-}
+    {
+        return $this->belongsTo(UserDevice::class, 'user_device_id');
+    }
+
+    public function module()
+    {
+        return $this->belongsTo(Module::class);
+    }
+
+    public function scopeModule($query, $slug)
+    {
+        return $query->whereHas('module', function ($q) use ($slug) {
+            $q->where('slug', $slug);
+        });
+    }
 }

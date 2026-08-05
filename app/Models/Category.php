@@ -17,10 +17,12 @@ class Category extends BaseModel implements HasMedia
 
     protected $table = 'categories';
     protected $auditColumn = true;
-    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id'];
+    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id', 'module_id', 'category_group_id'];
     protected $casts = [
         'status' => 'int',
         'requested' => 'int',
+        'module_id' => 'int',
+        'category_group_id' => 'int',
     ];
 
     public function parent()
@@ -110,4 +112,31 @@ class Category extends BaseModel implements HasMedia
             return '<span class="db-table-badge text-red-600 bg-red-100">' . trans('statuses.' . CategoryStatus::INACTIVE) . '</span>';
         }
     }
+
+    public function module()
+    {
+        return $this->belongsTo(Module::class);
+    }
+
+    public function scopeModule($query, $slug)
+    {
+        return $query->whereHas('module', function ($q) use ($slug) {
+            $q->where('slug', $slug);
+        });
+    }
+    public function categoryGroup()
+    {
+        return $this->belongsTo(CategoryGroup::class);
+    }
+
+    public function allMenuItems()
+{
+    $categoryIds = Category::where('id', $this->id)
+        ->orWhere('parent_id', $this->id)
+        ->pluck('id');
+
+    return MenuItem::whereHas('categories', function ($q) use ($categoryIds) {
+        $q->whereIn('categories.id', $categoryIds);
+    });
+}
 }

@@ -385,3 +385,107 @@ ADD COLUMN order_instructions TEXT NULL AFTER total;
 
 ALTER TABLE `addresses`
 ADD COLUMN `pincode` VARCHAR(10) NULL AFTER `longitude`;
+
+ALTER TABLE `user_devices`
+MODIFY COLUMN `trust_level`
+ENUM('NEW', 'TRUSTED', 'SUSPICIOUS', 'BLOCKED', 'VERIFIED')
+NOT NULL DEFAULT 'NEW';
+
+
+
+CREATE TABLE modules (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    status TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL
+);
+
+
+ALTER TABLE restaurants
+ADD module_id BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER name;
+
+
+ALTER TABLE restaurants
+ADD CONSTRAINT fk_restaurants_module
+FOREIGN KEY (module_id)
+REFERENCES modules(id);
+
+
+ALTER TABLE categories
+ADD module_id BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER name;
+
+
+ALTER TABLE categories
+ADD CONSTRAINT fk_categories_module
+FOREIGN KEY (module_id)
+REFERENCES modules(id);
+
+ALTER TABLE menu_items
+ADD module_id BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER restaurant_id;
+
+
+ALTER TABLE menu_items
+ADD CONSTRAINT fk_menu_items_module
+FOREIGN KEY (module_id)
+REFERENCES modules(id);
+
+
+ALTER TABLE orders
+ADD module_id BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER restaurant_id;
+
+
+ALTER TABLE orders
+ADD CONSTRAINT fk_orders_module
+FOREIGN KEY (module_id)
+REFERENCES modules(id)
+ON UPDATE CASCADE
+ON DELETE RESTRICT;
+
+ALTER TABLE `user_devices`
+MODIFY COLUMN `trust_level`
+ENUM('NEW', 'TRUSTED', 'SUSPICIOUS', 'BLOCKED', 'VERIFIED')
+NOT NULL DEFAULT 'NEW';
+
+
+CREATE TABLE category_groups (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    module_id BIGINT UNSIGNED NOT NULL,
+
+    name VARCHAR(255) NOT NULL,
+
+    slug VARCHAR(255) UNIQUE,
+
+    image VARCHAR(255) NULL,
+
+    sort_order INT DEFAULT 0,
+
+    status TINYINT(1) DEFAULT 1,
+
+    created_at TIMESTAMP NULL,
+
+    updated_at TIMESTAMP NULL,
+
+    CONSTRAINT fk_category_groups_module
+        FOREIGN KEY (module_id)
+        REFERENCES modules(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+
+ALTER TABLE categories
+ADD category_group_id BIGINT UNSIGNED NULL AFTER module_id;
+
+
+ALTER TABLE categories
+ADD CONSTRAINT fk_categories_group
+FOREIGN KEY (category_group_id)
+REFERENCES category_groups(id)
+ON UPDATE CASCADE
+ON DELETE SET NULL;
+
+ALTER TABLE `categories`
+ADD COLUMN `sort_order` INT NOT NULL DEFAULT 0 AFTER `status`;
