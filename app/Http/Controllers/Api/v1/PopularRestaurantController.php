@@ -12,6 +12,7 @@ use App\Http\Controllers\BackendController;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 use Illuminate\Support\Facades\Cache;
+use App\Enums\Module;
 class PopularRestaurantController extends BackendController
 {
     use ApiResponse;
@@ -59,9 +60,9 @@ class PopularRestaurantController extends BackendController
                     'avg_rating',
                     'total_reviews',
                 ])
+                    ->module(Module::YOUR_CITY_SLUG)
                     ->where('status', RestaurantStatus::ACTIVE)
-                    ->where('current_status', CurrentStatus::YES)
-                    ->where('id', '!=', 28);
+                    ->where('current_status', CurrentStatus::YES);
 
                 if ($filterType === 'all') {
 

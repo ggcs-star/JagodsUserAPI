@@ -44,6 +44,7 @@ class Restaurant extends BaseModel implements HasMedia
         'creator_id' => 'int',
         'editor_id ' => 'int',
         //'coverImg' => '',
+        'module_id' => 'int',
     ];
 
     public function getRouteKeyName()
@@ -260,6 +261,7 @@ class Restaurant extends BaseModel implements HasMedia
             'is_open' => (bool) $this->is_open,
             'avg_rating' => (float) $this->avg_rating,
             'total_reviews' => (int) $this->total_reviews,
+            'module_id' => $this->module_id,
             '_geo' => [
                 'lat' => (float) $this->lat,
                 'lng' => (float) $this->long,
@@ -283,4 +285,16 @@ class Restaurant extends BaseModel implements HasMedia
     {
         return $this->status == Status::ACTIVE && $this->current_status == CurrentStatus::YES;
     }
+
+    public function module()
+{
+    return $this->belongsTo(Module::class);
+}
+
+public function scopeModule($query, $slug)
+{
+    return $query->whereHas('module', function ($q) use ($slug) {
+        $q->where('slug', $slug);
+    });
+}
 }

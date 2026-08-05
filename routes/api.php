@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\v1\Auth\RefreshTokenController;
 use App\Http\Controllers\Api\v1\UniversalOtpController;
 use App\Http\Controllers\Api\v1\Auth\ActiveSessionController;
 use App\Http\Controllers\Api\v1\HomeConfigController;
+use App\Http\Controllers\Api\v1\GroceryController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -187,6 +188,11 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('address-store', [AddressController::class, 'store']);
     Route::put('address-update/{id}', [AddressController::class, 'update']);
     Route::delete('address-delete/{id}', [AddressController::class, 'destroy']);
+
+    Route::post('grocery/category-groups', [GroceryController::class, 'categoryGroups']);
+    Route::post('grocery/main-categories', [GroceryController::class, 'mainCategories']);
+    Route::post('grocery/category/details', [GroceryController::class, 'categoryDetails']);
+    Route::post('grocery/sub-category/details', [GroceryController::class, 'subCategoryDetails']);
 });
 
 Route::get('/geo-test', function () {
