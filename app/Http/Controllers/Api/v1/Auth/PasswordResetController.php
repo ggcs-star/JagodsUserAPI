@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class PasswordResetController extends Controller
 {
@@ -82,10 +83,17 @@ class PasswordResetController extends Controller
 
     public function resetPassword(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'reset_token' => 'required|string',
             'password' => 'required|string|min:6|confirmed',
         ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse(
+                $validator->errors()->first(),
+                422
+            );
+        }
 
         $session = Cache::get("password_reset_{$request->reset_token}");
 

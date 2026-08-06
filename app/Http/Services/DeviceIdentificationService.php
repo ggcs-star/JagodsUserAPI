@@ -133,7 +133,7 @@ class DeviceIdentificationService
             
             // FIX 2: Updated Trust Level Logic
             if ($context['is_bot']) {
-                $device->trust_level = self::TRUST_BLOCKED;
+                $device->trust_level = self::TRUST_SUSPICIOUS;
             } elseif ($context['is_emulator']) {
                 $device->trust_level = self::TRUST_SUSPICIOUS;
             } else {
@@ -188,7 +188,7 @@ class DeviceIdentificationService
         
         // FIX 2: Updated Trust Level Logic (Fallback no longer causes SUSPICIOUS)
         if ($context['is_bot']) {
-            $device->trust_level = self::TRUST_BLOCKED;
+            $device->trust_level = self::TRUST_SUSPICIOUS;
         } elseif ($context['is_emulator']) {
             $device->trust_level = self::TRUST_SUSPICIOUS;
         } else {
