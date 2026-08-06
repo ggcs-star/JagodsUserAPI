@@ -61,7 +61,6 @@ class AuthLoginService
         $agent = new Agent();
         $agent->setUserAgent($userAgent);
 
-        // Helper function ka use kiya gaya hai (Raw if-else logic hata diya)
         $deviceId = resolveDeviceId($request);
 
         $device = $this->deviceService->processDevice(
