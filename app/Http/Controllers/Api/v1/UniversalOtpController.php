@@ -151,7 +151,15 @@ class UniversalOtpController extends Controller
         if (!$user) {
             return $this->notFoundResponse('User not found.');
         }
+if ($purpose === 'forgot_password') {
 
+    if (($sessionData['device_id'] ?? null) !== resolveDeviceId($request)) {
+
+        return $this->forbiddenResponse(
+            'Security mismatch. OTP must be verified from the same device.'
+        );
+    }
+}
         $deviceId = resolveDeviceId($request);
 
         $verification = $this->otpService->verify(
@@ -176,8 +184,23 @@ class UniversalOtpController extends Controller
                 return $this->handleSuccessfulLogin($user, $request);
 
             case 'forgot_password':
-                return $this->successResponse('OTP verified. Please set new password.', [
-                    'reset_token' => Str::random(60)
+                $resetToken = Str::random(80);
+
+                // 1. Generate Reset Token and store in Cache for exactly 10 minutes
+                Cache::put(
+    "password_reset_{$resetToken}",
+    [
+        'user_id' => $user->id,
+        'device_id' => resolveDeviceId($request),
+    ],
+    now()->addMinutes(10)
+);
+                // Token verify hone ke baad OTP session clear kar dein
+                Cache::forget("otp_session_{$request->temp_token}");
+
+                return $this->successResponse('OTP verified successfully.', [
+                    'reset_token' => $resetToken,
+                    'expires_in'  => 600
                 ]);
 
             case 'profile_update':

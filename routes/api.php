@@ -43,6 +43,8 @@ use App\Http\Controllers\Api\v1\UniversalOtpController;
 use App\Http\Controllers\Api\v1\Auth\ActiveSessionController;
 use App\Http\Controllers\Api\v1\HomeConfigController;
 use App\Http\Controllers\Api\v1\GroceryController;
+use App\Http\Controllers\Api\v1\Auth\PasswordResetController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -68,8 +70,9 @@ Route::group(['prefix' => 'v1'], function () {
    
     Route::get('sessions', [ActiveSessionController::class, 'index']);
 
-    Route::post('forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:otp_send');
-
+    // Route::post('forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:otp_send');
+    Route::post('forgot-password', [PasswordResetController::class, 'forgotPassword'])->middleware('throttle:otp_send');
+    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
     Route::post('/otp/send', [UniversalOtpController::class, 'send'])->middleware('throttle:otp_send');
     Route::post('/otp/verify', [UniversalOtpController::class, 'verify'])->middleware('throttle:login_attempts');
 
