@@ -107,7 +107,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('cart/apply-coupon', [CartController::class, 'applyCoupon'])->middleware('throttle:cart_actions');
     Route::post('generate-coupons', [CouponController::class, 'generateCoupons']);
 
-    Route::middleware(['require.trusted.device', 'throttle:checkout_strict'])->group(function () {
+    Route::middleware(['throttle:checkout_strict'])->group(function () {
         Route::post('/checkout', [CheckoutController::class, 'checkout']);
     });
 

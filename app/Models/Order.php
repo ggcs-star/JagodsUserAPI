@@ -53,7 +53,8 @@ class Order extends Model implements HasMedia
         'tip_amount',
         'order_instructions',
         'user_device_id',
-        'module_id'
+        'module_id',
+        'address_id',
     ];
     protected $casts = [
         'status' => 'int',

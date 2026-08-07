@@ -16,7 +16,7 @@ use App\Models\Order;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use App\Jobs\SendOrderInvoiceJob;
-
+use App\Http\Requests\Api\RepayOrderRequest;
 class CheckoutController extends BackendController
 {
     use ApiResponse;
@@ -136,15 +136,13 @@ class CheckoutController extends BackendController
         }
     }
 
-    public function repayOrder(Request $request)
-    {
-        $request->validate([
-            'order_id' => 'required|numeric|exists:orders,id'
-        ], [
-            'order_id.required' => 'Order ID is required.',
-            'order_id.exists' => 'Order not found. Please provide a valid order ID.'
-        ]);
+  public function repayOrder(RepayOrderRequest $request)
+{
+    $order = Order::find($request->order_id);
 
+    if (!$order) {
+        return $this->notFoundResponse('Order not found.');
+    }
         try {
             $order = Order::where('id', $request->order_id)
                 ->where('user_id', auth()->id())

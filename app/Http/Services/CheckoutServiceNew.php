@@ -83,7 +83,8 @@ class CheckoutServiceNew
             $longitude = $cart->address->longitude ?? 0.0;
             $addressJson = json_encode([
                 'address' => $cart->address->address ?? '',
-                'apartment' => $cart->address->apartment ?? ''
+                'apartment' => $cart->address->apartment ?? '',
+                'pincode'     => $cart->address->pincode ?? '',
             ]);
         }
 
@@ -91,7 +92,7 @@ class CheckoutServiceNew
 
         $order = Order::create([
             'user_id' => $cart->user_id,
-            'user_device_id' => $device ? $device->id : null, // 🚨 4. DEVICE ID SAVED HERE
+            'user_device_id' => $device ? $device->id : null, 
             'restaurant_id' => $cart->restaurant_id,
             'address_id' => $cart->address_id,
             'coupon_id' => $cart->coupon_id,
@@ -105,6 +106,7 @@ class CheckoutServiceNew
             'mobile' => $cart->user->phone ?? '',
             'sub_total' => $cart->subtotal,
             'discount' => $cart->discount,
+            'product_discount' => $cart->product_discount,
             'gst_amount' => $cart->gst_amount,
             'delivery_charge' => $cart->delivery_charge,
             'packing_charge' => $cart->packing_charge ?? 0,
