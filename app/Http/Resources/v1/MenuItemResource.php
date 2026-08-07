@@ -32,6 +32,7 @@ class MenuItemResource extends JsonResource
             // 'restroType' => isset($this->restaurant->restroType) ? ucfirst($this->restaurant->restroType) : null,
             'tags'          => ['new', 'chef-special'],
             "category_id"       => $this->categories->pluck('id'),
+            "ingredients"       => $this->ingredients,
         ];
     }
     

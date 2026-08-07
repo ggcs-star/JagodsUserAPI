@@ -60,8 +60,8 @@ class RestaurantController extends BackendController
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Internal Server Error'
+                ? $e->getMessage()
+                : 'Internal Server Error'
             );
         }
     }
@@ -127,103 +127,147 @@ class RestaurantController extends BackendController
     // }
 
     public function show(Request $request)
-{
-    // dd("df");
-    try {
+    {
+        // dd("df");
+        try {
 
-        $id = $request->input('id');
+            $id = $request->input('id');
 
-        $restaurant = Restaurant::with([
-            'banners'
-        ])->findOrFail($id);
+            $restaurant = Restaurant::with([
+                'banners'
+            ])->findOrFail($id);
 
-        $rating = new RatingsService();
-        $ratingArray = $rating->avgRating($restaurant->id);
+            $rating = new RatingsService();
+            $ratingArray = $rating->avgRating($restaurant->id);
 
-        $categoriesData = \App\Models\Category::whereHas('menuItems', function ($query) use ($id) {
+            $categoriesData = \App\Models\Category::whereHas('menuItems', function ($query) use ($id) {
                 $query->where('restaurant_id', $id)
-                      ->where('status', MenuItemStatus::ACTIVE);
+                    ->where('status', MenuItemStatus::ACTIVE);
             })
-            ->select('id', 'name')
-            ->get()
-            ->map(function ($category) {
-                return [
-                    'id'   => $category->id,
-                    'name' => $category->name,
-                    'image' => $category->image,
-                ];
-            })
-            ->values();
+                ->select('id', 'name')
+                ->get()
+                ->map(function ($category) {
+                    return [
+                        'id' => $category->id,
+                        'name' => $category->name,
+                        'image' => $category->image,
+                    ];
+                })
+                ->values();
 
-        $restaurantRatings = RestaurantRating::where([
-            'restaurant_id' => $restaurant->id,
-            'status'        => RatingStatus::ACTIVE,
-        ])->get();
+            $restaurantRatings = RestaurantRating::where([
+                'restaurant_id' => $restaurant->id,
+                'status' => RatingStatus::ACTIVE,
+            ])->get();
 
-        $timeSlots = TimeSlot::where('restaurant_id', $restaurant->id)->get();
+            $timeSlots = TimeSlot::where('restaurant_id', $restaurant->id)->get();
 
-        $this->data['restaurant']   = new RestaurantResource($restaurant);
-        $this->data['banners']      = RestaurantBannerResource::collection($restaurant->banners);
-        $this->data['categories']   = $categoriesData;
+            $this->data['restaurant'] = new RestaurantResource($restaurant);
+            $this->data['banners'] = RestaurantBannerResource::collection($restaurant->banners);
+            $this->data['categories'] = $categoriesData;
 
-        // Menu Items removed (Separate API)
-        // $this->data['menuItems'] = MenuItemResource::collection($restaurant->menuItems);
+            // Menu Items removed (Separate API)
+            // $this->data['menuItems'] = MenuItemResource::collection($restaurant->menuItems);
 
-        $this->data['reviews']      = RatingResource::collection($restaurantRatings);
-        $this->data['timeSlots']    = $timeSlots;
-        $this->data['countUser']    = $ratingArray['countUser'];
-        $this->data['avgRating']    = $ratingArray['avgRating'];
-        $this->data['vouchers']     = [];
-        $this->data['order_status'] = true;
+            $this->data['reviews'] = RatingResource::collection($restaurantRatings);
+            $this->data['timeSlots'] = $timeSlots;
+            $this->data['countUser'] = $ratingArray['countUser'];
+            $this->data['avgRating'] = $ratingArray['avgRating'];
+            $this->data['vouchers'] = [];
+            $this->data['order_status'] = true;
 
-        return $this->successResponse(
-            message: 'Restaurant details fetched successfully.',
-            data: $this->data
-        );
+            return $this->successResponse(
+                message: 'Restaurant details fetched successfully.',
+                data: $this->data
+            );
 
-    } catch (\Throwable $e) {
+        } catch (\Throwable $e) {
 
-        return $this->serverErrorResponse(
-            message: config('app.debug')
+            return $this->serverErrorResponse(
+                message: config('app.debug')
                 ? $e->getMessage()
                 : 'Internal Server Error'
-        );
+            );
+        }
     }
-}
-public function menuItems(Request $request)
+   public function menuItems(Request $request)
 {
     try {
 
         $request->validate([
             'restaurant_id' => 'required|exists:restaurants,id',
-            'page' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:1|max:100',
-            'category_id' => 'nullable|exists:categories,id',
+            'page'          => 'nullable|integer|min:1',
+            'per_page'      => 'nullable|integer|min:1|max:100',
+            'category_id'   => 'nullable|exists:categories,id',
+            'sort_by'       => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
         ]);
 
         $perPage = $request->input('per_page', 10);
 
-        $query = MenuItem::where('restaurant_id', $request->restaurant_id)
+        $query = MenuItem::query()
+            ->where('restaurant_id', $request->restaurant_id)
             ->where('status', MenuItemStatus::ACTIVE);
 
-        // Optional Category Filter
+        /**
+         * Category Filter
+         */
         if ($request->filled('category_id')) {
-
             $query->whereHas('categories', function ($q) use ($request) {
                 $q->where('categories.id', $request->category_id);
             });
-
         }
 
-        $menuItems = $query
-            ->latest()
-            ->paginate($perPage);
+        /**
+         * Sorting
+         */
+        switch ($request->sort_by) {
 
-   return $this->successPaginationResponse(
-    message: 'Menu items fetched successfully.',
-    paginator: $menuItems,
-    data: MenuItemResource::collection($menuItems->items())
-);
+            // Most Popular
+            case 'popularity':
+                $query->orderByDesc('counter');
+                break;
+
+            // Latest Products
+            case 'new_arrivals':
+                $query->latest();
+                break;
+
+            // Price Low -> High
+            case 'price_low_high':
+                $query->orderBy('unit_price', 'asc');
+                break;
+
+            // Price High -> Low
+            case 'price_high_low':
+                $query->orderBy('unit_price', 'desc');
+                break;
+
+            // Highest Discount First
+            case 'discount_high_low':
+                $query->orderByRaw("
+                    (
+                        CASE
+                            WHEN unit_price > 0
+                            THEN ((unit_price - discount_price) / unit_price) * 100
+                            ELSE 0
+                        END
+                    ) DESC
+                ");
+                break;
+
+            // Default
+            default:
+                $query->latest();
+                break;
+        }
+
+        $menuItems = $query->paginate($perPage);
+
+        return $this->successPaginationResponse(
+            message: 'Menu items fetched successfully.',
+            paginator: $menuItems,
+            data: MenuItemResource::collection($menuItems->items())
+        );
 
     } catch (\Throwable $e) {
 

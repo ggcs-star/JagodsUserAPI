@@ -22,9 +22,15 @@ class MenuItemService
 
         return $this->data['menuItems'];
     }
-    public function show($id){
-        return MenuItem::find($id);
-    }
+ public function show($id)
+{
+    return MenuItem::with([
+        'categories',
+        'variations',
+        'options',
+        'restaurant',
+    ])->find($id);
+}
 
 
     public function store(Request $request)

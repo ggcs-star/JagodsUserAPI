@@ -150,7 +150,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('/search', [SearchController::class, 'globalSearch']);
     Route::get('restaurant-menuItem/menuItem', [MenuItemController::class, 'index']);
     Route::get('restaurant-menuItem/menuItem/{id}', [MenuItemController::class, 'index']);
-    Route::post('restaurant-menuItem/menuItem/show', [MenuItemController::class, 'show']);
+    Route::post('restaurant/menuItem/show', [MenuItemController::class, 'show']);
 
     Route::get('restaurant-table/table', [TableController::class, 'index']);
     Route::get('restaurant-table/table/{id}', [TableController::class, 'show']);

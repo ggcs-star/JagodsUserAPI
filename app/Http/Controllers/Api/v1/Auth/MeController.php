@@ -337,43 +337,49 @@ class MeController extends Controller
     }
 
     public function saveReview(Request $request)
-    {
-        $request->merge([
-            'user_id' => auth()->id()
-        ]);
+{
+    $validator = Validator::make(
+        $request->all(),
+        $this->reviewValidateArray()
+    );
 
-        $validator = Validator::make($request->all(), $this->reviewValidateArray());
-
-        if ($validator->fails()) {
-            return $this->validationResponse($validator->errors()->toArray());
-        }
-
-        RestaurantRating::updateOrCreate(
-            [
-                'user_id' => auth()->id(),
-                'restaurant_id' => $request->restaurant_id
-            ],
-            [
-                'rating' => $request->rating,
-                'review' => $request->review,
-                'status' => RatingStatus::ACTIVE,
-            ]
-        );
-
-        return $this->successResponse(
-            message: 'Your rating successfully saved.'
-        );
+    if ($validator->fails()) {
+        return $this->validationResponse($validator->errors()->toArray());
     }
 
-    public function reviewValidateArray()
-    {
-        return [
-            'rating' => 'required|numeric|min:1|max:5',
-            'review' => 'required|string|max:500',
-            'user_id' => 'required|numeric',
-            'restaurant_id' => 'required|numeric',
-        ];
-    }
+    $rating = RestaurantRating::updateOrCreate(
+        [
+            'user_id'       => auth()->id(),
+            'restaurant_id' => $request->restaurant_id,
+        ],
+        [
+            'rating' => $request->rating,
+            'review' => $request->review,
+            'status' => RatingStatus::ACTIVE,
+        ]
+    );
+
+    return $this->successResponse(
+        message: $rating->wasRecentlyCreated
+            ? 'Review submitted successfully.'
+            : 'Review updated successfully.',
+        data: [
+            'review_id'     => $rating->id,
+            'restaurant_id' => $rating->restaurant_id,
+            'rating'        => $rating->rating,
+            'review'        => $rating->review,
+        ]
+    );
+}
+
+  public function reviewValidateArray(): array
+{
+    return [
+        'restaurant_id' => 'required|integer|exists:restaurants,id',
+        'rating'        => 'required|integer|min:1|max:5',
+        'review'        => 'nullable|string|max:500',
+    ];
+}
 
     public function reportCheck($id)
     {

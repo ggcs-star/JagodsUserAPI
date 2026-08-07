@@ -23,6 +23,7 @@ class RestaurantResource extends JsonResource
             "name"                 => $this->name,
             "user_id"              => (int)$this->user_id,
             "description"          => $this->description,
+            'is_open' => (bool) $this->is_open,
             "delivery_charge"      => setting('basic_delivery_charge'),
             "free_delivery_radius" => setting('free_delivery_radius'),
             "charge_per_kilo"      => setting('charge_per_kilo'),

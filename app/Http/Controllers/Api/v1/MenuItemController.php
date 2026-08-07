@@ -100,30 +100,32 @@ class   MenuItemController extends BackendController
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function show(Request $request)
-    {
-        try {
+  public function show(Request $request)
+{
+    try {
 
-            $id = $request->input('id');
+        $item = $this->menuItemService->show($request->id);
 
-            $menuitem = new MenuItemResource(
-                $this->menuItemService->show($id)
-            );
-
-            return $this->successResponse(
-                message: 'Menu item details fetched successfully',
-                data: $menuitem
-            );
-
-        } catch (\Exception $e) {
-
-            return $this->serverErrorResponse(
-                message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Internal Server Error'
+        if (!$item) {
+            return $this->notFoundResponse(
+                message: 'Menu item not found.'
             );
         }
+
+        return $this->successResponse(
+            message: 'Menu item details fetched successfully.',
+            data: new MenuItemResource($item)
+        );
+
+    } catch (\Throwable $e) {
+
+        return $this->serverErrorResponse(
+            message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+        );
     }
+}
 
     /**
      * Show the form for editing the specified resource.
