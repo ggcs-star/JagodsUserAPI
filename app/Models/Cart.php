@@ -15,6 +15,7 @@ class Cart extends Model
         'order_type',
         'order_instructions',
         'subtotal',
+        'product_discount',
         'discount',
         'gst_amount',
         'delivery_charge',

@@ -16,7 +16,7 @@ class CartItem extends Model
         'variation_name',
         'unit_price',
         'discount_price',
-        'price',
+        'final_price',
         'total_price',
         'options',
         'instructions',

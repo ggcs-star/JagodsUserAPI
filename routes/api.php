@@ -98,7 +98,7 @@ Route::group(['prefix' => 'v1'], function () {
 
     Route::get('cart', [CartController::class, 'index'])->middleware('throttle:cart_fetch');
     Route::post('cart', [CartController::class, 'store'])->middleware('throttle:cart_actions');
-    Route::get('cart/removeItem/{id}', [CartController::class, 'remove'])->middleware('throttle:cart_actions');
+    Route::post('cart/remove-item',[CartController::class, 'remove'])->middleware('throttle:cart_actions');
     Route::post('cart/clear', [CartController::class, 'clear'])->middleware('throttle:cart_actions');
     Route::post('cart-quantity', [CartController::class, 'quantity'])->middleware('throttle:cart_actions');
     Route::post('cart/update', [CartController::class, 'update'])->middleware('throttle:cart_actions');

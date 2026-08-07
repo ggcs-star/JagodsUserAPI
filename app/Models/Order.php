@@ -23,6 +23,7 @@ class Order extends Model implements HasMedia
         'restaurant_id',
         'user_id',
         'total',
+        'product_discount',
         'sub_total',
         'gst_amount',
         'delivery_charge',

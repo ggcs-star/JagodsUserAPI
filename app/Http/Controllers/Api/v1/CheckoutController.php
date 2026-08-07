@@ -57,25 +57,23 @@ class CheckoutController extends BackendController
 
                 $this->cartService->clearCart(auth()->id());
 
-                return $this->successResponse([
-                    'status' => 200,
-                    'message' => 'Order placed successfully',
-                    'data' => $order,
-                ]);
+                return $this->successResponse(
+                    message: 'Order placed successfully.',
+                    data: $order
+                );
             }
 
             $payment = $this->paymentService->create($order);
 
             $this->cartService->clearCart(auth()->id());
 
-            return $this->successResponse([
-                'status' => 200,
-                'message' => 'Payment initialized',
-                'data' => [
+            return $this->successResponse(
+                message: 'Payment initialized successfully.',
+                data: [
                     'order' => $order,
                     'payment' => $payment,
                 ]
-            ]);
+            );
 
         } catch (Exception $e) {
 
@@ -120,10 +118,9 @@ class CheckoutController extends BackendController
 
             SendOrderInvoiceJob::dispatch($order);
 
-            return $this->successResponse([
-                'status' => 200,
-                'message' => 'Payment verified successfully',
-            ]);
+            return $this->successResponse(
+                message: 'Payment verified successfully.'
+            );
 
         } catch (Exception $e) {
 
@@ -167,11 +164,10 @@ class CheckoutController extends BackendController
 
             $paymentData = $this->paymentService->create($order);
 
-            return $this->successResponse([
-                'status' => 200,
-                'message' => 'Repayment initiated successfully',
-                'data' => $paymentData
-            ]);
+            return $this->successResponse(
+                message: 'Repayment initiated successfully.',
+                data: $paymentData
+            );
 
         } catch (Exception $e) {
             $statusCode = (int) $e->getCode();

@@ -17,4 +17,9 @@ class Module
             self::ALL_OVER_INDIA => self::ALL_OVER_INDIA_SLUG,
         ];
     }
+
+    public static function pickupAllowed(string $slug): bool
+    {
+        return $slug !== self::ALL_OVER_INDIA_SLUG;
+    }
 }

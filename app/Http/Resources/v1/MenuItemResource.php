@@ -13,30 +13,40 @@ class MenuItemResource extends JsonResource
      * @return array|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
 
-    public function toArray( $request )
+    public function toArray($request)
     {
         $category = $this->categories->first();
         return [
-            "id"                => $this->id,
-            "name"              => $this->name,
-            "slug"              => $this->slug,
-            "menu_number"       => $this->menu_number,
-            "unit_price"        => $this->unit_price,
-            "discount_price"    => $this->discount_price,
-            "currency_code"     => setting('currency_code'),
-            "image"             => $this->image,
-            "description"       => strip_tags($this->description),
-            'variations'      => MenuItemVariationResource::collection($this->variations),
-            'options'         => $this->options!=null?MenuItemOptionResource::collection($this->options):[],
+            "id" => $this->id,
+            "name" => $this->name,
+            "slug" => $this->slug,
+            "menu_number" => $this->menu_number,
+            'unit_price' => $this->unit_price,
+            'discount_price' => $this->discount_price,
+            'final_price' => max(0, $this->unit_price - $this->discount_price),
+            'discount_percentage' => (
+                $this->unit_price > 0
+                ? round(($this->discount_price / $this->unit_price) * 100)
+                : 0
+            ),
+            'has_discount' => $this->discount_price > 0,
+            // "unit_price"        => $this->unit_price,
+            // "discount_price"    => $this->discount_price,
+            "currency_code" => setting('currency_code'),
+            "image" => $this->image,
+            "description" => strip_tags($this->description),
+            'variations' => MenuItemVariationResource::collection($this->variations),
+            'options' => $this->options != null ? MenuItemOptionResource::collection($this->options) : [],
             'restroType' => $this->restroType ?? null,
             // 'restroType' => isset($this->restaurant->restroType) ? ucfirst($this->restaurant->restroType) : null,
-            'tags'          => ['new', 'chef-special'],
-            "category_id"       => $this->categories->pluck('id'),
-            "ingredients"       => $this->ingredients,
+            'tags' => ['new', 'chef-special'],
+            "category_id" => $this->categories->pluck('id'),
+            "ingredients" => $this->ingredients,
+
         ];
     }
-    
-    
+
+
     // public function toArray($request)
     // {
     //     return [

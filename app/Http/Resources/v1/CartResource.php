@@ -4,7 +4,8 @@ namespace App\Http\Resources\v1;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-
+use App\Enums\Module;
+use App\Enums\OrderTypeStatus;
 class CartResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -29,23 +30,58 @@ class CartResource extends JsonResource
                 ];
             }
         }
+        $firstItem = $this->relationLoaded('items')
+            ? $this->items->first()
+            : null;
 
+        $moduleSlug = optional(
+            optional($firstItem)->menuItem?->module
+        )->slug;
+
+        $pickupAvailable = $moduleSlug !== Module::ALL_OVER_INDIA_SLUG;
+
+        $allowedOrderTypes = $pickupAvailable
+            ? [
+                [
+                    'id' => OrderTypeStatus::DELIVERY,
+                    'name' => 'Delivery',
+                ],
+                [
+                    'id' => OrderTypeStatus::PICKUP,
+                    'name' => 'Pickup',
+                ],
+            ]
+            : [
+                [
+                    'id' => OrderTypeStatus::DELIVERY,
+                    'name' => 'Delivery',
+                ],
+            ];
         return [
             'cart_id' => $this->id,
             'restaurant_id' => $this->restaurant_id,
             'address_id' => $this->address_id,
             'order_type' => (int) $this->order_type,
             'order_instructions' => $this->order_instructions,
-
+            'pickup_available' => $pickupAvailable,
+            'allowed_order_types' => $allowedOrderTypes,
             'bill_details' => [
-                'subtotal' => (float) $this->subtotal,
-                'discount' => (float) $this->discount,
-                'gst_amount' => (float) $this->gst_amount,
-                'delivery_charge' => (float) $this->delivery_charge,
-                'total_payable' => (float) $this->total,
 
+                'mrp_total' => (float) ($this->subtotal + $this->product_discount),
+
+                'product_discount' => (float) $this->product_discount,
+
+                'subtotal' => (float) $this->subtotal,
+
+                'coupon_discount' => (float) $this->discount,
+
+                'gst_amount' => (float) $this->gst_amount,
+
+                'delivery_charge' => (float) $this->delivery_charge,
 
                 'fees' => $formattedFees,
+
+                'total_payable' => (float) $this->total,
             ],
 
             'sync_messages' => $this->sync_messages ?? [],

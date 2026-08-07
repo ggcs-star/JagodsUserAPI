@@ -489,3 +489,17 @@ ON DELETE SET NULL;
 
 ALTER TABLE `categories`
 ADD COLUMN `sort_order` INT NOT NULL DEFAULT 0 AFTER `status`;
+
+
+
+ALTER TABLE cart_items
+CHANGE COLUMN price final_price DECIMAL(10,2) NOT NULL;
+
+
+ALTER TABLE carts
+ADD COLUMN product_discount DECIMAL(10,2) NOT NULL DEFAULT 0
+AFTER subtotal;
+
+ALTER TABLE orders
+ADD COLUMN product_discount DECIMAL(10,2) NOT NULL DEFAULT 0
+AFTER sub_total;
