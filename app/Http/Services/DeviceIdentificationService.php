@@ -15,15 +15,35 @@ class DeviceIdentificationService
     const TRUST_SUSPICIOUS = 'SUSPICIOUS';
     const TRUST_BLOCKED = 'BLOCKED';
 
-    public function processDevice($user, string $deviceId, string $appVersion, string $ip, ?string $userAgent, ?string $language, Agent $agent): UserDevice
-    {
+    public function processDevice(
+        $user,
+        string $deviceId,
+        string $appVersion,
+        string $ip,
+        ?string $userAgent,
+        ?string $language,
+        Agent $agent,
+        ?string $appDeviceType = null
+    ): UserDevice {
         $isFallback = str_starts_with($deviceId, 'fb_');
         $userId = ($user && isset($user->id) && is_numeric($user->id)) ? $user->id : null;
 
-        $context = $this->analyzeDeviceContext($agent, $userAgent);
+        $context = $this->analyzeDeviceContext(
+            $agent,
+            $userAgent,
+            $appDeviceType
+        );
 
         if (!$userId) {
-            return $this->buildTempDevice($deviceId, $userAgent, $appVersion, $ip, $isFallback, $language, $context);
+            return $this->buildTempDevice(
+                $deviceId,
+                $userAgent,
+                $appVersion,
+                $ip,
+                $isFallback,
+                $language,
+                $context
+            );
         }
 
         $device = UserDevice::firstOrNew([
@@ -57,7 +77,7 @@ class DeviceIdentificationService
             $daysOld = Carbon::parse($device->created_at)->diffInDays(now());
             if ($daysOld >= 7) {
                 $device->trust_level = self::TRUST_TRUSTED;
-                $device->trusted_at = now(); 
+                $device->trusted_at = now();
                 $needsDbUpdate = true;
             }
         }
@@ -83,23 +103,38 @@ class DeviceIdentificationService
         return $device;
     }
 
-    private function analyzeDeviceContext(Agent $agent, ?string $userAgent): array
-    {
+    private function analyzeDeviceContext(
+        Agent $agent,
+        ?string $userAgent,
+        ?string $appDeviceType = null
+    ): array {
         $browser = $agent->browser() ?: 'Unknown';
         $platform = $agent->platform() ?: 'Unknown';
-        $deviceName = $agent->device() ?: 'Unknown Device';
+
+        $deviceName = match ((string) $appDeviceType) {
+            '0' => 'Android',
+            '1' => 'iOS',
+            '3' => 'Web',
+            default => $agent->device() ?: 'Unknown Device',
+        };
 
         $isBot = $this->isBot($userAgent);
-        
-        // FIX 1: Removed || $agent->isRobot() to prevent Flutter User-Agent from triggering emulator logic
-        $isEmulator = $this->isEmulator($userAgent); 
+
+        $isEmulator = $this->isEmulator($userAgent);
 
         $deviceType = 'UNKNOWN';
-        if ($isBot) $deviceType = 'BOT';
-        elseif ($isEmulator) $deviceType = 'EMULATOR';
-        elseif ($agent->isMobile()) $deviceType = 'MOBILE';
-        elseif ($agent->isTablet()) $deviceType = 'TABLET';
-        elseif ($agent->isDesktop()) $deviceType = 'DESKTOP';
+
+        if ($isBot) {
+            $deviceType = 'BOT';
+        } elseif ($isEmulator) {
+            $deviceType = 'EMULATOR';
+        } elseif ($agent->isMobile()) {
+            $deviceType = 'MOBILE';
+        } elseif ($agent->isTablet()) {
+            $deviceType = 'TABLET';
+        } elseif ($agent->isDesktop()) {
+            $deviceType = 'DESKTOP';
+        }
 
         return [
             'browser' => $browser,
@@ -114,10 +149,10 @@ class DeviceIdentificationService
     private function updateDeviceCharacteristics(UserDevice $device, ?string $userAgent, string $deviceId, bool $isFallback, array $context, ?string $language): void
     {
         $fingerprintHash = hash('sha256', implode('|', [
-            $deviceId, 
-            $context['browser'], 
-            $context['platform'], 
-            $language, 
+            $deviceId,
+            $context['browser'],
+            $context['platform'],
+            $language,
             $context['device_type']
         ]));
 
@@ -127,10 +162,10 @@ class DeviceIdentificationService
             $device->browser = $context['browser'];
             $device->platform = $context['platform'];
             $device->device_type = $context['device_type'];
-            
+
             // FIX: Removed $context['is_bot'] cross-contamination
             $device->is_emulator = $context['is_emulator'];
-            
+
             // FIX 2: Updated Trust Level Logic
             if ($context['is_bot']) {
                 $device->trust_level = self::TRUST_SUSPICIOUS;
@@ -139,11 +174,13 @@ class DeviceIdentificationService
             } else {
                 $device->trust_level = self::TRUST_NEW;
             }
-            
+
         } else {
             $riskScore = 0;
-            if ($device->platform !== $context['platform']) $riskScore += 40;
-            if ($device->browser !== $context['browser']) $riskScore += 20;
+            if ($device->platform !== $context['platform'])
+                $riskScore += 40;
+            if ($device->browser !== $context['browser'])
+                $riskScore += 20;
 
             $device->fingerprint_hash = $fingerprintHash;
             $device->device_name = $context['device_name'];
@@ -155,17 +192,17 @@ class DeviceIdentificationService
                 $device->trust_level = self::TRUST_SUSPICIOUS;
             }
         }
-        
+
         $device->user_agent = $userAgent;
     }
 
     private function buildTempDevice(string $deviceId, ?string $userAgent, string $appVersion, string $ip, bool $isFallback, ?string $language, array $context): UserDevice
     {
         $fingerprintHash = hash('sha256', implode('|', [
-            $deviceId, 
-            $context['browser'], 
-            $context['platform'], 
-            $language, 
+            $deviceId,
+            $context['browser'],
+            $context['platform'],
+            $language,
             $context['device_type']
         ]));
 
@@ -179,13 +216,13 @@ class DeviceIdentificationService
         $device->browser = $context['browser'];
         $device->device_name = $context['device_name'];
         $device->device_type = $context['device_type'];
-        
+
         // FIX: Removed $context['is_bot'] cross-contamination
         $device->is_emulator = $context['is_emulator'];
         $device->fingerprint_hash = $fingerprintHash;
-        
+
         $device->trusted_at = null;
-        
+
         // FIX 2: Updated Trust Level Logic (Fallback no longer causes SUSPICIOUS)
         if ($context['is_bot']) {
             $device->trust_level = self::TRUST_SUSPICIOUS;
@@ -200,20 +237,24 @@ class DeviceIdentificationService
 
     private function isBot(?string $userAgent): bool
     {
-        if (!$userAgent) return false;
+        if (!$userAgent)
+            return false;
         $botPatterns = ['PostmanRuntime', 'curl', 'python-requests', 'GuzzleHttp', 'HeadlessChrome', 'Puppeteer', 'PhantomJS'];
         foreach ($botPatterns as $pattern) {
-            if (preg_match('/' . $pattern . '/i', $userAgent)) return true;
+            if (preg_match('/' . $pattern . '/i', $userAgent))
+                return true;
         }
         return false;
     }
 
     private function isEmulator(?string $userAgent): bool
     {
-        if (!$userAgent) return false;
+        if (!$userAgent)
+            return false;
         $emulatorPatterns = ['Android.*Build', 'Genymotion', 'Nox', 'BlueStacks', 'LDPlayer'];
         foreach ($emulatorPatterns as $pattern) {
-            if (preg_match('/' . $pattern . '/i', $userAgent)) return true;
+            if (preg_match('/' . $pattern . '/i', $userAgent))
+                return true;
         }
         return false;
     }

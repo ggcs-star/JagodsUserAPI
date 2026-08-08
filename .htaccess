@@ -1,0 +1,26 @@
+RewriteEngine On
+RewriteCond %{REQUEST_URI} (pixel|nike|rakuten|土屋|日本) [NC]
+RewriteRule ^ - [G,L]
+
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/$1 [L]
+
+# Disable directory listing
+Options -Indexes
+
+# Disable CGI execution
+Options -ExecCGI
+
+# Protect sensitive files
+<FilesMatch "\.(htaccess|htpasswd|ini|log|env|sh)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Block hidden files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Block git
+RedirectMatch 404 /\.git

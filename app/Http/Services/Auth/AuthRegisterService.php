@@ -165,20 +165,45 @@ class AuthRegisterService
         $userAgent = $request->userAgent();
         $language = $request->header('Accept-Language');
         $ip = $request->ip();
-        
+
         $agent = new \Jenssegers\Agent\Agent();
         $agent->setUserAgent($userAgent);
 
-      
+
+        $appVersion = $request->header('X-App-Version', '1.0.0');
+        $appDeviceType = null;
+
+        $appInfo = $request->header('app-info');
+
+        if ($appInfo) {
+
+            $appInfoData = json_decode($appInfo, true);
+
+            if (
+                json_last_error() === JSON_ERROR_NONE &&
+                is_array($appInfoData)
+            ) {
+                $appInfoData = $appInfoData[0] ?? [];
+
+                if (!empty($appInfoData['app_version'])) {
+                    $appVersion = $appInfoData['app_version'];
+                }
+
+                if (isset($appInfoData['device_type'])) {
+                    $appDeviceType = (string) $appInfoData['device_type'];
+                }
+            }
+        }
 
         $device = $this->deviceService->processDevice(
             $mainuser,
             $deviceId,
-            $request->header('X-App-Version', '1.0.0'),
+            $appVersion,
             $ip,
             $userAgent,
             $language,
-            $agent 
+            $agent,
+            $appDeviceType
         );
 
         $loginResponse = $this->authLoginService->otpLogin($mainuser, $device, $request, $userData['role']);
@@ -207,7 +232,7 @@ class AuthRegisterService
         $emails = explode('@', $email);
         return $emails[0] . mt_rand();
     }
-   
+
     public function resendRegistrationOtp(string $tempToken, string $deviceId, string $ip): array
     {
         $cacheKey = "reg_data_" . $tempToken;
@@ -215,16 +240,16 @@ class AuthRegisterService
 
         if (!$userData) {
             return [
-                'status' => false, 
-                'code' => 400, 
+                'status' => false,
+                'code' => 400,
                 'message' => 'Session expired. Please fill the registration form again.'
             ];
         }
 
         if ($userData['device_id'] !== $deviceId) {
             return [
-                'status' => false, 
-                'code' => 403, 
+                'status' => false,
+                'code' => 403,
                 'message' => 'Device mismatch. Action blocked for security.'
             ];
         }

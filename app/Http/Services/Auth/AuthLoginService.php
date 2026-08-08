@@ -12,13 +12,13 @@ use App\Http\Services\Security\SecurityRiskService;
 use App\Http\Services\DeviceIdentificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use Jenssegers\Agent\Agent; 
+use Jenssegers\Agent\Agent;
 use Exception;
 use App\Http\Services\OtpService;
 
 class AuthLoginService
 {
-    
+
     protected $deviceService;
     protected $riskService;
     protected $otpService;
@@ -26,7 +26,7 @@ class AuthLoginService
     public function __construct(
         DeviceIdentificationService $deviceService,
         SecurityRiskService $riskService,
-        OtpService $otpService 
+        OtpService $otpService
     ) {
         $this->deviceService = $deviceService;
         $this->riskService = $riskService;
@@ -36,41 +36,88 @@ class AuthLoginService
     public function login(array $credentials, $request, $requestedRole = null): array
     {
         if (!auth('api')->validate($credentials)) {
-            return ['status' => false, 'code' => 401, 'message' => 'Invalid credentials.'];
+            return [
+                'status' => false,
+                'code' => 401,
+                'message' => 'Invalid credentials.'
+            ];
         }
 
         $userField = isset($credentials['email']) ? 'email' : 'phone';
-        $user = User::where($userField, $credentials[$userField])->first();
+
+        $user = User::where(
+            $userField,
+            $credentials[$userField]
+        )->first();
 
         if (!$user) {
-            return ['status' => false, 'code' => 404, 'message' => 'User not found.'];
+            return [
+                'status' => false,
+                'code' => 404,
+                'message' => 'User not found.'
+            ];
         }
 
         if ($user->status == UserStatus::INACTIVE) {
-            return ['status' => false, 'code' => 403, 'message' => 'Your account is inactive.'];
+            return [
+                'status' => false,
+                'code' => 403,
+                'message' => 'Your account is inactive.'
+            ];
         }
 
         if ($requestedRole && ($requestedRole != $user->myrole)) {
-            return ['status' => false, 'code' => 403, 'message' => "You don't have permission to login to this portal."];
+            return [
+                'status' => false,
+                'code' => 403,
+                'message' => "You don't have permission to login to this portal."
+            ];
         }
 
         $userAgent = $request->userAgent();
         $language = $request->header('Accept-Language');
         $ip = $request->ip();
-        
+
         $agent = new Agent();
         $agent->setUserAgent($userAgent);
 
         $deviceId = resolveDeviceId($request);
 
+        $appVersion = $request->header('X-App-Version', '1.0.0');
+        $appDeviceType = null;
+
+        $appInfo = $request->header('app-info');
+
+        if ($appInfo) {
+
+            $appInfoData = json_decode($appInfo, true);
+
+            if (
+                json_last_error() === JSON_ERROR_NONE &&
+                is_array($appInfoData)
+            ) {
+                $appInfoData = $appInfoData[0] ?? [];
+
+                if (!empty($appInfoData['app_version'])) {
+                    $appVersion = $appInfoData['app_version'];
+                }
+
+                if (isset($appInfoData['device_type'])) {
+                    $appDeviceType = (string) $appInfoData['device_type'];
+                }
+            }
+        }
+
+
         $device = $this->deviceService->processDevice(
             $user,
             $deviceId,
-            $request->header('X-App-Version', '1.0.0'),
+            $appVersion,
             $ip,
             $userAgent,
             $language,
-            $agent 
+            $agent,
+            $appDeviceType
         );
 
         $riskAnalysis = $this->riskService->analyzeRisk($device, $user, $ip);
@@ -100,8 +147,8 @@ class AuthLoginService
 
             if (!$otpResult['status']) {
                 return [
-                    'status'  => false,
-                    'code'    => $otpResult['code'] ?? 400,
+                    'status' => false,
+                    'code' => $otpResult['code'] ?? 400,
                     'message' => $otpResult['message']
                 ];
             }
@@ -110,18 +157,18 @@ class AuthLoginService
             $tempToken = Str::uuid()->toString();
             Cache::put("otp_session_{$tempToken}", [
                 'email_or_phone' => $credentials[$userField],
-                'purpose'        => 'device_verification'
+                'purpose' => 'device_verification'
             ], now()->addMinutes(10));
 
             return [
-                'status'       => false,
-                'code'         => 401,
-                'message'      => 'Suspicious login detected. OTP sent to your registered contact.',
+                'status' => false,
+                'code' => 401,
+                'message' => 'Suspicious login detected. OTP sent to your registered contact.',
                 'requires_otp' => true,
-                'risk'         => $riskAnalysis,
-                'device_id'    => $device->id,
-                'temp_token'   => $tempToken,              // 👇 Token response me add kiya
-                'purpose'      => 'device_verification' 
+                'risk' => $riskAnalysis,
+                'device_id' => $device->id,
+                'temp_token' => $tempToken,              // 👇 Token response me add kiya
+                'purpose' => 'device_verification'
             ];
         }
         // ...
@@ -190,7 +237,7 @@ class AuthLoginService
 
         if ($role == UserRole::WAITER && $user->waiter) {
             $waiterId = $user->waiter->id;
-        } 
+        }
 
         return [
             'status' => true,
