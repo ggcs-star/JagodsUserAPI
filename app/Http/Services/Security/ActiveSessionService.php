@@ -11,19 +11,23 @@ use Exception;
 
 class ActiveSessionService
 {
-    public function getActiveSessions($userId, $currentDeviceDbId)
-    {
-        $devices = UserDevice::where('user_id', $userId)
-            ->whereHas('sessions', function ($query) {
-                $query->whereNull('revoked_at')
-                    ->where('expires_at', '>', now());
-            })
-            ->orderBy('last_active_at', 'desc')
-            ->get();
+   public function getActiveSessions($userId, $currentDeviceDbId)
+{
+    $devices = UserDevice::where('user_id', $userId)
+        ->whereHas('sessions', function ($query) {
+            $query->whereNull('revoked_at')
+                ->where('expires_at', '>', now());
+        })
+        ->orderBy('last_active_at', 'desc')
+        ->get();
 
-        return $devices->map(function ($device) use ($currentDeviceDbId) {
+    return $devices->map(function ($device) use ($currentDeviceDbId) {
+
+        if ($device->device_name === 'Web') {
             $sessionName = "{$device->device_name} ({$device->browser} on {$device->platform})";
-
+        } else {
+            $sessionName = $device->device_name;
+        }
             return [
                 'id' => $device->id,
                 'session_name' => $sessionName,

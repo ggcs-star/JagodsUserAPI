@@ -383,6 +383,7 @@ ALTER TABLE orders
 ADD COLUMN order_instructions TEXT NULL AFTER total;
 
 
+
 ALTER TABLE `addresses`
 ADD COLUMN `pincode` VARCHAR(10) NULL AFTER `longitude`;
 
@@ -513,3 +514,4 @@ ON DELETE SET NULL
 ON UPDATE CASCADE;
 
 
+=======================================================================done

@@ -35,14 +35,13 @@ class UniversalOtpController extends Controller
         $this->deviceService = $deviceService;
     }
 
-  public function send(Request $request)
+    public function send(Request $request)
     {
         $request->validate([
             'temp_token' => 'required|string',
             'purpose' => 'required|in:login,device_verification,forgot_password,profile_update',
         ]);
 
-        // 👇 FIX: Agar purpose profile_update hai, to strictly wahi cache uthao jisme naya email/phone hai
         if ($request->purpose === 'profile_update') {
             $sessionData = Cache::get("profile_update_{$request->temp_token}");
         } else {
@@ -64,7 +63,6 @@ class UniversalOtpController extends Controller
             }
 
             $user = clone $currentUser;
-            // Ab yahan strictly NAYA email/phone assign hoga kyunki profile_update cache read hua hai
             $user->email = $sessionData['email'] ?? $user->email;
             $user->phone = $sessionData['phone'] ?? $user->phone;
         } else {
@@ -151,15 +149,15 @@ class UniversalOtpController extends Controller
         if (!$user) {
             return $this->notFoundResponse('User not found.');
         }
-if ($purpose === 'forgot_password') {
+        if ($purpose === 'forgot_password') {
 
-    if (($sessionData['device_id'] ?? null) !== resolveDeviceId($request)) {
+            if (($sessionData['device_id'] ?? null) !== resolveDeviceId($request)) {
 
-        return $this->forbiddenResponse(
-            'Security mismatch. OTP must be verified from the same device.'
-        );
-    }
-}
+                return $this->forbiddenResponse(
+                    'Security mismatch. OTP must be verified from the same device.'
+                );
+            }
+        }
         $deviceId = resolveDeviceId($request);
 
         $verification = $this->otpService->verify(
@@ -188,19 +186,19 @@ if ($purpose === 'forgot_password') {
 
                 // 1. Generate Reset Token and store in Cache for exactly 10 minutes
                 Cache::put(
-    "password_reset_{$resetToken}",
-    [
-        'user_id' => $user->id,
-        'device_id' => resolveDeviceId($request),
-    ],
-    now()->addMinutes(10)
-);
+                    "password_reset_{$resetToken}",
+                    [
+                        'user_id' => $user->id,
+                        'device_id' => resolveDeviceId($request),
+                    ],
+                    now()->addMinutes(10)
+                );
                 // Token verify hone ke baad OTP session clear kar dein
                 Cache::forget("otp_session_{$request->temp_token}");
 
                 return $this->successResponse('OTP verified successfully.', [
                     'reset_token' => $resetToken,
-                    'expires_in'  => 600
+                    'expires_in' => 600
                 ]);
 
             case 'profile_update':
@@ -228,14 +226,42 @@ if ($purpose === 'forgot_password') {
 
         $finalDeviceId = resolveDeviceId($request);
 
+
+
+        $appVersion = $request->header('X-App-Version', '1.0.0');
+        $appDeviceType = null;
+
+        $appInfo = $request->header('app-info');
+
+        if ($appInfo) {
+
+            $appInfoData = json_decode($appInfo, true);
+
+            if (
+                json_last_error() === JSON_ERROR_NONE &&
+                is_array($appInfoData)
+            ) {
+                $appInfoData = $appInfoData[0] ?? [];
+
+                if (!empty($appInfoData['app_version'])) {
+                    $appVersion = $appInfoData['app_version'];
+                }
+
+                if (isset($appInfoData['device_type'])) {
+                    $appDeviceType = (string) $appInfoData['device_type'];
+                }
+            }
+        }
+
         $device = $this->deviceService->processDevice(
             $user,
             $finalDeviceId,
-            $request->header('X-App-Version', '1.0.0'),
+            $appVersion,
             $ip,
             $userAgent,
             $language,
-            $agent
+            $agent,
+            $appDeviceType
         );
 
         $role = $request->role;
