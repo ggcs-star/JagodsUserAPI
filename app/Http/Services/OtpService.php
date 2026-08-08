@@ -16,13 +16,16 @@ class OtpService
     public function generateAndSend($user, $purpose, $deviceId, $ip)
     {
         $identifier = $user->email ?: ($user->phone ?: $deviceId);
+
         $rateLimitKey = "send_otp_{$purpose}_" . md5($identifier);
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, 1)) {
+
             $seconds = RateLimiter::availableIn($rateLimitKey);
+
             return [
-                'status' => false, 
-                'code' => Response::HTTP_TOO_MANY_REQUESTS, 
+                'status' => false,
+                'code' => Response::HTTP_TOO_MANY_REQUESTS,
                 'message' => "Too many attempts. Wait {$seconds} seconds."
             ];
         }
@@ -35,16 +38,30 @@ class OtpService
             $deviceId,
             $ip
         );
-        Cache::put($cacheKey, $otpCode, now()->addMinutes(self::OTP_EXPIRY_MINUTES));
+
+        Cache::put(
+            $cacheKey,
+            $otpCode,
+            now()->addMinutes(self::OTP_EXPIRY_MINUTES)
+        );
 
         try {
-            $user->notify(new OneTimePasswordSend($otpCode));
+
+            $user->notify(
+                new OneTimePasswordSend($otpCode)
+            );
+
             RateLimiter::hit($rateLimitKey, 60);
+
         } catch (Exception $e) {
-            Log::error("Universal OTP Failed", ['error' => $e->getMessage()]);
+
+            Log::error("Universal OTP Failed", [
+                'error' => $e->getMessage()
+            ]);
+
             return [
-                'status' => false, 
-                'code' => Response::HTTP_INTERNAL_SERVER_ERROR, 
+                'status' => false,
+                'code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => 'Failed to send OTP. Try again later.'
             ];
         }
@@ -53,7 +70,9 @@ class OtpService
             'status' => true,
             'code' => Response::HTTP_OK,
             'message' => 'OTP sent successfully.',
-            'expires_in' => self::OTP_EXPIRY_MINUTES
+            'expires_in' => self::OTP_EXPIRY_MINUTES,
+            'sent_to' => $identifier,
+            'sent_to_type' => $user->email ? 'email' : ($user->phone ? 'phone' : 'device'),
         ];
     }
 
@@ -70,7 +89,7 @@ class OtpService
 
         if (!$cachedOtp || $cachedOtp != $otpInput) {
             return [
-                'status' => false, 
+                'status' => false,
                 'code' => Response::HTTP_BAD_REQUEST,
                 'message' => 'Invalid or expired OTP.'
             ];
@@ -79,7 +98,7 @@ class OtpService
         Cache::forget($cacheKey);
 
         return [
-            'status' => true, 
+            'status' => true,
             'code' => Response::HTTP_OK,
             'message' => 'OTP verified.'
         ];

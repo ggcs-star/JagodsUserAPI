@@ -39,8 +39,6 @@ class PasswordResetController extends Controller
             return $this->notFoundResponse('User not found.');
         }
 
-
-
         $tempToken = Str::uuid()->toString();
 
         $deviceId = resolveDeviceId($request);
@@ -75,6 +73,8 @@ class PasswordResetController extends Controller
                 'temp_token' => $tempToken,
                 'purpose' => 'forgot_password',
                 'expires_in' => $result['expires_in'] ?? 600,
+                'sent_to' => $result['sent_to'] ?? null,
+                'sent_to_type' => $result['sent_to_type'] ?? null,
             ]
         );
     }

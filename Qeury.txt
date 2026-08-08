@@ -513,5 +513,9 @@ REFERENCES `addresses`(`id`)
 ON DELETE SET NULL
 ON UPDATE CASCADE;
 
+ALTER TABLE users
+ADD COLUMN last_password_changed_at TIMESTAMP NULL DEFAULT NULL;
+
+
 
 =======================================================================done
