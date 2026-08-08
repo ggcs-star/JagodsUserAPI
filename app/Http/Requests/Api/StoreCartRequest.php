@@ -3,7 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
-
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 class StoreCartRequest extends FormRequest
 {
     public function authorize(): bool
@@ -37,4 +38,18 @@ class StoreCartRequest extends FormRequest
             'quantity.min' => 'Quantity must be at least 1',
         ];
     }
+
+    protected function failedValidation(Validator $validator)
+{
+    throw new HttpResponseException(
+        response()->json([
+            'status' => false,
+            'success' => false,
+            'status_code' => 422,
+            'errors' => $validator->errors(),
+            'message' => collect($validator->errors()->all())->first(),
+            'data' => [],
+        ], 422)
+    );
+}
 }

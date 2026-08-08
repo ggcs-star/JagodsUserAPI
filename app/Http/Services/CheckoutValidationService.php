@@ -132,7 +132,7 @@ class CheckoutValidationService
 
                 $cartItem->update([
                     'quantity' => $menuItem->max_cart_quantity,
-                    'total_price' => $cartItem->price * $menuItem->max_cart_quantity,
+                    'total_price' => $cartItem->final_price * $menuItem->max_cart_quantity,
                 ]);
 
                 throw new Exception(
@@ -154,7 +154,7 @@ class CheckoutValidationService
 
             $livePrice = $this->getLivePrice($menuItem, $cartItem);
 
-            if ($livePrice != $cartItem->price) {
+            if ($livePrice != $cartItem->final_price) {
 
                 $cartItem->update([
                     'price' => $livePrice,

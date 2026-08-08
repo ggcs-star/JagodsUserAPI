@@ -4,7 +4,7 @@ namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class VerifyPaymentRequest extends FormRequest
+class RepayOrderRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -15,9 +15,14 @@ class VerifyPaymentRequest extends FormRequest
     {
         return [
             'order_id' => 'required|integer',
-            'razorpay_order_id' => 'required|string',
-            'razorpay_payment_id' => 'required|string',
-            'razorpay_signature' => 'required|string',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'order_id.required' => 'Order ID is required.',
+            'order_id.integer'  => 'Order ID must be an integer.',
         ];
     }
 }

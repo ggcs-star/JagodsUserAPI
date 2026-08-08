@@ -23,6 +23,7 @@ class Order extends Model implements HasMedia
         'restaurant_id',
         'user_id',
         'total',
+        'product_discount',
         'sub_total',
         'gst_amount',
         'delivery_charge',
@@ -52,7 +53,8 @@ class Order extends Model implements HasMedia
         'tip_amount',
         'order_instructions',
         'user_device_id',
-        'module_id'
+        'module_id',
+        'address_id',
     ];
     protected $casts = [
         'status' => 'int',

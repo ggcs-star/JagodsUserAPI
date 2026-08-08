@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\v1;
 
-use App\Http\Controllers\FrontendController;
+use App\Http\Controllers\BackendController;
 use App\Traits\ApiResponse;
 use App\Http\Requests\Api\StoreCartRequest;
 use App\Http\Requests\Api\ApplyCouponRequest;
@@ -10,7 +10,8 @@ use App\Http\Requests\Api\UpdateCartRequest;
 use App\Http\Services\CartService;
 use Illuminate\Http\Request;
 use App\Http\Resources\v1\CartResource;
-class CartController extends FrontendController
+use Illuminate\Validation\ValidationException;
+class CartController extends BackendController
 {
     use ApiResponse;
 
@@ -20,29 +21,36 @@ class CartController extends FrontendController
     {
         parent::__construct();
         $this->middleware('auth:api');
-        $this->data['site_title'] = 'Frontend';
+        $this->data['site_title'] = 'Backend';
         $this->cartService = $cartService;
     }
 
     public function index()
     {
-        $cart = $this->cartService->getCart(auth()->id());
+        try {
 
+            $cart = $this->cartService->getCart(auth()->id());
 
-        if (!$cart) {
-            return $this->successresponse([
-                'status' => 200,
-                'message' => 'Cart is empty',
-                'data' => null
-            ]);
+            if (!$cart) {
+                return $this->successResponse(
+                    message: 'Cart is empty.',
+                    data: []
+                );
+            }
+
+            return $this->successResponse(
+                message: 'Cart fetched successfully.',
+                data: new CartResource($cart)
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
         }
-
-
-        return $this->successresponse([
-            'status' => 200,
-            'message' => 'Cart fetched successfully',
-            'data' => new CartResource($cart)
-        ]);
     }
 
     public function store(StoreCartRequest $request)
@@ -54,23 +62,38 @@ class CartController extends FrontendController
                 auth()->id()
             );
 
-            return $this->successresponse([
+            return $this->createdResponse(
+                message: 'Item added to cart successfully.',
+                data: new CartResource($cart)
+            );
 
-                'status' => 200,
+        } catch (\Throwable $e) {
 
-                'message' => 'Added to cart successfully',
+            // Module mismatch exception
+            if ($e->getCode() == 422) {
 
-                'cart' => $cart
-            ]);
+                $payload = json_decode($e->getMessage(), true);
 
-        } catch (\Exception $e) {
+                if (json_last_error() === JSON_ERROR_NONE) {
 
-            return $this->successresponse([
+                    return $this->errorResponse(
+                        message: $payload['message'],
+                        statusCode: 422,
+                        data: [
+                            'requires_cart_clear' => true,
+                            'current_module' => $payload['current_module'],
+                            'current_module_name' => $payload['current_module_name'],
+                            'new_module' => $payload['new_module'],
+                            'new_module_name' => $payload['new_module_name'],
+                        ]
+                    );
+                }
+            }
 
-                'status' => $e->getCode() ?: 400,
-
-                'message' => $e->getMessage()
-            ]);
+            return $this->errorResponse(
+                message: $e->getMessage(),
+                statusCode: $e->getCode() ?: 400
+            );
         }
     }
 
@@ -78,66 +101,122 @@ class CartController extends FrontendController
     public function update(UpdateCartRequest $request)
     {
         try {
-            $cart = $this->cartService->updateCartDetails($request->validated(), auth()->id());
-            return $this->successresponse([
-                'status' => 200,
-                'message' => 'Cart updated successfully',
-                'cart' => $cart
-            ]);
-        } catch (\Exception $e) {
-            return $this->successresponse(['status' => 400, 'message' => $e->getMessage()]);
+
+            $cart = $this->cartService->updateCartDetails(
+                $request->validated(),
+                auth()->id()
+            );
+
+            return $this->updatedResponse(
+                message: 'Cart updated successfully.',
+                data: new CartResource($cart)
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->errorResponse(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
         }
     }
     public function clear()
     {
         try {
+
             $this->cartService->clearCart(auth()->id());
 
-            return $this->successresponse([
-                'status' => 200,
-                'message' => 'Cart cleared successfully',
-                'data' => []
-            ]);
-        } catch (\Exception $e) {
+            return $this->deletedResponse(
+                message: 'Cart cleared successfully.'
+            );
 
-            return $this->successresponse([
-                'status' => $e->getCode() ?: 400,
-                'message' => $e->getMessage()
-            ]);
+        } catch (\Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
         }
     }
-    public function remove($id)
-    {
-        try {
-            $this->cartService->removeItem($id);
-            return $this->successresponse(['status' => 200, 'message' => 'Removed successfully']);
-        } catch (\Exception $e) {
-            return $this->successresponse(['status' => 404, 'message' => $e->getMessage()]);
-        }
+ public function remove(Request $request)
+{
+    try {
+
+        $request->validate([
+            'cart_item_id' => 'required|integer|exists:cart_items,id',
+        ]);
+
+        $this->cartService->removeItem(
+            $request->cart_item_id,
+            auth()->id()
+        );
+
+        return $this->deletedResponse(
+            message: 'Item removed successfully.'
+        );
+
+    } catch (ValidationException $e) {
+
+        return $this->notFoundResponse(
+            'Cart item not found.'
+        );
+
+    } catch (\Throwable $e) {
+
+        return $this->errorResponse(
+            message: $e->getMessage(),
+            statusCode: $e->getCode() ?: 400
+        );
     }
+}
 
     public function quantity(Request $request)
     {
         try {
-            $data = $this->cartService->updateQuantity($request->cart_item_id, $request->quantity);
-            return $this->successresponse(array_merge(['status' => 200], $data));
-        } catch (\Exception $e) {
-            return $this->successresponse(['status' => 400, 'message' => $e->getMessage()]);
+
+            $data = $this->cartService->updateQuantity(
+                $request->cart_item_id,
+                $request->quantity
+            );
+
+            return $this->successResponse(
+                message: $data['message'] ?? 'Quantity updated successfully.',
+                data: $data
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->errorResponse(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
         }
     }
 
     public function applyCoupon(ApplyCouponRequest $request)
     {
         try {
-            $data = $this->cartService->applyCoupon($request->validated(), auth()->id());
-            return $this->successresponse([
-                'status' => 200,
-                'message' => 'Coupon applied successfully',
-                'coupon' => $data['coupon'],
-                'cart' => $data['cart']
-            ]);
-        } catch (\Exception $e) {
-            return $this->successresponse(['status' => 422, 'message' => $e->getMessage()]);
+
+            $data = $this->cartService->applyCoupon(
+                $request->validated(),
+                auth()->id()
+            );
+
+            return $this->successResponse(
+                message: 'Coupon applied successfully.',
+                data: [
+                    'coupon' => $data['coupon'],
+                    'cart' => new CartResource($data['cart'])
+                ]
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->errorResponse(
+                message: $e->getMessage(),
+                statusCode: 422
+            );
         }
     }
 }

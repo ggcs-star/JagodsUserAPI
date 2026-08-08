@@ -49,10 +49,9 @@ class OrderController extends Controller
     public function index()
     {
         try {
-            Log::info('Order index API called', ['user_id' => auth()->id()]);
 
             $orders = Order::where('user_id', auth()->id())
-                ->orderBy('id', 'desc')
+                ->orderByDesc('id')
                 ->with([
                     'items.menuItem',
                     'restaurant.media',
@@ -60,52 +59,56 @@ class OrderController extends Controller
                 ])
                 ->get();
 
-            Log::info('Orders fetched from DB', ['total_orders' => $orders->count()]);
+            $orders->transform(function ($order) {
 
-            $orders->map(function ($post) {
+                $order['status_name'] = trans('order_status.' . $order->status);
+                $order['order_code'] = $order->order_code;
+                $order['address'] = orderAddress($order->address);
+                $order['order_type'] = (int) $order->order_type;
+                $order['order_type_name'] = $order->get_order_type;
+                $order['payment_method_name'] = trans('payment_method.' . $order->payment_method);
+                $order['created_at_convert'] = food_date_format($order->created_at);
+                $order['updated_at_convert'] = food_date_format($order->updated_at);
+                $order['brand_name'] = "Jagods";
 
-                $post['status_name'] = trans('order_status.' . $post->status);
-                $post['order_code'] = $post->order_code;
-                $post['address'] = orderAddress($post->address);
-                $post['order_type'] = (int) $post->order_type;
-                $post['order_type_name'] = $post->get_order_type;
-                $post['payment_method_name'] = trans('payment_method.' . $post->payment_method);
-                $post['created_at_convert'] = food_date_format($post->created_at);
-                $post['brand_name'] = "Jagods";
+                $order['brand_image'] = optional(
+                    optional($order->restaurant)->media->first()
+                )->original_url;
 
-                $post['brand_image'] = $post->restaurant && $post->restaurant->media
-                    ? $post->restaurant->media->first()->original_url ?? null
+                $order['deliveryBoy'] = $order->delivery_boy_id
+                    ? new UserResource($order->delivery)
                     : null;
 
-                $post['updated_at_convert'] = food_date_format($post->updated_at);
-                $post['deliveryBoy'] = $post->delivery_boy_id == null ? null : new UserResource($post->delivery);
+                foreach ($order->items as $item) {
+                    $item['created_at_convert'] = food_date_format($order->created_at);
+                    $item['updated_at_convert'] = food_date_format($order->updated_at);
 
-                foreach ($post['items'] as $itemKey => $item) {
-                    $post['items'][$itemKey]['created_at_convert'] = food_date_format($post->created_at);
-                    $post['items'][$itemKey]['updated_at_convert'] = food_date_format($post->updated_at);
-
-                    if (isset($item['menuItem'])) {
-                        $post['items'][$itemKey]['menuItem']['image'] = $item['menuItem']->image ?? null;
+                    if ($item->menuItem) {
+                        $item->menuItem->image = $item->menuItem->image;
                     }
                 }
 
-                return $post;
+                return $order;
             });
 
-            Log::info('Order response prepared successfully');
+            return $this->successResponse(
+                message: 'Orders fetched successfully.',
+                data: $orders
+            );
 
-            return new OrderResource($orders);
+        } catch (\Throwable $e) {
 
-        } catch (\Exception $e) {
             Log::error('Order index API error', [
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'file' => $e->getFile(),
             ]);
 
-            return response()->json([
-                'message' => 'Something went wrong'
-            ], 500);
+            return $this->serverErrorResponse(
+                message: config('app.debug')
+                ? $e->getMessage()
+                : 'Internal Server Error'
+            );
         }
     }
 
@@ -137,10 +140,10 @@ class OrderController extends Controller
 
             $orderData = new OrderApiResource($orderRecord);
 
-            return $this->successResponse([
-                'status' => 200,
-                'data' => $orderData
-            ]);
+            return $this->successResponse(
+    'Order fetched successfully.',
+    $orderData
+);
 
         } catch (\Exception $e) {
 

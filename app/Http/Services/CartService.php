@@ -16,6 +16,8 @@ use App\Enums\DiscountStatus;
 use App\Enums\OrderTypeStatus;
 use Exception;
 use App\Models\Address;
+use App\Enums\Module;
+use Illuminate\Support\Facades\DB; // Added DB facade for query raw
 
 class CartService
 {
@@ -34,21 +36,54 @@ class CartService
         return null;
     }
 
-   public function addToCart(array $data, $userId)
+    public function addToCart(array $data, $userId)
     {
-        $menuItem = MenuItem::find($data['menu_id']);
+        $menuItem = MenuItem::with('module')->find($data['menu_id']);
 
         if (!$menuItem) {
             throw new Exception('Menu item not found', 404);
         }
+        $existingCart = Cart::with('items.menuItem.module')
+            ->where('user_id', $userId)
+            ->first();
 
+        if ($existingCart && $existingCart->items->isNotEmpty()) {
+
+            $existingItem = $existingCart->items->first();
+
+            $existingModule = optional($existingItem->menuItem->module)->slug;
+            $newModule = optional($menuItem->module)->slug;
+
+            if (
+                $existingModule &&
+                $newModule &&
+                $existingModule !== $newModule
+            ) {
+
+                throw new Exception(
+                    json_encode([
+                        'message' => 'Your cart already contains items from "' .
+                            ucfirst(str_replace('_', ' ', $existingModule)) .
+                            '". Please clear your cart before adding items from "' .
+                            ucfirst(str_replace('_', ' ', $newModule)) .
+                            '".',
+
+                        'current_module' => $existingModule,
+                        'current_module_name' => ucfirst(str_replace('_', ' ', $existingModule)),
+                        'new_module' => $newModule,
+                        'new_module_name' => ucfirst(str_replace('_', ' ', $newModule)),
+                    ]),
+                    422
+                );
+            }
+        }
         if (isset($data['address_id'])) {
             $address = Address::find($data['address_id']);
             if ($address) {
                 $this->checkDeliveryRadius($menuItem->restaurant_id, $address->latitude, $address->longitude, OrderTypeStatus::DELIVERY);
             }
         } elseif (isset($data['latitude']) && isset($data['longitude'])) {
-             $this->checkDeliveryRadius($menuItem->restaurant_id, $data['latitude'], $data['longitude'], OrderTypeStatus::DELIVERY);
+            $this->checkDeliveryRadius($menuItem->restaurant_id, $data['latitude'], $data['longitude'], OrderTypeStatus::DELIVERY);
         }
 
         $cart = $this->firstOrCreateCart(
@@ -63,15 +98,14 @@ class CartService
             'order_instructions' => $data['order_instructions'] ?? $cart->order_instructions,
         ]);
 
+        // ✅ Step 1 changes implemented in calculateItemPrice
         $priceDetails = $this->calculateItemPrice(
             $menuItem,
             $data['variation_id'] ?? null,
             $data['options'] ?? []
         );
 
-
         $requestedQty = $data['quantity'] ?? 1;
-
 
         if ($requestedQty > $menuItem->max_cart_quantity) {
             throw new Exception(
@@ -85,34 +119,29 @@ class CartService
             ->where('variation_id', $priceDetails['variation_id'])
             ->first();
 
-
         if ($requestedQty == 0) {
-
             if ($existingItem) {
                 $existingItem->delete();
             }
-
             $this->updateCartTotals($cart);
-
             return $cart->fresh([
                 'items'
             ]);
         }
 
-
-        $totalPrice = $priceDetails['price'] * $requestedQty;
+        // ✅ Step 2: total_price calculation update
+        $totalPrice = $priceDetails['final_price'] * $requestedQty;
 
         if ($existingItem) {
-
-
             $existingItem->update([
                 'menu_name' => $menuItem->name,
                 'menu_slug' => $menuItem->slug,
                 'menu_image' => $menuItem->image,
                 'variation_name' => $priceDetails['variation_name'] ?? null,
-                'unit_price' => $menuItem->unit_price,
-                'discount_price' => $menuItem->discount_price,
-                'price' => $priceDetails['price'],
+                // ✅ Step 2: Update array assignments
+                'unit_price' => $priceDetails['unit_price'],
+                'discount_price' => $priceDetails['discount_price'],
+                'final_price' => $priceDetails['final_price'],
                 'total_price' => $totalPrice,
                 'options' => $priceDetails['options'],
                 'instructions' => $data['instructions'] ?? null,
@@ -122,7 +151,6 @@ class CartService
             ]);
 
         } else {
-
             CartItem::create([
                 'cart_id' => $cart->id,
                 'menu_item_id' => $menuItem->id,
@@ -131,9 +159,10 @@ class CartService
                 'menu_slug' => $menuItem->slug,
                 'menu_image' => $menuItem->image,
                 'variation_name' => $priceDetails['variation_name'] ?? null,
-                'unit_price' => $menuItem->unit_price,
-                'discount_price' => $menuItem->discount_price,
-                'price' => $priceDetails['price'],
+                // ✅ Step 2: Insert array assignments
+                'unit_price' => $priceDetails['unit_price'],
+                'discount_price' => $priceDetails['discount_price'],
+                'final_price' => $priceDetails['final_price'],
                 'total_price' => $totalPrice,
                 'options' => $priceDetails['options'],
                 'instructions' => $data['instructions'] ?? null,
@@ -153,7 +182,22 @@ class CartService
     public function updateCartDetails(array $data, $userId)
     {
         $cart = $this->getCartOrFail($userId);
+        $cart->loadMissing('items.menuItem.module');
 
+        $firstItem = $cart->items->first();
+
+        $moduleSlug = optional($firstItem?->menuItem?->module)->slug;
+
+        if (
+            isset($data['order_type']) &&
+            $data['order_type'] == OrderTypeStatus::PICKUP &&
+            $moduleSlug == Module::ALL_OVER_INDIA_SLUG
+        ) {
+            throw new Exception(
+                'Pickup is not available for All Over India orders.',
+                422
+            );
+        }
         $updateData = [];
         $latToCheck = null;
         $lngToCheck = null;
@@ -165,8 +209,7 @@ class CartService
                 $latToCheck = $address->latitude;
                 $lngToCheck = $address->longitude;
             }
-        } 
-        else if (isset($data['latitude']) && isset($data['longitude'])) {
+        } else if (isset($data['latitude']) && isset($data['longitude'])) {
             $updateData['latitude'] = $data['latitude'];
             $updateData['longitude'] = $data['longitude'];
             $latToCheck = $data['latitude'];
@@ -201,17 +244,31 @@ class CartService
         return $cart->fresh();
     }
 
-    public function removeItem($cartItemId)
+    public function removeItem(int $cartItemId, int $userId)
     {
         $cartItem = CartItem::find($cartItemId);
-        if (!$cartItem)
-            throw new Exception('Cart item not found', 404);
 
-        $cart = Cart::find($cartItem->cart_id);
+        if (!$cartItem) {
+            throw new Exception('Cart item not found.', 404);
+        }
+
+        $cart = Cart::where('id', $cartItem->cart_id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$cart) {
+            throw new Exception('Unauthorized access to cart.', 403);
+        }
+
         $cartItem->delete();
 
-        if ($cart)
-            $this->updateCartTotals($cart);
+        $this->updateCartTotals($cart);
+
+        if ($cart->items()->count() === 0) {
+            $cart->delete();
+        }
+
+        return true;
     }
 
     public function clearCart($userId)
@@ -239,9 +296,10 @@ class CartService
             throw new Exception("Maximum allowed quantity is {$menuItem->max_cart_quantity}");
         }
 
+        // ✅ Step 3: changed to final_price
         $cartItem->update([
             'quantity' => $quantity,
-            'total_price' => $cartItem->price * $quantity,
+            'total_price' => $cartItem->final_price * $quantity,
         ]);
 
         $cart = Cart::find($cartItem->cart_id);
@@ -249,7 +307,7 @@ class CartService
 
         $cart->refresh();
         return [
-            'price' => currencyFormat($cartItem->fresh()->total_price),
+            'final_price' => currencyFormat($cartItem->fresh()->total_price), // renamed key 'price' to 'final_price'
             'totalPrice' => currencyFormat($cart->subtotal),
             'gst' => currencyFormat($cart->gst_amount),
             'discount' => currencyFormat($cart->discount),
@@ -262,13 +320,11 @@ class CartService
         $cart = $this->getCartOrFail($userId);
         $today = now();
 
-
         $coupon = Coupon::whereRaw('BINARY slug = ?', [$data['coupon']])
             ->where('from_date', '<=', $today)
             ->where('to_date', '>=', $today)
             ->where('limit', '>', 0)
             ->where(function ($query) use ($cart) {
-
                 $query->where('restaurant_id', $cart->restaurant_id)
                     ->orWhere('restaurant_id', 0);
             })->first();
@@ -277,22 +333,18 @@ class CartService
             throw new Exception('This Coupon is Invalid or Expired');
         }
 
-
         if ($coupon->coupon_type == CouponType::VOUCHER && $coupon->restaurant_id != 0 && $coupon->restaurant_id != $cart->restaurant_id) {
             throw new Exception('This Coupon is Invalid for this restaurant.');
         }
-
 
         if ($coupon->minimum_order_amount > 0 && $cart->subtotal < $coupon->minimum_order_amount) {
             throw new Exception("This coupon requires a minimum order amount of ₹" . $coupon->minimum_order_amount);
         }
 
-
         $totalUsed = Discount::where('coupon_id', $coupon->id)->where('status', DiscountStatus::ACTIVE)->count();
         if ($totalUsed >= $coupon->limit) {
             throw new Exception('This Coupon is fully redeemed and no longer available.');
         }
-
 
         $userUsedCount = Discount::where('coupon_id', $coupon->id)->where('user_id', $userId)->where('status', DiscountStatus::ACTIVE)->count();
         $userLimit = $coupon->user_limit > 0 ? $coupon->user_limit : 1;
@@ -300,7 +352,6 @@ class CartService
         if ($userUsedCount >= $userLimit) {
             throw new Exception('You have already reached the maximum usage limit for this coupon.');
         }
-
 
         $cart->update(['coupon_id' => $coupon->id]);
         $this->updateCartTotals($cart);
@@ -346,33 +397,52 @@ class CartService
         return $cart;
     }
 
+    // ✅ Step 1: Updated logic
     private function calculateItemPrice($menuItem, $variationId, $optionIds)
     {
-        $price = 0;
+        $unitPrice = (float) $menuItem->unit_price;
+        $productDiscount = (float) $menuItem->discount_price;
+
+        $finalPrice = max(0, $unitPrice - $productDiscount);
+
         $finalVariationId = null;
         $variationName = null;
 
         if ($variationId) {
             $variation = MenuItemVariation::find($variationId);
-            if (!$variation)
+
+            if (!$variation) {
                 throw new Exception('Variation not found', 404);
+            }
+
             $finalVariationId = $variation->id;
-            $variationName = $variation->name ?? null;
-            $price = $variation->price - $variation->discount_price;
-        } else {
-            $price = $menuItem->unit_price - $menuItem->discount_price;
+            $variationName = $variation->name;
+
+            $finalPrice += $variation->price;
         }
 
         $optionArray = [];
+
         if (!empty($optionIds)) {
             $options = MenuItemOption::whereIn('id', $optionIds)->get();
             foreach ($options as $option) {
-                $optionArray[] = ['id' => $option->id, 'name' => $option->name, 'price' => $option->price];
-                $price += $option->price;
+                $optionArray[] = [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'price' => $option->price
+                ];
+                $finalPrice += $option->price;
             }
         }
 
-        return ['price' => $price, 'variation_id' => $finalVariationId, 'variation_name' => $variationName, 'options' => $optionArray];
+        return [
+            'unit_price' => $unitPrice,
+            'discount_price' => $productDiscount,
+            'final_price' => $finalPrice,
+            'variation_id' => $finalVariationId,
+            'variation_name' => $variationName,
+            'options' => $optionArray,
+        ];
     }
 
     public function updateCartTotals(Cart $cart)
@@ -383,6 +453,11 @@ class CartService
         $subtotal = CartItem::where('cart_id', $cart->id)
             ->where('is_available', true)
             ->sum('total_price');
+            
+        // ✅ Step 5: Product Discount Calculation (Only for available items)
+        $productDiscount = CartItem::where('cart_id', $cart->id)
+            ->where('is_available', true)
+            ->sum(DB::raw('discount_price * quantity'));
 
         $totalQuantity = CartItem::where('cart_id', $cart->id)
             ->where('is_available', true)
@@ -431,12 +506,13 @@ class CartService
             $largeOrderFee = 0;
             $tipAmount = 0;
         } else {
-
             $total = max(0, $taxableAmount + $gstAmount + $deliveryCharge + $packagingCharge + $platformFee + $surgeFee + $largeOrderFee + $tipAmount);
         }
 
+        // ✅ Step 5: Update Cart values
         $cart->update([
             'subtotal' => $subtotal,
+            'product_discount' => $productDiscount,
             'discount' => $discount,
             'gst_amount' => $gstAmount,
             'delivery_charge' => round($deliveryCharge, 2),
@@ -514,7 +590,6 @@ class CartService
         foreach ($cart->items as $cartItem) {
             $menuItem = $cartItem->menuItem;
 
-
             if (!$menuItem || $menuItem->status != 5) {
                 if ($cartItem->is_available) {
                     $cartItem->update([
@@ -524,12 +599,9 @@ class CartService
                     $hasChanges = true;
                 }
 
-
                 $syncMessages[] = "{$cartItem->menu_name} is temporarily unavailable.";
-
                 continue;
             }
-
 
             $optionIds = [];
             if (!empty($cartItem->options) && is_array($cartItem->options)) {
@@ -542,19 +614,22 @@ class CartService
                 $optionIds
             );
 
-            $livePrice = $livePriceDetails['price'];
+            // ✅ Step 4: Access final_price
+            $livePrice = $livePriceDetails['final_price'];
 
             $wasUnavailable = !$cartItem->is_available;
-            $isPriceChanged = ($cartItem->price != $livePrice);
+            $isPriceChanged = ($cartItem->final_price != $livePrice); // check with final_price
 
             $expectedTotalPrice = $livePrice * $cartItem->quantity;
             $isTotalWrong = ($cartItem->total_price != $expectedTotalPrice);
 
             if ($isPriceChanged || $wasUnavailable || $isTotalWrong) {
-
                 $cartItem->update([
                     'is_available' => true,
-                    'price' => $livePrice,
+                    // ✅ Step 4: Assign to proper columns dynamically
+                    'unit_price' => $livePriceDetails['unit_price'],
+                    'discount_price' => $livePriceDetails['discount_price'],
+                    'final_price' => $livePrice,
                     'total_price' => $expectedTotalPrice,
                     'options' => $livePriceDetails['options'],
                     'is_price_changed' => $isPriceChanged ? true : $cartItem->is_price_changed
@@ -563,10 +638,8 @@ class CartService
                 $hasChanges = true;
                 if ($isPriceChanged) {
                     $priceChanged = true;
-
                 }
             }
-
 
             if ($cartItem->quantity > $menuItem->max_cart_quantity) {
                 $cartItem->update([
@@ -574,8 +647,6 @@ class CartService
                     'total_price' => $livePrice * $menuItem->max_cart_quantity,
                 ]);
                 $hasChanges = true;
-
-
             }
         }
 
@@ -587,14 +658,15 @@ class CartService
 
         return $hasChanges;
     }
+
     private function checkDeliveryRadius($restaurantId, $latitude, $longitude, $orderType = OrderTypeStatus::DELIVERY)
     {
         if ($orderType == OrderTypeStatus::PICKUP) {
-            return true; 
+            return true;
         }
 
         if (!$latitude || !$longitude) {
-            return true; 
+            return true;
         }
 
         $restaurant = Restaurant::find($restaurantId);
