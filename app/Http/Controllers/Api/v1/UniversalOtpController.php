@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Jenssegers\Agent\Agent;
 use App\Traits\ApiResponse;
-
+use Illuminate\Support\Facades\Storage;
 class UniversalOtpController extends Controller
 {
     use ApiResponse;
@@ -293,14 +293,23 @@ class UniversalOtpController extends Controller
     private function handleProfileUpdate($user, $request)
     {
         $cacheKey = "profile_update_" . $request->temp_token;
+
         $updateData = Cache::get($cacheKey);
 
         if (!$updateData) {
-            return $this->errorResponse('Update session expired. Please try again.', 400);
+            return $this->errorResponse(
+                'Update session expired. Please try again.',
+                400
+            );
         }
 
-        if ($updateData['device_id'] !== resolveDeviceId($request)) {
-            return $this->forbiddenResponse('Security mismatch. Update blocked.');
+        if (
+            ($updateData['device_id'] ?? null)
+            !== resolveDeviceId($request)
+        ) {
+            return $this->forbiddenResponse(
+                'Security mismatch. Update blocked.'
+            );
         }
 
         $user->first_name = $updateData['first_name'];
@@ -309,16 +318,44 @@ class UniversalOtpController extends Controller
         $user->phone = $updateData['phone'];
         $user->address = $updateData['address'];
         $user->username = $updateData['username'];
+
         $user->save();
 
         if (!empty($updateData['address'])) {
+
             \App\Models\Address::updateOrCreate(
-                ['user_id' => $user->id, 'label' => \App\Enums\AddressType::HOME],
-                ['address' => $updateData['address'], 'label_name' => trans('address_types.' . \App\Enums\AddressType::HOME)]
+                [
+                    'user_id' => $user->id,
+                    'label' => \App\Enums\AddressType::HOME,
+                ],
+                [
+                    'address' => $updateData['address'],
+                    'label_name' => trans(
+                        'address_types.' . \App\Enums\AddressType::HOME
+                    ),
+                ]
             );
         }
 
+        if (!empty($updateData['image_path'])) {
+
+            $imagePath = $updateData['image_path'];
+
+            if (Storage::disk('public')->exists($imagePath)) {
+
+                $user->media()->delete();
+
+                $user->addMedia(
+                    Storage::disk('public')->path($imagePath)
+                )->toMediaCollection('user');
+
+                Storage::disk('public')->delete($imagePath);
+            }
+        }
+
         Cache::forget($cacheKey);
+
+        $user->refresh();
 
         return $this->successResponse(
             message: 'Profile updated successfully!',

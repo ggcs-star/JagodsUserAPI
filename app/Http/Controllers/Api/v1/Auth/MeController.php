@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Http\Services\Security\ActiveSessionService;
 use Throwable;
+use Illuminate\Support\Facades\Storage;
 class MeController extends Controller
 {
     use ApiResponse;
@@ -120,6 +121,16 @@ class MeController extends Controller
                 ($newEmail !== $profile->email) ||
                 ($newPhone !== $profile->phone);
 
+
+            $imagePath = null;
+
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')->store(
+                    'temp/profile-images',
+                    'public'
+                );
+            }
+
             if ($isSensitiveChange) {
 
                 $tempToken = Str::uuid()->toString();
@@ -132,6 +143,8 @@ class MeController extends Controller
                     'address' => $request->address,
                     'username' => $request->username ?? $profile->username,
                     'device_id' => resolveDeviceId($request),
+
+                    'image_path' => $imagePath,
                 ];
 
                 Cache::put(
@@ -140,7 +153,6 @@ class MeController extends Controller
                     now()->addMinutes(10)
                 );
 
-                // Resend OTP ke liye bhi session save karo
                 Cache::put(
                     "otp_session_{$tempToken}",
                     [
@@ -162,6 +174,11 @@ class MeController extends Controller
                 );
 
                 if (!$result['status']) {
+
+                    if ($imagePath) {
+                        Storage::disk('public')->delete($imagePath);
+                    }
+
                     return $this->errorResponse(
                         message: $result['message'] ?? 'Failed to send OTP.',
                         statusCode: $result['code'] ?? 400
@@ -229,7 +246,6 @@ class MeController extends Controller
                 ->toMediaCollection('user');
         }
 
-        // Fresh data reload
         $profile->refresh();
 
         return $this->successResponse(
@@ -337,49 +353,49 @@ class MeController extends Controller
     }
 
     public function saveReview(Request $request)
-{
-    $validator = Validator::make(
-        $request->all(),
-        $this->reviewValidateArray()
-    );
+    {
+        $validator = Validator::make(
+            $request->all(),
+            $this->reviewValidateArray()
+        );
 
-    if ($validator->fails()) {
-        return $this->validationResponse($validator->errors()->toArray());
-    }
+        if ($validator->fails()) {
+            return $this->validationResponse($validator->errors()->toArray());
+        }
 
-    $rating = RestaurantRating::updateOrCreate(
-        [
-            'user_id'       => auth()->id(),
-            'restaurant_id' => $request->restaurant_id,
-        ],
-        [
-            'rating' => $request->rating,
-            'review' => $request->review,
-            'status' => RatingStatus::ACTIVE,
-        ]
-    );
+        $rating = RestaurantRating::updateOrCreate(
+            [
+                'user_id' => auth()->id(),
+                'restaurant_id' => $request->restaurant_id,
+            ],
+            [
+                'rating' => $request->rating,
+                'review' => $request->review,
+                'status' => RatingStatus::ACTIVE,
+            ]
+        );
 
-    return $this->successResponse(
-        message: $rating->wasRecentlyCreated
+        return $this->successResponse(
+            message: $rating->wasRecentlyCreated
             ? 'Review submitted successfully.'
             : 'Review updated successfully.',
-        data: [
-            'review_id'     => $rating->id,
-            'restaurant_id' => $rating->restaurant_id,
-            'rating'        => $rating->rating,
-            'review'        => $rating->review,
-        ]
-    );
-}
+            data: [
+                'review_id' => $rating->id,
+                'restaurant_id' => $rating->restaurant_id,
+                'rating' => $rating->rating,
+                'review' => $rating->review,
+            ]
+        );
+    }
 
-  public function reviewValidateArray(): array
-{
-    return [
-        'restaurant_id' => 'required|integer|exists:restaurants,id',
-        'rating'        => 'required|integer|min:1|max:5',
-        'review'        => 'nullable|string|max:500',
-    ];
-}
+    public function reviewValidateArray(): array
+    {
+        return [
+            'restaurant_id' => 'required|integer|exists:restaurants,id',
+            'rating' => 'required|integer|min:1|max:5',
+            'review' => 'nullable|string|max:500',
+        ];
+    }
 
     public function reportCheck($id)
     {
