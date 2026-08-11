@@ -194,6 +194,7 @@ Route::group(['prefix' => 'v1'], function () {
 
     Route::post('grocery/category-groups', [GroceryController::class, 'categoryGroups']);
     Route::post('grocery/main-categories', [GroceryController::class, 'mainCategories']);
+    Route::post('grocery/main-categories-item', [GroceryController::class, 'mainCategoriesItem']);
     Route::post('grocery/category/details', [GroceryController::class, 'categoryDetails']);
     Route::post('grocery/sub-category/details', [GroceryController::class, 'subCategoryDetails']);
 });
