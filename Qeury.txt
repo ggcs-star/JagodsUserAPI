@@ -517,5 +517,7 @@ ALTER TABLE users
 ADD COLUMN last_password_changed_at TIMESTAMP NULL DEFAULT NULL;
 
 
-
+ALTER TABLE `addresses`
+ADD `receiver_name` VARCHAR(255) NULL AFTER `apartment`,
+ADD `receiver_phone` VARCHAR(20) NULL AFTER `receiver_name`;
 =======================================================================done

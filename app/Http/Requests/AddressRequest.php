@@ -4,60 +4,88 @@ namespace App\Http\Requests;
 
 use App\Enums\AddressType;
 use App\Models\Address;
-use Illuminate\Validation\Rule;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class AddressRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
         return [
-            'label'       => ['required', 'numeric'],
-            'label_name'  => ['nullable', 'string'],
-            'lat'         => ['required'],
-            'long'        => ['required'],
+            'label' => ['required', 'numeric'],
+            'label_name' => ['nullable', 'string'],
+
+            'lat' => ['required'],
+            'long' => ['required'],
+
             'new_address' => ['required', 'max:200'],
-            'apartment'   => ['max:200'],
-            'pincode'     => ['required', 'numeric', 'digits:6'],
+            'apartment' => ['nullable', 'max:200'],
+
+            'receiver_name' => ['required', 'string', 'max:100'],
+            'receiver_phone' => ['required', 'numeric', 'digits:10'],
+
+            'pincode' => ['required', 'numeric', 'digits:6'],
         ];
     }
 
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+
             if ($this->uniqueOtherLabel()) {
-                $validator->errors()->add('label_name', 'This Label is already created!');
+                $validator->errors()->add(
+                    'label_name',
+                    'This Label is already created!'
+                );
             }
-            if (request('label') == AddressType::OTHER && blank(request('label_name'))) {
-                $validator->errors()->add('label_name', 'This field is required!');
+
+            if (
+                $this->label == AddressType::OTHER &&
+                blank($this->label_name)
+            ) {
+                $validator->errors()->add(
+                    'label_name',
+                    'This field is required!'
+                );
             }
         });
     }
 
-
     private function uniqueOtherLabel()
     {
-        if (request('label') == AddressType::OTHER) {
-            $address = Address::where(['user_id' => auth()->user()->id, 'label_name' => request('label_name')])->first();
-            if ($address && $address->id != request('id')) {
+        if ($this->label == AddressType::OTHER) {
+
+            $address = Address::where([
+                'user_id' => auth()->id(),
+                'label_name' => $this->label_name,
+            ])->first();
+
+            if ($address && $address->id != $this->id) {
                 return true;
             }
         }
+
         return false;
+    }
+
+
+    protected function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(
+            response()->json([
+                'status' => false,
+                'success' => false,
+                'status_code' => 422,
+                'errors' => $validator->errors()->toArray(),
+                'message' => 'Validation Error',
+                'data' => [],
+            ], 422)
+        );
     }
 }
