@@ -6,36 +6,28 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\BackendController;
 use App\Traits\ApiResponse;
 use App\Http\Requests\Api\CheckoutRequest;
-use App\Http\Requests\Api\VerifyPaymentRequest;
 use App\Http\Services\CheckoutServiceNew;
 use App\Http\Services\PaymentServiceNew;
-use App\Http\Services\CartService;
 use App\Enums\PaymentMethod;
-use App\Models\Cart;
-use App\Models\Order;
 use Exception;
 use Illuminate\Support\Facades\Log;
-use App\Jobs\SendOrderInvoiceJob;
+use App\Http\Requests\Api\VerifyPaymentRequest;
 use App\Http\Requests\Api\RepayOrderRequest;
+use App\Models\Order;
+use App\Jobs\SendOrderInvoiceJob;
 class CheckoutController extends BackendController
 {
     use ApiResponse;
 
     protected $checkoutService;
     protected $paymentService;
-    protected $cartService;
 
-    public function __construct(
-        CheckoutServiceNew $checkoutService,
-        PaymentServiceNew $paymentService,
-        CartService $cartService
-    ) {
+    public function __construct(CheckoutServiceNew $checkoutService, PaymentServiceNew $paymentService)
+    {
         parent::__construct();
         $this->middleware('auth:api');
-
         $this->checkoutService = $checkoutService;
         $this->paymentService = $paymentService;
-        $this->cartService = $cartService;
     }
 
     public function checkout(CheckoutRequest $request)
@@ -43,20 +35,11 @@ class CheckoutController extends BackendController
         $order = null;
 
         try {
-            $cart = Cart::with(['items.menuItem', 'items.variation', 'coupon', 'address'])
-                ->where('user_id', auth()->id())
-                ->first();
-
-            if (!$cart) {
-                return $this->errorResponse('Cart not found', 404);
-            }
             $currentDevice = $request->attributes->get('current_device');
-            $order = $this->checkoutService->checkout($cart, (int) $request->payment_method, $currentDevice);
+            
+            $order = $this->checkoutService->checkout($request->validated(), auth()->id(), $currentDevice);
 
             if ((int) $request->payment_method === PaymentMethod::CASH_ON_DELIVERY) {
-
-                $this->cartService->clearCart(auth()->id());
-
                 return $this->successResponse(
                     message: 'Order placed successfully.',
                     data: $order
@@ -64,8 +47,6 @@ class CheckoutController extends BackendController
             }
 
             $payment = $this->paymentService->create($order);
-
-            // $this->cartService->clearCart(auth()->id());
 
             return $this->successResponse(
                 message: 'Payment initialized successfully.',
@@ -76,24 +57,29 @@ class CheckoutController extends BackendController
             );
 
         } catch (Exception $e) {
-
-
             if ($order && (int) $request->payment_method !== PaymentMethod::CASH_ON_DELIVERY) {
-
                 $order->orderLines()->delete();
                 $order->delete();
-
-                Log::error("Payment Error: Order ID {$order->id} deleted due to API failure. Exception: " . $e->getMessage());
+                Log::error("Payment Error: Order ID {$order->id} deleted. Exception: " . $e->getMessage());
             }
 
             $statusCode = (int) $e->getCode();
-            $statusCode = ($statusCode >= 100 && $statusCode <= 599) ? $statusCode : 400;
+            $statusCode = ($statusCode >= 100 && $statusCode <= 599) ? $statusCode : 422;
 
-            return $this->errorResponse($e->getMessage() . " (Please try again)", $statusCode);
+            $payload = json_decode($e->getMessage(), true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($payload['error_type'])) {
+                return $this->errorResponse(
+                    message: $payload['message'],
+                    statusCode: $statusCode,
+                    data: $payload
+                );
+            }
+
+            return $this->errorResponse($e->getMessage(), $statusCode);
         }
     }
 
-    public function verifyPayment(VerifyPaymentRequest $request)
+      public function verifyPayment(VerifyPaymentRequest $request)
     {
         try {
 
@@ -115,7 +101,6 @@ class CheckoutController extends BackendController
             $order->update([
                 'status' => \App\Enums\OrderStatus::PENDING
             ]);
-            $this->cartService->clearCart(auth()->id());
             SendOrderInvoiceJob::dispatch($order);
 
             return $this->successResponse(

@@ -59,4 +59,8 @@ return [
         'channel' => env('PAYTM_CHANNEL'),
         'industry_type' => env('PAYTM_INDUSTRY_TYPE'),
     ],
+
+    'business_api' => [
+    'key' => env('BUSINESS_API_KEY'),
+],
 ];

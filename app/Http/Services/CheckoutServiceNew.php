@@ -2,132 +2,232 @@
 
 namespace App\Http\Services;
 
-use App\Enums\OrderStatus;
-use App\Enums\PaymentStatus;
-use App\Enums\DiscountStatus;
-use App\Enums\PaymentMethod;
-use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderLineItem;
-use App\Models\OrderHistory;
 use App\Models\Discount;
-use App\Models\Restaurant; 
-use App\Models\UserDevice; // 🚨 IMPORT ADDED
-use App\Libraries\MyString;
-use App\Jobs\SendPetpoojaOrderJob;
-use App\Jobs\SendOrderNotificationsJob;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Models\Coupon;
+use App\Models\Setting;
+use App\Enums\DiscountStatus;
+use App\Enums\OrderTypeStatus;
+use App\Enums\Module;
 use Exception;
+use Illuminate\Support\Facades\DB;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\OrderStatus;
+use App\Models\UserDevice;
+use App\Libraries\MyString;
+use App\Models\OrderHistory;
 
 class CheckoutServiceNew
 {
     protected $validationService;
-    protected $cartService;
-    protected $invoiceService;
 
-    public function __construct(
-        CheckoutValidationService $validationService,
-        CartService $cartService,
-        InvoiceService $invoiceService
-    ) {
+    public function __construct(CheckoutValidationService $validationService)
+    {
         $this->validationService = $validationService;
-        $this->cartService = $cartService;
-        $this->invoiceService = $invoiceService;
     }
 
-    // 🚨 1. Updated checkout signature to accept $device
-    public function checkout(Cart $cart, int $paymentMethod, ?UserDevice $device = null)
+    public function checkout(array $data, int $userId, $device = null)
     {
-        return DB::transaction(function () use ($cart, $paymentMethod, $device) {
+        return DB::transaction(function () use ($data, $userId, $device) {
 
-            $this->validationService->validate($cart);
+            $validated = $this->validationService->validate($data, $userId);
 
-            $this->cartService->updateCartTotals($cart);
-            $cart->refresh();
+            $orderPricing = $this->calculateOrderPricing($validated, $data, $userId);
 
-            // 🚨 2. Pass $device to createOrder
-            $order = $this->createOrder($cart, $paymentMethod, $device);
-
+            $frontendTotal = (float) $data['total'];
+            if (abs($orderPricing['total'] - $frontendTotal) > 0.01) {
+                throw new Exception(json_encode([
+                    'error_type' => 'total_mismatch',
+                    'message' => "Order total has changed. You sent ₹{$frontendTotal}, but current payable amount is ₹{$orderPricing['total']}. Please review your cart.",
+                    'old_total' => $frontendTotal,
+                    'current_total' => $orderPricing['total'],
+                ]), 422);
+            }
+            $order = $this->createOrder($data, $validated, $orderPricing, $userId, $device);
             $this->createOrderHistory($order);
 
-            $this->createDiscountRecord($order, $cart);
-
-            $this->createOrderItems($order, $cart);
-
-            $this->invoiceService->generate($order);
-
-            Restaurant::where('id', $order->restaurant_id)->increment('total_orders');
-
-            if ($paymentMethod === PaymentMethod::CASH_ON_DELIVERY) {
-                // SendPetpoojaOrderJob::dispatch($order->id)->afterCommit();
-                // SendOrderNotificationsJob::dispatch($order->id)->afterCommit();
-                Log::info("CheckoutServiceNew: COD Order {$order->id} placed. Jobs dispatched.");
-            } else {
-                Log::info("CheckoutServiceNew: Online Order {$order->id} initialized ID: {$paymentMethod}. Waiting for payment.");
+            if ($orderPricing['coupon_id']) {
+                $this->createDiscountRecord($order, $orderPricing, $userId);
             }
+
+            $this->createOrderItems($order, $validated['items']);
 
             return $order->fresh([]);
         });
     }
 
-    // 🚨 3. Updated signature and added device handling
-    private function createOrder(Cart $cart, int $paymentMethod, ?UserDevice $device): Order
+    private function calculateOrderPricing(array $validated, array $data, int $userId): array
     {
-        $addressJson = "";
-        $latitude = 0.0;
-        $longitude = 0.0;
+        $subtotal = $validated['subtotal'];
+        $settings = Setting::pluck('value', 'key');
 
-        if ($cart->address) {
-            $latitude = $cart->address->latitude ?? 0.0;
-            $longitude = $cart->address->longitude ?? 0.0;
-            $addressJson = json_encode([
-                'address' => $cart->address->address ?? '',
-                'apartment' => $cart->address->apartment ?? '',
-                'pincode'     => $cart->address->pincode ?? '',
-            ]);
+        $couponId = null;
+        $couponDiscount = 0;
+
+        if (!empty($data['coupon_code'])) {
+            $coupon = Coupon::whereRaw('BINARY slug = ?', [$data['coupon_code']])
+                ->where('from_date', '<=', now())
+                ->where('to_date', '>=', now())
+                ->where('limit', '>', 0)
+                ->where(function ($query) use ($data) {
+                    $query->where('restaurant_id', $data['restaurant_id'])->orWhere('restaurant_id', 0);
+                })->first();
+
+            if (!$coupon)
+                throw new Exception('This coupon is invalid or expired.', 422);
+
+            if ($coupon->minimum_order_amount > 0 && $subtotal < $coupon->minimum_order_amount) {
+                throw new Exception('This coupon requires a minimum order amount of ₹' . $coupon->minimum_order_amount, 422);
+            }
+
+            if (Discount::where('coupon_id', $coupon->id)->where('status', DiscountStatus::ACTIVE)->count() >= $coupon->limit) {
+                throw new Exception('This coupon is fully redeemed and no longer available.', 422);
+            }
+
+
+            $couponId = $coupon->id;
+            $couponDiscount = ($coupon->discount_type === 'percent') ? ($subtotal * $coupon->amount) / 100 : $coupon->amount;
+            $couponDiscount = min($couponDiscount, $subtotal);
         }
 
-        $initialStatus = $paymentMethod === PaymentMethod::CASH_ON_DELIVERY ? OrderStatus::PENDING : OrderStatus::PAYMENT_PENDING;
+        $taxableAmount = max(0, $subtotal - $couponDiscount);
+        $gstAmount = ($taxableAmount * 5) / 100;
+
+        $totalQuantity = array_sum(array_column($validated['items'], 'quantity'));
+
+        $packagingCharge = (float) ($settings['packaging_charge'] ?? 0);
+        $platformFee = $subtotal > 0 ? (float) ($settings['platform_fee'] ?? 0) : 0;
+
+        $moduleId = (int) $data['module_id'];
+        $isPickup = ($data['order_type'] == OrderTypeStatus::PICKUP);
+
+        $surgeFee = 0;
+        if (!$isPickup && $moduleId == Module::YOUR_CITY) {
+            $surgeFee = $subtotal > 0 ? (float) ($settings['surge_fee'] ?? 0) : 0;
+        }
+
+        $deliveryCharge = $this->calculateDeliveryCharge(
+            $data,
+            $settings,
+            $validated['restaurant'],
+            $validated['address']
+        );
+
+        $tipAmount = (float) ($data['tip_amount'] ?? 0);
+
+        $total = max(0, $taxableAmount + $gstAmount + $deliveryCharge + $packagingCharge + $platformFee + $surgeFee + $tipAmount);
+
+        return [
+            'subtotal' => $subtotal,
+            'product_discount' => $validated['product_discount'],
+            'coupon_id' => $couponId,
+            'discount' => $couponDiscount,
+            'gst_amount' => $gstAmount,
+            'delivery_charge' => $deliveryCharge,
+            'packaging_charge' => $packagingCharge,
+            'platform_fee' => $platformFee,
+            'surge_fee' => $surgeFee,
+            'large_order_fee' => 0,
+            'tip_amount' => $tipAmount,
+            'total' => round($total, 2)
+        ];
+    }
+
+    private function calculateDeliveryCharge($data, $settings, $restaurant, $address): float
+    {
+        $isPickup = ($data['order_type'] == OrderTypeStatus::PICKUP);
+        $moduleId = (int) $data['module_id'];
+
+        if ($isPickup) {
+            return 0;
+        }
+
+        if ($moduleId == Module::ALL_OVER_INDIA) {
+            return (float) ($data['delivery_charge'] ?? 0);
+        }
+
+        if ($moduleId == Module::YOUR_CITY) {
+            $basicCharge = (float) ($settings['basic_delivery_charge'] ?? 0);
+
+            if (!$restaurant || !$address || !$restaurant->lat || !$address->latitude) {
+                return $basicCharge;
+            }
+
+            $distance = $this->calculateDistance($address->latitude, $address->longitude, $restaurant->lat, $restaurant->long);
+
+            $freeRadius = (float) ($settings['free_delivery_radius'] ?? 0);
+            if ($freeRadius > 0 && $distance <= $freeRadius) {
+                return 0;
+            }
+
+            $chargePerKilo = (float) ($settings['charge_per_kilo'] ?? 0);
+            return round($basicCharge + ($distance * $chargePerKilo), 2);
+        }
+
+        return 0;
+    }
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2): float
+    {
+        $earthRadius = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) * sin($dLat / 2) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) * sin($dLon / 2);
+        return round($earthRadius * (2 * atan2(sqrt($a), sqrt(1 - $a))), 2);
+    }
+
+    private function createOrder(array $data, array $validated, array $pricing, int $userId, ?UserDevice $device): Order
+    {
+        $address = $validated['address'];
+        $latitude = $address ? $address->latitude : 0.0;
+        $longitude = $address ? $address->longitude : 0.0;
 
         $order = Order::create([
-            'user_id' => $cart->user_id,
-            'user_device_id' => $device ? $device->id : null, 
-            'restaurant_id' => $cart->restaurant_id,
-            'address_id' => $cart->address_id,
-            'coupon_id' => $cart->coupon_id,
-            'order_type' => $cart->order_type,
-            'payment_method' => $paymentMethod,
+            'user_id' => $userId,
+            'user_device_id' => $device ? $device->id : null,
+            'restaurant_id' => $data['restaurant_id'],
+            'address_id' => $data['address_id'] ?? null,
+            'coupon_id' => $pricing['coupon_id'],
+            'order_type' => $data['order_type'],
+            'payment_method' => $data['payment_method'],
             'payment_status' => PaymentStatus::UNPAID,
-            'status' => $initialStatus,
-            'address' => $addressJson,
+            'status' => $data['payment_method'] == PaymentMethod::CASH_ON_DELIVERY ? OrderStatus::PENDING : OrderStatus::PAYMENT_PENDING,
+
+            'address' => $address ? json_encode([
+                'address' => $address->address,
+                'apartment' => $address->apartment,
+                'pincode' => $address->pincode,
+            ]) : '',
+
             'lat' => $latitude,
             'long' => $longitude,
-            'mobile' => $cart->user->phone ?? '',
-            'sub_total' => $cart->subtotal,
-            'discount' => $cart->discount,
-            'product_discount' => $cart->product_discount,
-            'gst_amount' => $cart->gst_amount,
-            'delivery_charge' => $cart->delivery_charge,
-            'packing_charge' => $cart->packing_charge ?? 0,
-            'platform_fee' => $cart->platform_fee ?? 0,
-            'large_order_fee' => $cart->large_order_fee ?? 0,
-            'surge_fee' => $cart->surge_fee ?? 0,
-            'tip_amount' => $cart->tip_amount ?? 0,
-            'total' => $cart->total,
-            'order_instructions' => $cart->order_instructions,
+            'mobile' => auth()->user()->phone ?? '',
+
+            'sub_total' => $pricing['subtotal'],
+            'product_discount' => $pricing['product_discount'],
+            'discount' => $pricing['discount'],
+            'gst_amount' => $pricing['gst_amount'],
+            'delivery_charge' => $pricing['delivery_charge'],
+            'packing_charge' => $pricing['packaging_charge'], // Ensure this matches DB column name (packing_charge or packaging_charge)
+            'platform_fee' => $pricing['platform_fee'],
+            'large_order_fee' => $pricing['large_order_fee'],
+            'surge_fee' => $pricing['surge_fee'],
+            'tip_amount' => $pricing['tip_amount'],
+            'total' => $pricing['total'],
+            'order_instructions' => $data['order_instructions'] ?? null,
         ]);
 
         $order->misc = json_encode([
             'order_code' => 'ORD-' . MyString::code($order->id),
-            'remarks' => $cart->order_instructions ?? '',
+            'remarks' => $data['order_instructions'] ?? '',
         ]);
         $order->save();
 
         return $order;
     }
 
-    // ... (baki ke functions same rahenge)
     private function createOrderHistory(Order $order): void
     {
         OrderHistory::create([
@@ -137,49 +237,37 @@ class CheckoutServiceNew
         ]);
     }
 
-    private function createDiscountRecord(Order $order, Cart $cart): void
+    private function createDiscountRecord(Order $order, array $pricing, int $userId): void
     {
-        if (!blank($cart->coupon_id) && $cart->discount > 0) {
-            Discount::create([
-                'order_id' => $order->id,
-                'coupon_id' => $cart->coupon_id,
-                'user_id' => $cart->user_id,
-                'amount' => $cart->discount,
-                'status' => DiscountStatus::ACTIVE,
-            ]);
-        }
+        Discount::create([
+            'order_id' => $order->id,
+            'coupon_id' => $pricing['coupon_id'],
+            'user_id' => $userId,
+            'amount' => $pricing['discount'],
+            'status' => DiscountStatus::ACTIVE,
+        ]);
     }
 
-    private function createOrderItems(Order $order, Cart $cart): void
+    private function createOrderItems(Order $order, array $validatedItems): void
     {
         $orderItems = [];
-
-        foreach ($cart->items as $item) {
-            $optionTotal = 0;
-            $optionsArray = $item->options ?? [];
-            if (!empty($optionsArray) && is_array($optionsArray)) {
-                foreach ($optionsArray as $option) {
-                    $optionTotal += (float) ($option['price'] ?? 0);
-                }
-            }
-
+        foreach ($validatedItems as $item) {
             $orderItems[] = [
                 'order_id' => $order->id,
                 'restaurant_id' => $order->restaurant_id,
-                'menu_item_id' => $item->menu_item_id,
-                'menu_item_variation_id' => $item->variation_id,
-                'unit_price' => $item->unit_price,
-                'discounted_price' => $item->discount_price,
-                'quantity' => $item->quantity,
-                'item_total' => $item->total_price,
-                'options' => json_encode($optionsArray),
-                'options_total' => $optionTotal,
-                'instructions' => $item->instructions,
+                'menu_item_id' => $item['menu_item_id'],
+                'menu_item_variation_id' => $item['variation_id'],
+                'unit_price' => $item['unit_price'],
+                'discounted_price' => $item['discount_price'],
+                'quantity' => $item['quantity'],
+                'item_total' => $item['item_total'],
+                'options' => json_encode($item['options']),
+                'options_total' => $item['options_total'],
+                'instructions' => $item['instructions'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
-
         OrderLineItem::insert($orderItems);
     }
 }
