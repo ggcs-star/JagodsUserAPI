@@ -190,7 +190,9 @@ class GroceryController extends BackendController
 
             $request->validate([
                 'category_id' => 'required|integer',
-                'per_page' => 'nullable|integer|min:1|max:50',
+                'page' => 'nullable|integer|min:1',
+                'per_page' => 'nullable|integer|min:1|max:100',
+                'sort_by' => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
             ]);
 
             $perPage = $request->input('per_page', 20);
@@ -207,11 +209,13 @@ class GroceryController extends BackendController
                 return $this->notFoundResponse('Category not found.');
             }
 
+
             $categoryIds = Category::where('id', $category->id)
                 ->orWhere('parent_id', $category->id)
                 ->pluck('id');
 
-            $items = MenuItem::with([
+
+            $query = MenuItem::with([
                 'media',
                 'categories',
                 'variations',
@@ -220,8 +224,42 @@ class GroceryController extends BackendController
                 ->whereHas('categories', function ($q) use ($categoryIds) {
                     $q->whereIn('categories.id', $categoryIds);
                 })
-                ->where('status', MenuItemStatus::ACTIVE)
-                ->paginate($perPage);
+                ->where('status', MenuItemStatus::ACTIVE);
+
+
+            switch ($request->sort_by) {
+
+                case 'popularity':
+                    $query->orderByDesc('counter');
+                    break;
+
+                case 'new_arrivals':
+                    $query->latest();
+                    break;
+
+                case 'price_low_high':
+                    $query->orderBy('unit_price', 'asc');
+                    break;
+
+                case 'price_high_low':
+                    $query->orderBy('unit_price', 'desc');
+                    break;
+
+                case 'discount_high_low':
+                    $query->orderByRaw("
+                    CASE
+                        WHEN unit_price > 0
+                        THEN ((unit_price - discount_price) / unit_price) * 100
+                        ELSE 0
+                    END DESC
+                ");
+                    break;
+
+                default:
+                    $query->latest();
+                    break;
+            }
+            $items = $query->paginate($perPage);
 
             return $this->successPaginationResponse(
                 message: 'Category details fetched successfully.',
@@ -236,7 +274,7 @@ class GroceryController extends BackendController
 
             return $this->validationResponse($e->errors());
 
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
 
             Log::error('Category Details API', [
                 'message' => $e->getMessage(),
@@ -258,10 +296,13 @@ class GroceryController extends BackendController
 
             $request->validate([
                 'category_id' => 'required|integer',
-                'per_page' => 'nullable|integer|min:1|max:50',
+                'page' => 'nullable|integer|min:1',
+                'per_page' => 'nullable|integer|min:1|max:100',
+                'sort_by' => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
             ]);
 
             $perPage = $request->input('per_page', 20);
+
 
             $category = Category::select(
                 'id',
@@ -278,7 +319,8 @@ class GroceryController extends BackendController
                 return $this->notFoundResponse('Sub category not found.');
             }
 
-            $items = MenuItem::with([
+
+            $query = MenuItem::with([
                 'media',
                 'categories',
                 'variations',
@@ -287,8 +329,44 @@ class GroceryController extends BackendController
                 ->whereHas('categories', function ($q) use ($category) {
                     $q->where('categories.id', $category->id);
                 })
-                ->where('status', MenuItemStatus::ACTIVE)
-                ->paginate($perPage);
+                ->where('status', MenuItemStatus::ACTIVE);
+
+
+            switch ($request->sort_by) {
+
+                case 'popularity':
+                    $query->orderByDesc('counter');
+                    break;
+
+                case 'new_arrivals':
+                    $query->latest();
+                    break;
+
+                case 'price_low_high':
+                    $query->orderBy('unit_price', 'asc');
+                    break;
+
+                case 'price_high_low':
+                    $query->orderBy('unit_price', 'desc');
+                    break;
+
+                case 'discount_high_low':
+                    $query->orderByRaw("
+                    CASE
+                        WHEN unit_price > 0
+                        THEN ((unit_price - discount_price) / unit_price) * 100
+                        ELSE 0
+                    END DESC
+                ");
+                    break;
+
+                default:
+                    $query->latest();
+                    break;
+            }
+
+            $items = $query->paginate($perPage);
+
 
             return $this->successPaginationResponse(
                 message: 'Sub category details fetched successfully.',

@@ -65,7 +65,7 @@ class CheckoutController extends BackendController
 
             $payment = $this->paymentService->create($order);
 
-            $this->cartService->clearCart(auth()->id());
+            // $this->cartService->clearCart(auth()->id());
 
             return $this->successResponse(
                 message: 'Payment initialized successfully.',
@@ -115,7 +115,7 @@ class CheckoutController extends BackendController
             $order->update([
                 'status' => \App\Enums\OrderStatus::PENDING
             ]);
-
+            $this->cartService->clearCart(auth()->id());
             SendOrderInvoiceJob::dispatch($order);
 
             return $this->successResponse(
@@ -136,13 +136,13 @@ class CheckoutController extends BackendController
         }
     }
 
-  public function repayOrder(RepayOrderRequest $request)
-{
-    $order = Order::find($request->order_id);
+    public function repayOrder(RepayOrderRequest $request)
+    {
+        $order = Order::find($request->order_id);
 
-    if (!$order) {
-        return $this->notFoundResponse('Order not found.');
-    }
+        if (!$order) {
+            return $this->notFoundResponse('Order not found.');
+        }
         try {
             $order = Order::where('id', $request->order_id)
                 ->where('user_id', auth()->id())
