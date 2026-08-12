@@ -139,37 +139,37 @@ class CartController extends BackendController
             );
         }
     }
- public function remove(Request $request)
-{
-    try {
+    public function remove(Request $request)
+    {
+        try {
 
-        $request->validate([
-            'cart_item_id' => 'required|integer|exists:cart_items,id',
-        ]);
+            $request->validate([
+                'cart_item_id' => 'required|integer|exists:cart_items,id',
+            ]);
 
-        $this->cartService->removeItem(
-            $request->cart_item_id,
-            auth()->id()
-        );
+            $this->cartService->removeItem(
+                $request->cart_item_id,
+                auth()->id()
+            );
 
-        return $this->deletedResponse(
-            message: 'Item removed successfully.'
-        );
+            return $this->deletedResponse(
+                message: 'Item removed successfully.'
+            );
 
-    } catch (ValidationException $e) {
+        } catch (ValidationException $e) {
 
-        return $this->notFoundResponse(
-            'Cart item not found.'
-        );
+            return $this->notFoundResponse(
+                'Cart item not found.'
+            );
 
-    } catch (\Throwable $e) {
+        } catch (\Throwable $e) {
 
-        return $this->errorResponse(
-            message: $e->getMessage(),
-            statusCode: $e->getCode() ?: 400
-        );
+            return $this->errorResponse(
+                message: $e->getMessage(),
+                statusCode: $e->getCode() ?: 400
+            );
+        }
     }
-}
 
     public function quantity(Request $request)
     {
@@ -196,6 +196,7 @@ class CartController extends BackendController
 
     public function applyCoupon(ApplyCouponRequest $request)
     {
+        // dd($request->validated());
         try {
 
             $data = $this->cartService->applyCoupon(
@@ -205,17 +206,21 @@ class CartController extends BackendController
 
             return $this->successResponse(
                 message: 'Coupon applied successfully.',
-                data: [
-                    'coupon' => $data['coupon'],
-                    'cart' => new CartResource($data['cart'])
-                ]
+                data: $data
             );
 
         } catch (\Throwable $e) {
 
+            $statusCode = (int) $e->getCode();
+
+            $statusCode = (
+                $statusCode >= 100 &&
+                $statusCode <= 599
+            ) ? $statusCode : 422;
+
             return $this->errorResponse(
                 message: $e->getMessage(),
-                statusCode: 422
+                statusCode: $statusCode
             );
         }
     }

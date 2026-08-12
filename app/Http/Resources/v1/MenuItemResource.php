@@ -30,6 +30,7 @@ class MenuItemResource extends JsonResource
                 : 0
             ),
             'has_discount' => $this->discount_price > 0,
+            "max_cart_quantity" => $this->max_cart_quantity,
             // "unit_price"        => $this->unit_price,
             // "discount_price"    => $this->discount_price,
             "currency_code" => setting('currency_code'),

@@ -17,8 +17,8 @@ use App\Enums\OrderTypeStatus;
 use Exception;
 use App\Models\Address;
 use App\Enums\Module;
-use Illuminate\Support\Facades\DB; // Added DB facade for query raw
-
+use Illuminate\Support\Facades\DB;
+use App\Enums\MenuItemStatus;
 class CartService
 {
     public function getCart($userId)
@@ -317,48 +317,171 @@ class CartService
 
     public function applyCoupon(array $data, $userId)
     {
-        $cart = $this->getCartOrFail($userId);
         $today = now();
 
         $coupon = Coupon::whereRaw('BINARY slug = ?', [$data['coupon']])
             ->where('from_date', '<=', $today)
             ->where('to_date', '>=', $today)
             ->where('limit', '>', 0)
-            ->where(function ($query) use ($cart) {
-                $query->where('restaurant_id', $cart->restaurant_id)
+            ->where(function ($query) use ($data) {
+                $query->where('restaurant_id', $data['restaurant_id'])
                     ->orWhere('restaurant_id', 0);
-            })->first();
+            })
+            ->first();
 
         if (!$coupon) {
-            throw new Exception('This Coupon is Invalid or Expired');
+            throw new Exception(
+                'This Coupon is Invalid or Expired',
+                422
+            );
         }
 
-        if ($coupon->coupon_type == CouponType::VOUCHER && $coupon->restaurant_id != 0 && $coupon->restaurant_id != $cart->restaurant_id) {
-            throw new Exception('This Coupon is Invalid for this restaurant.');
+        if (
+            $coupon->restaurant_id != 0 &&
+            (int) $coupon->restaurant_id !== (int) $data['restaurant_id']
+        ) {
+            throw new Exception(
+                'This Coupon is Invalid for this restaurant.',
+                422
+            );
         }
 
-        if ($coupon->minimum_order_amount > 0 && $cart->subtotal < $coupon->minimum_order_amount) {
-            throw new Exception("This coupon requires a minimum order amount of ₹" . $coupon->minimum_order_amount);
+        $subtotal = 0;
+
+        foreach ($data['items'] as $itemData) {
+
+            $menuItem = MenuItem::find($itemData['menu_item_id']);
+
+            if (!$menuItem) {
+                throw new Exception(
+                    'Menu item not found.',
+                    422
+                );
+            }
+
+
+            if ($menuItem->status != MenuItemStatus::ACTIVE) {
+                throw new Exception(
+                    "{$menuItem->name} is currently unavailable.",
+                    422
+                );
+            }
+
+
+            if (
+                $coupon->restaurant_id != 0 &&
+                (int) $coupon->restaurant_id !== (int) $data['restaurant_id']
+            ) {
+                throw new Exception(
+                    "{$menuItem->name} does not belong to the selected restaurant.",
+                    422
+                );
+            }
+
+            $quantity = (int) $itemData['quantity'];
+
+            if ($quantity > $menuItem->max_cart_quantity) {
+                throw new Exception(
+                    "Maximum allowed quantity for {$menuItem->name} is {$menuItem->max_cart_quantity}.",
+                    422
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Calculate LIVE Item Price
+            |--------------------------------------------------------------------------
+            */
+            $priceDetails = $this->calculateItemPrice(
+                $menuItem,
+                $itemData['variation_id'] ?? null,
+                $itemData['options'] ?? []
+            );
+
+            $subtotal += $priceDetails['final_price'] * $quantity;
         }
 
-        $totalUsed = Discount::where('coupon_id', $coupon->id)->where('status', DiscountStatus::ACTIVE)->count();
+        $subtotal = round($subtotal, 2);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Minimum Order Amount
+        |--------------------------------------------------------------------------
+        */
+        if (
+            $coupon->minimum_order_amount > 0 &&
+            $subtotal < $coupon->minimum_order_amount
+        ) {
+            throw new Exception(
+                'This coupon requires a minimum order amount of ₹' .
+                $coupon->minimum_order_amount,
+                422
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Global Coupon Usage
+        |--------------------------------------------------------------------------
+        */
+        $totalUsed = Discount::where('coupon_id', $coupon->id)
+            ->where('status', DiscountStatus::ACTIVE)
+            ->count();
+
         if ($totalUsed >= $coupon->limit) {
-            throw new Exception('This Coupon is fully redeemed and no longer available.');
+            throw new Exception(
+                'This Coupon is fully redeemed and no longer available.',
+                422
+            );
         }
 
-        $userUsedCount = Discount::where('coupon_id', $coupon->id)->where('user_id', $userId)->where('status', DiscountStatus::ACTIVE)->count();
-        $userLimit = $coupon->user_limit > 0 ? $coupon->user_limit : 1;
+        /*
+        |--------------------------------------------------------------------------
+        | User Coupon Usage
+        |--------------------------------------------------------------------------
+        */
+        $userUsedCount = Discount::where('coupon_id', $coupon->id)
+            ->where('user_id', $userId)
+            ->where('status', DiscountStatus::ACTIVE)
+            ->count();
+
+        $userLimit = $coupon->user_limit > 0
+            ? $coupon->user_limit
+            : 1;
 
         if ($userUsedCount >= $userLimit) {
-            throw new Exception('You have already reached the maximum usage limit for this coupon.');
+            throw new Exception(
+                'You have already reached the maximum usage limit for this coupon.',
+                422
+            );
         }
 
-        $cart->update(['coupon_id' => $coupon->id]);
-        $this->updateCartTotals($cart);
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate Coupon Discount
+        |--------------------------------------------------------------------------
+        */
+        if ($coupon->discount_type === 'percent') {
+            $discount = ($subtotal * $coupon->amount) / 100;
+        } else {
+            $discount = $coupon->amount;
+        }
+
+        $discount = min($discount, $subtotal);
 
         return [
-            'coupon' => $coupon,
-            'cart' => $cart->fresh(['items.menuItem', 'items.variation', 'coupon'])
+            'coupon' => [
+                'id' => $coupon->id,
+                'code' => $coupon->slug,
+                'discount_type' => $coupon->discount_type,
+                'amount' => (float) $coupon->amount,
+            ],
+
+            'pricing' => [
+                'subtotal' => $subtotal,
+                'coupon_discount' => round($discount, 2),
+                'after_coupon' => round($subtotal - $discount, 2),
+            ],
         ];
     }
 
@@ -453,7 +576,7 @@ class CartService
         $subtotal = CartItem::where('cart_id', $cart->id)
             ->where('is_available', true)
             ->sum('total_price');
-            
+
         // ✅ Step 5: Product Discount Calculation (Only for available items)
         $productDiscount = CartItem::where('cart_id', $cart->id)
             ->where('is_available', true)
@@ -614,11 +737,10 @@ class CartService
                 $optionIds
             );
 
-            // ✅ Step 4: Access final_price
             $livePrice = $livePriceDetails['final_price'];
 
             $wasUnavailable = !$cartItem->is_available;
-            $isPriceChanged = ($cartItem->final_price != $livePrice); // check with final_price
+            $isPriceChanged = ($cartItem->final_price != $livePrice);
 
             $expectedTotalPrice = $livePrice * $cartItem->quantity;
             $isTotalWrong = ($cartItem->total_price != $expectedTotalPrice);
@@ -626,7 +748,6 @@ class CartService
             if ($isPriceChanged || $wasUnavailable || $isTotalWrong) {
                 $cartItem->update([
                     'is_available' => true,
-                    // ✅ Step 4: Assign to proper columns dynamically
                     'unit_price' => $livePriceDetails['unit_price'],
                     'discount_price' => $livePriceDetails['discount_price'],
                     'final_price' => $livePrice,
