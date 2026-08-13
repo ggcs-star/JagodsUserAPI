@@ -22,6 +22,7 @@ class HomeConfigController extends BackendController
 
                     'badge' => [
                         'text' => 'Your City',
+                        'icon_url' => 'https://images.jagods.in/landing/Your%20City.svg',
                         'background_color' => '#FFD54F',
                         'text_color' => '#1E1E1E',
                         'border_color' => '#F9A825',
@@ -31,7 +32,7 @@ class HomeConfigController extends BackendController
                         ],
                     ],
 
-                    'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                    'icon_url' => 'https://images.jagods.in/landing/Tab%201.svg',
 
                     'promo_banner' => [
                         'type' => 'gif',
@@ -130,6 +131,7 @@ class HomeConfigController extends BackendController
 
                     'badge' => [
                         'text' => 'All Over India',
+                        'icon_url' => 'https://images.jagods.in/landing/All%20Over%20India.svg',
                         'background_color' => '#D32F2F',
                         'text_color' => '#FFFFFF',
                         'border_color' => '#B71C1C',
@@ -140,7 +142,7 @@ class HomeConfigController extends BackendController
                         ],
                     ],
 
-                    'icon_url' => 'https://images.jagods.com/banner/banner.svg',
+                    'icon_url' => 'https://images.jagods.in/landing/Tab%202.svg',
 
                     'promo_banner' => [
                         'type' => 'gif',
