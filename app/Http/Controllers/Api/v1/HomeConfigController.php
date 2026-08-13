@@ -57,17 +57,18 @@ class HomeConfigController extends BackendController
                             ],
 
                             'mobile' => [
-                                '#FFE9C6',
-                                '#FFF9F0',
+                                '#427C6D',
+                                '#7CB290',
+                                
                             ],
                         ],
 
                         'icon_color' => '#FFE9C6',
                         'border_color' => '#F58626',
-                        'background_color' => '#FFF9F0',
+                        'background_color' => '#427C6D',
                     ],
 
-                    'search_placeholder' => 'Search for products, brands, or categories',
+                    'search_placeholder' => 'Search for products, "Vadapav"',
 
                     'bottom_navigation' => [
 
@@ -167,17 +168,17 @@ class HomeConfigController extends BackendController
                             ],
 
                             'mobile' => [
-                                '#FFD6D6',
-                                '#FFF5F5',
+                                '#7AA2C5',
+                                '#95BAD4',
                             ],
                         ],
 
                         'icon_color' => '#FFD6D6',
                         'border_color' => '#BC2828',
-                        'background_color' => '#FFF5F5',
+                        'background_color' => '#7AA2C5',
                     ],
 
-                    'search_placeholder' => 'Search items for quick delivery',
+                    'search_placeholder' => 'Search for products, "Snacks"',
 
                     'bottom_navigation' => [
 
