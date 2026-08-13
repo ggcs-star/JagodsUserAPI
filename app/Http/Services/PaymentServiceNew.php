@@ -49,7 +49,7 @@ class PaymentServiceNew
         return [
             'order_id' => $order->id,
             'razorpay_order_id' => $razorpayOrder['id'],
-            'amount' => $order->total * 100,
+            'amount' => (int) round($order->total * 100),
             'currency' => 'INR',
             'key' => $this->razorpayKey,
         ];

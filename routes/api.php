@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\v1\Auth\ActiveSessionController;
 use App\Http\Controllers\Api\v1\HomeConfigController;
 use App\Http\Controllers\Api\v1\GroceryController;
 use App\Http\Controllers\Api\v1\Auth\PasswordResetController;
+use App\Http\Controllers\Api\v1\BusinessSettingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -67,7 +68,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('register/resend-otp', [RegisterController::class, 'resendOtp']);
     Route::post('social-login', [SocialLoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('logout', [LogoutController::class, 'action']);
-   
+
     Route::get('sessions', [ActiveSessionController::class, 'index']);
 
     // Route::post('forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:otp_send');
@@ -98,7 +99,7 @@ Route::group(['prefix' => 'v1'], function () {
 
     Route::get('cart', [CartController::class, 'index'])->middleware('throttle:cart_fetch');
     Route::post('cart', [CartController::class, 'store'])->middleware('throttle:cart_actions');
-    Route::post('cart/remove-item',[CartController::class, 'remove'])->middleware('throttle:cart_actions');
+    Route::post('cart/remove-item', [CartController::class, 'remove'])->middleware('throttle:cart_actions');
     Route::post('cart/clear', [CartController::class, 'clear'])->middleware('throttle:cart_actions');
     Route::post('cart-quantity', [CartController::class, 'quantity'])->middleware('throttle:cart_actions');
     Route::post('cart/update', [CartController::class, 'update'])->middleware('throttle:cart_actions');
@@ -132,6 +133,10 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('status/{name}/{flip?}', [StatusController::class, 'index']);
     Route::get('status-order/{id}', [StatusController::class, 'getOrderStatus']);
     Route::get('settings', [SettingController::class, 'index']);
+
+    Route::middleware('business.api')->group(function () {
+        Route::get('business-settings', [BusinessSettingController::class, 'index']);
+    });
     Route::get('banners', [BannerController::class, 'index']);
     Route::post('sort-banner', [BannerController::class, 'sortBanner'])->name('sort.banner');
 
