@@ -68,7 +68,19 @@ class HomeConfigController extends BackendController
                         'background_color' => '#427C6D',
                     ],
 
-                    'search_placeholder' => 'Search for products, "Vadapav"',
+                    'search_placeholder' => [
+                                'Search for products, "Vadapav"',
+                                'Search for products, "Pizza"',
+                                'Search for products, "Burger"',
+                                'Search for products, "Cold Coffee"',
+                                'Search for products, "Sandwich"',
+                                'Search for products, "Pasta"',
+                                'Search for products, "Biryani"',
+                                'Search for products, "Dosa"',
+                                'Search for products, "Chole Bhature"',
+                                'Search for products, "Pav Bhaji"',
+                            ],
+
 
                     'bottom_navigation' => [
 
@@ -178,7 +190,25 @@ class HomeConfigController extends BackendController
                         'background_color' => '#7AA2C5',
                     ],
 
-                    'search_placeholder' => 'Search for products, "Snacks"',
+                    'search_placeholder' => [
+                            'Search for products, "Snacks"',
+                            'Search for products, "Atta, Rice & Dal"',
+                            'Search for products, "Cleaning"',
+                            'Search for products, "Dairy, Bread & Eggs"',
+                            'Search for products, "Hair Care"',
+                            'Search for products, "Biscuits"',
+                            'Search for products, "Chips"',
+                            'Search for products, "Namkeen"',
+                            'Search for products, "Chocolate"',
+                            'Search for products, "Cold Drinks"',
+                            'Search for products, "Juices"',
+                            'Search for products, "Tea & Coffee"',
+                            'Search for products, "Milk"',
+                            'Search for products, "Bread"',
+                            'Search for products, "Butter"',
+                            'Search for products, "Cheese"',
+                        ],
+
 
                     'bottom_navigation' => [
 

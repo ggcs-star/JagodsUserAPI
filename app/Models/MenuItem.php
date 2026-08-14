@@ -228,4 +228,22 @@ public function scopeModule($query, $slug)
         $q->where('slug', $slug);
     });
 }
+
+public function scopeSearch($query, ?string $search)
+{
+    if (blank($search)) {
+        return $query;
+    }
+
+    $search = trim($search);
+
+    return $query->where(function ($q) use ($search) {
+        $q->where('name', 'LIKE', "%{$search}%")
+            ->orWhere('description', 'LIKE', "%{$search}%")
+            ->orWhereRaw(
+                "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
+                [$search]
+            );
+    });
+}
 }
