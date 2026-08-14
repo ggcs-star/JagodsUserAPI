@@ -112,8 +112,8 @@ class DeviceIdentificationService
         $platform = $agent->platform() ?: 'Unknown';
 
         $deviceName = match ((string) $appDeviceType) {
-            '0' => 'Android',
-            '1' => 'iOS',
+            '1' => 'Android',
+            '0' => 'iOS',
             '3' => 'Web',
             default => $agent->device() ?: 'Unknown Device',
         };

@@ -190,92 +190,285 @@ class RestaurantController extends BackendController
             );
         }
     }
-   public function menuItems(Request $request)
-{
-    try {
+    public function menuItems(Request $request)
+    {
+        try {
 
-        $request->validate([
-            'restaurant_id' => 'required|exists:restaurants,id',
-            'page'          => 'nullable|integer|min:1',
-            'per_page'      => 'nullable|integer|min:1|max:100',
-            'category_id'   => 'nullable|exists:categories,id',
-            'sort_by'       => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
-        ]);
+            $request->validate([
+                'restaurant_id' => 'required|exists:restaurants,id',
+                'page' => 'nullable|integer|min:1',
+                'per_page' => 'nullable|integer|min:1|max:100',
+                'category_id' => 'nullable|exists:categories,id',
+                'search' => 'nullable|string|max:100',
+                'sort_by' => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
+            ]);
 
-        $perPage = $request->input('per_page', 10);
+            $perPage = $request->input('per_page', 10);
+            $search = trim($request->input('search', ''));
 
-        $query = MenuItem::query()
-            ->where('restaurant_id', $request->restaurant_id)
-            ->where('status', MenuItemStatus::ACTIVE);
+            $query = MenuItem::query()
+                ->where('restaurant_id', $request->restaurant_id)
+                ->where('status', MenuItemStatus::ACTIVE);
 
-        /**
-         * Category Filter
-         */
-        if ($request->filled('category_id')) {
-            $query->whereHas('categories', function ($q) use ($request) {
-                $q->where('categories.id', $request->category_id);
-            });
-        }
+            if ($request->filled('category_id')) {
+                $query->whereHas('categories', function ($q) use ($request) {
+                    $q->where('categories.id', $request->category_id);
+                });
+            }
 
-        /**
-         * Sorting
-         */
-        switch ($request->sort_by) {
+            if ($search !== '') {
+                $query = $this->applyFuzzyMenuSearch(
+                    query: $query,
+                    restaurantId: $request->restaurant_id,
+                    search: $search
+                );
+            }
 
-            // Most Popular
-            case 'popularity':
-                $query->orderByDesc('counter');
-                break;
+            switch ($request->sort_by) {
 
-            // Latest Products
-            case 'new_arrivals':
-                $query->latest();
-                break;
+                case 'popularity':
+                    $query->orderByDesc('counter');
+                    break;
 
-            // Price Low -> High
-            case 'price_low_high':
-                $query->orderBy('unit_price', 'asc');
-                break;
+                case 'new_arrivals':
+                    $query->latest();
+                    break;
 
-            // Price High -> Low
-            case 'price_high_low':
-                $query->orderBy('unit_price', 'desc');
-                break;
+                case 'price_low_high':
+                    $query->orderBy('unit_price', 'asc');
+                    break;
 
-            // Highest Discount First
-            case 'discount_high_low':
-                $query->orderByRaw("
-                    (
-                        CASE
-                            WHEN unit_price > 0
-                            THEN ((unit_price - discount_price) / unit_price) * 100
-                            ELSE 0
-                        END
-                    ) DESC
+                case 'price_high_low':
+                    $query->orderBy('unit_price', 'desc');
+                    break;
+
+                case 'discount_high_low':
+                    $query->orderByRaw("
+                    CASE
+                        WHEN unit_price > 0
+                        THEN ((unit_price - discount_price) / unit_price) * 100
+                        ELSE 0
+                    END DESC
                 ");
-                break;
+                    break;
 
-            // Default
-            default:
-                $query->latest();
-                break;
-        }
+                default:
+                    $query->latest();
+                    break;
+            }
 
-        $menuItems = $query->paginate($perPage);
+            $menuItems = $query->paginate($perPage);
 
-        return $this->successPaginationResponse(
-            message: 'Menu items fetched successfully.',
-            paginator: $menuItems,
-            data: MenuItemResource::collection($menuItems->items())
-        );
+            $suggestions = [];
 
-    } catch (\Throwable $e) {
+            if ($search !== '') {
+                $suggestions = $this->getMenuItemSuggestions(
+                    restaurantId: $request->restaurant_id,
+                    search: $search
+                );
+            }
 
-        return $this->serverErrorResponse(
-            message: config('app.debug')
+            return $this->successPaginationResponse(
+                message: 'Menu items fetched successfully.',
+                paginator: $menuItems,
+                data: [
+                    'suggestions' => $suggestions,
+                    'items' => MenuItemResource::collection($menuItems->items()),
+                ]
+            );
+
+        } catch (\Throwable $e) {
+
+            return $this->serverErrorResponse(
+                message: config('app.debug')
                 ? $e->getMessage()
                 : 'Internal Server Error'
-        );
+            );
+        }
     }
-}
+    private function applyFuzzyMenuSearch($query, int $restaurantId, string $search)
+    {
+        $search = strtolower(trim($search));
+
+        $normalQuery = clone $query;
+
+        $normalQuery->where(function ($q) use ($search) {
+            $q->where('name', 'LIKE', "%{$search}%")
+                ->orWhere('description', 'LIKE', "%{$search}%")
+                ->orWhereRaw(
+                    "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
+                    [$search]
+                );
+        });
+
+        if ($normalQuery->exists()) {
+            return $normalQuery;
+        }
+
+        $menuNames = MenuItem::query()
+            ->where('restaurant_id', $restaurantId)
+            ->where('status', MenuItemStatus::ACTIVE)
+            ->whereNotNull('name')
+            ->select('name')
+            ->distinct()
+            ->pluck('name');
+
+        $matchedNames = [];
+
+        foreach ($menuNames as $menuName) {
+
+            $menuNameLower = strtolower(trim($menuName));
+
+            $bestScore = $this->calculateFuzzyScore(
+                $search,
+                $menuNameLower
+            );
+
+            $words = preg_split('/\s+/', $menuNameLower);
+
+            foreach ($words as $word) {
+
+                if (strlen($word) < 3) {
+                    continue;
+                }
+
+                $wordScore = $this->calculateFuzzyScore(
+                    $search,
+                    $word
+                );
+
+                $bestScore = max(
+                    $bestScore,
+                    $wordScore
+                );
+            }
+
+            if ($bestScore >= $this->getFuzzyThreshold($search)) {
+
+                $matchedNames[] = [
+                    'name' => $menuName,
+                    'score' => $bestScore,
+                ];
+            }
+        }
+
+        usort($matchedNames, function ($a, $b) {
+            return $b['score'] <=> $a['score'];
+        });
+
+        $matchedNames = array_slice($matchedNames, 0, 10);
+
+        $names = array_column($matchedNames, 'name');
+
+        if (empty($names)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereIn('name', $names);
+    }
+    private function calculateFuzzyScore(string $search, string $value): float
+    {
+        if ($search === '' || $value === '') {
+            return 0;
+        }
+
+        if ($search === $value) {
+            return 100;
+        }
+
+        if (str_contains($value, $search)) {
+            return 95;
+        }
+
+        $distance = levenshtein($search, $value);
+
+        $maxLength = max(
+            strlen($search),
+            strlen($value)
+        );
+
+        if ($maxLength === 0) {
+            return 0;
+        }
+
+        return (
+            1 - ($distance / $maxLength)
+        ) * 100;
+    }
+
+    private function getMenuItemSuggestions(
+        int $restaurantId,
+        string $search
+    ): array {
+
+        $search = strtolower(trim($search));
+
+        $menuNames = MenuItem::query()
+            ->where('restaurant_id', $restaurantId)
+            ->where('status', MenuItemStatus::ACTIVE)
+            ->whereNotNull('name')
+            ->select('name')
+            ->distinct()
+            ->pluck('name');
+
+        $suggestions = [];
+
+        foreach ($menuNames as $menuName) {
+
+            $menuNameLower = strtolower(trim($menuName));
+
+            $bestScore = $this->calculateFuzzyScore(
+                $search,
+                $menuNameLower
+            );
+
+            foreach (preg_split('/\s+/', $menuNameLower) as $word) {
+
+                if (strlen($word) < 3) {
+                    continue;
+                }
+
+                $wordScore = $this->calculateFuzzyScore(
+                    $search,
+                    $word
+                );
+
+                $bestScore = max(
+                    $bestScore,
+                    $wordScore
+                );
+            }
+
+            if ($bestScore >= $this->getFuzzyThreshold($search)) {
+
+                $suggestions[] = [
+                    'name' => $menuName,
+                    'score' => $bestScore,
+                ];
+            }
+        }
+
+        usort($suggestions, function ($a, $b) {
+            return $b['score'] <=> $a['score'];
+        });
+
+        return collect(array_slice($suggestions, 0, 10))
+            ->pluck('name')
+            ->values()
+            ->toArray();
+    }
+    private function getFuzzyThreshold(string $search): int
+    {
+        $length = strlen($search);
+
+        return match (true) {
+            $length <= 2 => 80,
+            $length === 3 => 70,
+            $length === 4 => 65,
+            $length >= 5 => 55,
+            default => 60,
+        };
+    }
+
+
 }

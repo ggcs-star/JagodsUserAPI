@@ -521,3 +521,7 @@ ALTER TABLE `addresses`
 ADD `receiver_name` VARCHAR(255) NULL AFTER `apartment`,
 ADD `receiver_phone` VARCHAR(20) NULL AFTER `receiver_name`;
 =======================================================================done
+
+
+ALTER TABLE menu_items
+ADD FULLTEXT INDEX menu_items_name_description_fulltext (name, description);
