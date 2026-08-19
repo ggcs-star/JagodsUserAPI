@@ -25,6 +25,8 @@ use App\Models\Category;
 use App\Http\Resources\v1\GroceryCategoryResource;
 use App\Enums\Module;
 use App\Enums\MenuItemStatus;
+use App\Enums\CategoryStatus;
+use Illuminate\Support\Facades\Log;
 class SearchController extends BackendController
 {
     use ApiResponse;
@@ -269,127 +271,328 @@ class SearchController extends BackendController
                     'string',
                     'in:' . implode(',', Module::all()),
                 ],
+
                 'search' => [
-                    'required',
+                    'nullable',
                     'string',
-                    'min:2',
                     'max:100',
                 ],
+
                 'page' => [
                     'nullable',
                     'integer',
                     'min:1',
                 ],
+
                 'per_page' => [
                     'nullable',
                     'integer',
                     'min:1',
                     'max:100',
                 ],
+
+                'lat' => [
+                    'nullable',
+                    'numeric',
+                ],
+
+                'lng' => [
+                    'nullable',
+                    'numeric',
+                ],
             ]);
 
             $slug = strtolower(trim($request->slug));
-            $search = trim($request->search);
-            $perPage = $request->input('per_page', 10);
+            $search = trim($request->input('search', ''));
+            $perPage = (int) $request->input('per_page', 10);
 
 
             if ($slug === Module::YOUR_CITY_SLUG) {
 
-                $restaurantIds = MenuItem::query()
-                    ->where('module_id', Module::YOUR_CITY)
-                    ->where('status', MenuItemStatus::ACTIVE)
-                    ->where(function ($q) use ($search) {
-                        $q->where('name', 'LIKE', "%{$search}%")
-                            ->orWhere('description', 'LIKE', "%{$search}%")
-                            ->orWhereRaw(
-                                "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
-                                [$search]
-                            );
-                    })
-                    ->pluck('restaurant_id')
-                    ->unique()
-                    ->values();
+
+                if ($search !== '') {
+
+                    $restaurantSearch = Restaurant::search($search);
+
+                    $restaurantSearch->query(function ($query) {
+
+                        $query
+                            ->where('module_id', Module::YOUR_CITY)
+                            ->where('status', RestaurantStatus::ACTIVE)
+                            ->with('media');
+                    });
+
+
+                    if ($request->filled('lat') && $request->filled('lng')) {
+
+                        $lat = (float) $request->lat;
+                        $lng = (float) $request->lng;
+
+                        $radius = 10000;
+
+                        $restaurantSearch->options([
+                            'filter' => "module_id = " . Module::YOUR_CITY .
+                                " AND status = " . RestaurantStatus::ACTIVE,
+                            'sort' => [
+                                "_geoPoint({$lat}, {$lng}):asc",
+                                "total_orders:desc",
+                            ],
+                        ]);
+                    }
+
+
+                    $restaurants = $restaurantSearch
+                        ->take($perPage)
+                        ->get();
+
+                    return $this->successResponse(
+                        message: 'Restaurant search results fetched successfully.',
+                        data: RestaurantResource::collection($restaurants)
+                    );
+                }
 
                 $query = Restaurant::query()
                     ->where('module_id', Module::YOUR_CITY)
                     ->where('status', RestaurantStatus::ACTIVE)
-                    ->whereIn('id', $restaurantIds);
+                    ->with('media')
+                    ->orderByDesc('total_orders');
 
-                $results = $query->paginate($perPage);
+                if ($request->filled('lat') && $request->filled('lng')) {
+
+                    $lat = (float) $request->lat;
+                    $lng = (float) $request->lng;
+
+                    $radius = 10000;
+
+                    $query->selectRaw(
+                        "restaurants.*,
+                    (
+                        6371000 * acos(
+                            cos(radians(?)) *
+                            cos(radians(lat)) *
+                            cos(radians(`long`) - radians(?)) +
+                            sin(radians(?)) *
+                            sin(radians(lat))
+                        )
+                    ) AS distance",
+                        [
+                            $lat,
+                            $lng,
+                            $lat,
+                        ]
+                    )
+                        ->whereRaw(
+                            "(
+                        6371000 * acos(
+                            cos(radians(?)) *
+                            cos(radians(lat)) *
+                            cos(radians(`long`) - radians(?)) +
+                            sin(radians(?)) *
+                            sin(radians(lat))
+                        )
+                    ) <= ?",
+                            [
+                                $lat,
+                                $lng,
+                                $lat,
+                                $radius,
+                            ]
+                        )
+                        ->orderBy('distance');
+                }
+
+                $restaurants = $query->paginate($perPage);
 
                 return $this->successPaginationResponse(
-                    message: 'Restaurant search results fetched successfully.',
-                    paginator: $results,
-                    data: RestaurantResource::collection($results->items())
+                    message: 'Restaurants fetched successfully.',
+                    paginator: $restaurants,
+                    data: RestaurantResource::collection(
+                        $restaurants->items()
+                    )
                 );
             }
 
             if ($slug === Module::ALL_OVER_INDIA_SLUG) {
 
-                $query = Category::query()
-                    ->where('module_id', Module::ALL_OVER_INDIA)
+                if ($search !== '') {
 
-                    ->whereHas('MenuItems', function ($q) use ($search) {
+                    $menuSearch = MenuItem::search($search);
 
-                        $q->where('module_id', Module::ALL_OVER_INDIA)
+                    $menuSearch->query(function ($query) {
+
+                        $query
+                            ->where('module_id', Module::ALL_OVER_INDIA)
                             ->where('status', MenuItemStatus::ACTIVE)
-                            ->where(function ($q) use ($search) {
+                            ->with([
+                                'categories',
+                                'media',
+                                'variations',
+                                'options',
+                            ]);
+                    });
 
-                                $q->where('name', 'LIKE', "%{$search}%")
-                                    ->orWhere('description', 'LIKE', "%{$search}%")
-                                    ->orWhereRaw(
-                                        "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
-                                        [$search]
-                                    );
-                            });
-                    })
+                    $matchedItems = $menuSearch
+                        ->take(1000)
+                        ->get();
 
-                    ->with([
-                        'MenuItems' => function ($q) use ($search) {
+                    $categoryIds = $matchedItems
+                        ->flatMap(function ($item) {
+                            return $item->categories->pluck('id');
+                        })
+                        ->unique()
+                        ->values();
 
-                            $q->where('module_id', Module::ALL_OVER_INDIA)
-                                ->where('status', MenuItemStatus::ACTIVE)
+                    if ($categoryIds->isEmpty()) {
+
+                        return $this->successPaginationResponse(
+                            message: 'Grocery search results fetched successfully.',
+                            paginator: collect([]),
+                            data: []
+                        );
+                    }
+
+                    $categories = Category::query()
+                        ->where('module_id', Module::ALL_OVER_INDIA)
+                        ->whereIn('id', $categoryIds)
+                        ->with('categoryGroup:id,name')
+                        ->get();
+
+                    foreach ($categories as $category) {
+
+                        $categoryIdsForItems = Category::where('id', $category->id)
+                            ->orWhere('parent_id', $category->id)
+                            ->pluck('id');
+
+                        $items = MenuItem::with([
+                            'media',
+                            'categories',
+                            'variations',
+                            'options',
+                        ])
+                            ->whereHas('categories', function ($q) use ($categoryIdsForItems) {
+                                $q->whereIn(
+                                    'categories.id',
+                                    $categoryIdsForItems
+                                );
+                            })
+                            ->where('module_id', Module::ALL_OVER_INDIA)
+                            ->where('status', MenuItemStatus::ACTIVE)
+                            ->get();
 
 
-                                ->orderByRaw(
-                                    "CASE
-                            WHEN name LIKE ? THEN 0
-                            WHEN description LIKE ? THEN 1
-                            ELSE 2
-                        END ASC",
-                                    [
-                                        "%{$search}%",
-                                        "%{$search}%"
-                                    ]
-                                )
+                        $matchedIds = $matchedItems
+                            ->whereIn(
+                                'id',
+                                $items->pluck('id')
+                            )
+                            ->pluck('id')
+                            ->values()
+                            ->toArray();
 
-                                ->orderByRaw(
-                                    "MATCH(name, description) AGAINST(? IN BOOLEAN MODE) DESC",
-                                    [$search]
-                                )
+                        $items = $items
+                            ->sortBy(function ($item) use ($matchedIds) {
+
+                                $index = array_search(
+                                    $item->id,
+                                    $matchedIds
+                                );
+
+                                return $index === false
+                                    ? 999999
+                                    : $index;
+                            })
+                            ->values();
+
+                        $category->items = $items;
+                    }
 
 
-                                ->orderBy('name', 'asc');
-                        }
-                    ]);
+                    $currentPage = $request->input('page', 1);
 
-                $results = $query->paginate($perPage);
+                    $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $categories->forPage($currentPage, $perPage)->values(),
+                        $categories->count(),
+                        $perPage,
+                        $currentPage,
+                        [
+                            'path' => $request->url(),
+                            'query' => $request->query(),
+                        ]
+                    );
 
-                foreach ($results as $category) {
-                    $category->items = $category->MenuItems;
+                    return $this->successPaginationResponse(
+                        message: 'Grocery search results fetched successfully.',
+                        paginator: $paginated,
+                        data: GroceryCategoryResource::collection(
+                            $paginated->items()
+                        )
+                    );
+                }
+
+
+                $query = Category::query()
+                    ->select([
+                        'id',
+                        'category_group_id',
+                        'name',
+                        'slug',
+                        'module_id',
+                        'parent_id',
+                    ])
+                    ->with('categoryGroup:id,name')
+                    ->where('module_id', Module::ALL_OVER_INDIA)
+                    ->whereNull('parent_id')
+                    ->where('status', CategoryStatus::ACTIVE)
+                    ->orderBy('name');
+
+                $categories = $query->paginate($perPage);
+
+                foreach ($categories as $category) {
+
+                    $categoryIds = Category::where('id', $category->id)
+                        ->orWhere('parent_id', $category->id)
+                        ->pluck('id');
+
+                    $category->items = MenuItem::with([
+                        'media',
+                        'categories',
+                        'variations',
+                        'options',
+                    ])
+                        ->whereHas('categories', function ($q) use ($categoryIds) {
+                            $q->whereIn(
+                                'categories.id',
+                                $categoryIds
+                            );
+                        })
+                        ->where('module_id', Module::ALL_OVER_INDIA)
+                        ->where('status', MenuItemStatus::ACTIVE)
+                        ->limit(10)
+                        ->get();
                 }
 
                 return $this->successPaginationResponse(
-                    message: 'Grocery search results fetched successfully.',
-                    paginator: $results,
-                    data: GroceryCategoryResource::collection($results->items())
+                    message: 'Grocery categories fetched successfully.',
+                    paginator: $categories,
+                    data: GroceryCategoryResource::collection(
+                        $categories->items()
+                    )
                 );
             }
+
             return $this->errorResponse(
                 message: 'Invalid module.'
             );
 
         } catch (\Throwable $e) {
+
+            Log::error('Global Search Error', [
+                'slug' => $request->input('slug'),
+                'search' => $request->input('search'),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
