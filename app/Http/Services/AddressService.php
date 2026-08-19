@@ -41,12 +41,20 @@ class AddressService
 
         $address->label = $request->label;
 
-        $address->label_name = ($request->label == AddressType::OTHER)
-            ? $request->label_name
-            : trans('address_types.' . $request->label);
+        $address->label_name = match ((int) $request->label) {
+            AddressType::HOME => 'Home',
+            AddressType::WORK => 'Work',
+            AddressType::OTHER => trim($request->label_name),
+            default => null,
+        };
 
         $address->address = $request->new_address;
         $address->apartment = $request->apartment;
+        $address->landmark = $request->landmark;
+
+        $address->city = $request->city;
+        $address->state = $request->state;
+        $address->country = $request->country;
 
         $address->receiver_name = $request->receiver_name;
         $address->receiver_phone = $request->receiver_phone;
@@ -56,7 +64,6 @@ class AddressService
         $address->pincode = $request->pincode;
 
         $address->user_id = auth()->id();
-
         $address->is_default = $request->is_default ?? 0;
 
         $address->save();
@@ -84,6 +91,11 @@ class AddressService
 
         $address->address = $request->new_address;
         $address->apartment = $request->apartment;
+        $address->landmark = $request->landmark;
+
+        $address->city = $request->city;
+        $address->state = $request->state;
+        $address->country = $request->country;
 
         $address->receiver_name = $request->receiver_name;
         $address->receiver_phone = $request->receiver_phone;
@@ -93,7 +105,6 @@ class AddressService
         $address->pincode = $request->pincode;
 
         $address->user_id = auth()->id();
-
         $address->is_default = $request->is_default ?? 0;
 
         $address->save();
