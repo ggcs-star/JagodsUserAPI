@@ -24,6 +24,7 @@ use App\Models\MenuItem;
 use App\Models\Category;
 use App\Http\Resources\v1\GroceryCategoryResource;
 use App\Enums\Module;
+use App\Enums\MenuItemStatus;
 class SearchController extends BackendController
 {
     use ApiResponse;
@@ -258,89 +259,143 @@ class SearchController extends BackendController
 // }
 
 
-public function globalSearch(Request $request)
-{
-    try {
+    public function globalSearch(Request $request)
+    {
+        try {
 
-        $request->validate([
-            'slug' => [
-                'required',
-                'string',
-                'in:' . implode(',', Module::all()),
-            ],
-            'search' => [
-                'required',
-                'string',
-                'min:2',
-                'max:100',
-            ],
-            'page' => [
-                'nullable',
-                'integer',
-                'min:1',
-            ],
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:100',
-            ],
-        ]);
+            $request->validate([
+                'slug' => [
+                    'required',
+                    'string',
+                    'in:' . implode(',', Module::all()),
+                ],
+                'search' => [
+                    'required',
+                    'string',
+                    'min:2',
+                    'max:100',
+                ],
+                'page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                ],
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:100',
+                ],
+            ]);
 
-        $slug = strtolower(trim($request->slug));
-        $search = trim($request->search);
-        $perPage = $request->input('per_page', 10);
+            $slug = strtolower(trim($request->slug));
+            $search = trim($request->search);
+            $perPage = $request->input('per_page', 10);
 
-   
-        if ($slug === Module::YOUR_CITY_SLUG) {
 
-            $query = Restaurant::query()
-                ->where('module_id', Module::YOUR_CITY)
-                ->where('status', 1)
-                ->where(function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('description', 'LIKE', "%{$search}%");
-                });
+            if ($slug === Module::YOUR_CITY_SLUG) {
 
-            $results = $query->paginate($perPage);
+                $restaurantIds = MenuItem::query()
+                    ->where('module_id', Module::YOUR_CITY)
+                    ->where('status', MenuItemStatus::ACTIVE)
+                    ->where(function ($q) use ($search) {
+                        $q->where('name', 'LIKE', "%{$search}%")
+                            ->orWhere('description', 'LIKE', "%{$search}%")
+                            ->orWhereRaw(
+                                "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
+                                [$search]
+                            );
+                    })
+                    ->pluck('restaurant_id')
+                    ->unique()
+                    ->values();
 
-            return $this->successPaginationResponse(
-                message: 'Restaurant search results fetched successfully.',
-                paginator: $results,
-                data: RestaurantResource::collection($results->items())
+                $query = Restaurant::query()
+                    ->where('module_id', Module::YOUR_CITY)
+                    ->where('status', RestaurantStatus::ACTIVE)
+                    ->whereIn('id', $restaurantIds);
+
+                $results = $query->paginate($perPage);
+
+                return $this->successPaginationResponse(
+                    message: 'Restaurant search results fetched successfully.',
+                    paginator: $results,
+                    data: RestaurantResource::collection($results->items())
+                );
+            }
+
+            if ($slug === Module::ALL_OVER_INDIA_SLUG) {
+
+                $query = Category::query()
+                    ->where('module_id', Module::ALL_OVER_INDIA)
+
+                    ->whereHas('MenuItems', function ($q) use ($search) {
+
+                        $q->where('module_id', Module::ALL_OVER_INDIA)
+                            ->where('status', MenuItemStatus::ACTIVE)
+                            ->where(function ($q) use ($search) {
+
+                                $q->where('name', 'LIKE', "%{$search}%")
+                                    ->orWhere('description', 'LIKE', "%{$search}%")
+                                    ->orWhereRaw(
+                                        "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
+                                        [$search]
+                                    );
+                            });
+                    })
+
+                    ->with([
+                        'MenuItems' => function ($q) use ($search) {
+
+                            $q->where('module_id', Module::ALL_OVER_INDIA)
+                                ->where('status', MenuItemStatus::ACTIVE)
+
+
+                                ->orderByRaw(
+                                    "CASE
+                            WHEN name LIKE ? THEN 0
+                            WHEN description LIKE ? THEN 1
+                            ELSE 2
+                        END ASC",
+                                    [
+                                        "%{$search}%",
+                                        "%{$search}%"
+                                    ]
+                                )
+
+                                ->orderByRaw(
+                                    "MATCH(name, description) AGAINST(? IN BOOLEAN MODE) DESC",
+                                    [$search]
+                                )
+
+
+                                ->orderBy('name', 'asc');
+                        }
+                    ]);
+
+                $results = $query->paginate($perPage);
+
+                foreach ($results as $category) {
+                    $category->items = $category->MenuItems;
+                }
+
+                return $this->successPaginationResponse(
+                    message: 'Grocery search results fetched successfully.',
+                    paginator: $results,
+                    data: GroceryCategoryResource::collection($results->items())
+                );
+            }
+            return $this->errorResponse(
+                message: 'Invalid module.'
             );
-        }
 
-        
-        if ($slug === Module::ALL_OVER_INDIA_SLUG) {
+        } catch (\Throwable $e) {
 
-            $query = Category::query()
-                ->where('module_id', Module::ALL_OVER_INDIA)
-                ->where(function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('description', 'LIKE', "%{$search}%");
-                });
-
-            $results = $query->paginate($perPage);
-
-            return $this->successPaginationResponse(
-                message: 'Grocery search results fetched successfully.',
-                paginator: $results,
-                data: GroceryCategoryResource::collection($results->items())
-            );
-        }
-
-        return $this->errorResponse(
-            message: 'Invalid module.'
-        );
-
-    } catch (\Throwable $e) {
-
-        return $this->serverErrorResponse(
-            message: config('app.debug')
+            return $this->serverErrorResponse(
+                message: config('app.debug')
                 ? $e->getMessage()
                 : 'Internal Server Error'
-        );
+            );
+        }
     }
-}
 }
