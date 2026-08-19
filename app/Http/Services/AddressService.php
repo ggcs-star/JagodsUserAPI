@@ -85,9 +85,12 @@ class AddressService
 
         $address->label = $request->label;
 
-        $address->label_name = ($request->label == AddressType::OTHER)
-            ? $request->label_name
-            : trans('address_types.' . $request->label);
+        $address->label_name = match ((int) $request->label) {
+            AddressType::HOME => 'Home',
+            AddressType::WORK => 'Work',
+            AddressType::OTHER => trim($request->label_name),
+            default => null,
+        };
 
         $address->address = $request->new_address;
         $address->apartment = $request->apartment;

@@ -22,26 +22,26 @@ class MenuItemService
 
         return $this->data['menuItems'];
     }
- public function show($id)
-{
-    return MenuItem::with([
-        'categories',
-        'variations',
-        'options',
-        'restaurant',
-    ])->find($id);
-}
+    public function show($id)
+    {
+        return MenuItem::with([
+            'categories',
+            'variations',
+            'options',
+            'restaurant',
+        ])->find($id);
+    }
 
 
     public function store(Request $request)
     {
-        $menuItem              = new MenuItem;
-        $menuItem->restaurant_id  = $request->get('restaurant_id');
-        $menuItem->name           = $request->get('name');
-        $menuItem->description    = $request->get('description');
-        $menuItem->unit_price     = $request->get('unit_price');
+        $menuItem = new MenuItem;
+        $menuItem->restaurant_id = $request->get('restaurant_id');
+        $menuItem->name = $request->get('name');
+        $menuItem->description = $request->get('description');
+        $menuItem->unit_price = $request->get('unit_price');
         $menuItem->discount_price = $request->get('discount_price');
-        $menuItem->status         = $request->get('status');
+        $menuItem->status = $request->get('status');
         $menuItem->save();
         $menuItem->categories()->sync($request->get('categories'));
 
@@ -57,14 +57,14 @@ class MenuItemService
         }
     }
 
-    public function update(Request $request, $menuItem) : void
+    public function update(Request $request, $menuItem): void
     {
-        $menuItem->restaurant_id  = $request->get('restaurant_id');
-        $menuItem->name           = $request->get('name');
-        $menuItem->description    = $request->get('description');
-        $menuItem->unit_price     = $request->get('unit_price');
+        $menuItem->restaurant_id = $request->get('restaurant_id');
+        $menuItem->name = $request->get('name');
+        $menuItem->description = $request->get('description');
+        $menuItem->unit_price = $request->get('unit_price');
         $menuItem->discount_price = $request->get('discount_price');
-        $menuItem->status         = $request->get('status');
+        $menuItem->status = $request->get('status');
         $menuItem->save();
         $menuItem->categories()->sync($request->get('categories'));
     }
