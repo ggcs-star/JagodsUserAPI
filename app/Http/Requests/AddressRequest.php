@@ -7,6 +7,7 @@ use App\Models\Address;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
 class AddressRequest extends FormRequest
 {
@@ -18,19 +19,96 @@ class AddressRequest extends FormRequest
     public function rules()
     {
         return [
-            'label' => ['required', 'numeric'],
-            'label_name' => ['nullable', 'string'],
 
-            'lat' => ['required'],
-            'long' => ['required'],
+            'label' => [
+                'required',
+                'numeric',
+                Rule::in([
+                    AddressType::HOME,
+                    AddressType::WORK,
+                    AddressType::OTHER,
+                ]),
+            ],
 
-            'new_address' => ['required', 'max:200'],
-            'apartment' => ['nullable', 'max:200'],
+            'label_name' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
 
-            'receiver_name' => ['required', 'string', 'max:100'],
-            'receiver_phone' => ['required', 'numeric', 'digits:10'],
+            'receiver_name' => [
+                'required',
+                'string',
+                'max:100',
+            ],
 
-            'pincode' => ['required', 'numeric', 'digits:6'],
+            'receiver_phone' => [
+                'required',
+                'numeric',
+                'digits:10',
+            ],
+
+
+            'new_address' => [
+                'required',
+                'string',
+                'max:200',
+            ],
+
+            'apartment' => [
+                'nullable',
+                'string',
+                'max:200',
+            ],
+
+            'landmark' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+
+            'city' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'state' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'country' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'pincode' => [
+                'required',
+                'numeric',
+                'digits:6',
+            ],
+
+            'lat' => [
+                'required',
+                'numeric',
+                'between:-90,90',
+            ],
+
+            'long' => [
+                'required',
+                'numeric',
+                'between:-180,180',
+            ],
+
+
+            'is_default' => [
+                'nullable',
+                'boolean',
+            ],
         ];
     }
 
@@ -38,12 +116,6 @@ class AddressRequest extends FormRequest
     {
         $validator->after(function ($validator) {
 
-            if ($this->uniqueOtherLabel()) {
-                $validator->errors()->add(
-                    'label_name',
-                    'This Label is already created!'
-                );
-            }
 
             if (
                 $this->label == AddressType::OTHER &&
@@ -51,29 +123,36 @@ class AddressRequest extends FormRequest
             ) {
                 $validator->errors()->add(
                     'label_name',
-                    'This field is required!'
+                    'This field is required when label is Other.'
+                );
+            }
+
+            if ($this->uniqueOtherLabel()) {
+                $validator->errors()->add(
+                    'label_name',
+                    'This Label is already created!'
                 );
             }
         });
     }
 
-    private function uniqueOtherLabel()
+    private function uniqueOtherLabel(): bool
     {
-        if ($this->label == AddressType::OTHER) {
-
-            $address = Address::where([
-                'user_id' => auth()->id(),
-                'label_name' => $this->label_name,
-            ])->first();
-
-            if ($address && $address->id != $this->id) {
-                return true;
-            }
+        if ($this->label != AddressType::OTHER) {
+            return false;
         }
 
-        return false;
-    }
+        $address = Address::where('user_id', auth()->id())
+            ->where('label', AddressType::OTHER)
+            ->where('label_name', $this->label_name)
+            ->when(
+                $this->id,
+                fn($query) => $query->where('id', '!=', $this->id)
+            )
+            ->first();
 
+        return $address !== null;
+    }
 
     protected function failedValidation(Validator $validator)
     {
