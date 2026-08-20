@@ -58,6 +58,11 @@ class ShiprocketService
         int $cod = 0
     ): array {
 
+
+        if (!config('services.shiprocket.enabled')) {
+            return $this->getStaticDeliveryRate();
+        }
+
         $pickupPincode = config(
             'services.shiprocket.pickup_postcode'
         );
@@ -82,6 +87,7 @@ class ShiprocketService
                 ]
             );
 
+
         if ($response->status() === 401) {
 
             Cache::forget('shiprocket_api_token');
@@ -100,6 +106,7 @@ class ShiprocketService
                     ]
                 );
         }
+
 
         if (!$response->successful()) {
 
@@ -124,6 +131,7 @@ class ShiprocketService
         );
 
         if (empty($couriers)) {
+
             return [
                 'available' => false,
                 'message' => 'Delivery is not available for this pincode.',
@@ -131,8 +139,9 @@ class ShiprocketService
             ];
         }
 
-       
+
         usort($couriers, function ($a, $b) {
+
             return (float) data_get($a, 'freight_charge', 0)
                 <=> (float) data_get($b, 'freight_charge', 0);
         });
@@ -167,20 +176,11 @@ class ShiprocketService
                     'courier_name'
                 ),
 
-                'delivery_charge' => round(
-                    $deliveryCharge,
-                    2
-                ),
+                'delivery_charge' => round($deliveryCharge, 2),
 
-                'cod_charge' => round(
-                    $codCharge,
-                    2
-                ),
+                'cod_charge' => round($codCharge, 2),
 
-                'total_charge' => round(
-                    $totalCharge,
-                    2
-                ),
+                'total_charge' => round($totalCharge, 2),
 
                 'estimated_delivery_days' => data_get(
                     $courier,
@@ -191,6 +191,24 @@ class ShiprocketService
                     $courier,
                     'rating'
                 ),
+            ],
+        ];
+    }
+
+
+    private function getStaticDeliveryRate(): array
+    {
+        return [
+            'available' => true,
+            'message' => 'Delivery is available for this pincode.',
+            'courier' => [
+                'courier_id' => 1,
+                'courier_name' => 'Blue Dart Air demo',
+                'delivery_charge' => 879.90,
+                'cod_charge' => 55.65,
+                'total_charge' => 935.55,
+                'estimated_delivery_days' => 'Aug 23, 2026',
+                'rating' => 3,
             ],
         ];
     }
