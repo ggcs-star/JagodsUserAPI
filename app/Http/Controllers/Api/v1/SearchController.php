@@ -262,197 +262,255 @@ class SearchController extends BackendController
 
 
     public function globalSearch(Request $request)
-{
-    try {
+    {
+        try {
 
-        $request->validate([
-            'slug' => [
-                'required',
-                'string',
-                'in:' . implode(',', Module::all()),
-            ],
+            $request->validate([
+                'slug' => [
+                    'required',
+                    'string',
+                    'in:' . implode(',', Module::all()),
+                ],
 
-            'search' => [
-                'nullable',
-                'string',
-                'max:100',
-            ],
+                'search' => [
+                    'nullable',
+                    'string',
+                    'max:100',
+                ],
 
-            'page' => [
-                'nullable',
-                'integer',
-                'min:1',
-            ],
+                'page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                ],
 
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:100',
-            ],
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:100',
+                ],
 
-            'lat' => [
-                'nullable',
-                'numeric',
-            ],
+                'lat' => [
+                    'nullable',
+                    'string',
+                ],
 
-            'lng' => [
-                'nullable',
-                'numeric',
-            ],
-        ]);
+                'lng' => [
+                    'nullable',
+                    'string',
+                ],
+            ]);
 
-        $slug = strtolower(trim($request->input('slug')));
-        $search = trim($request->input('search', ''));
-        $perPage = (int) $request->input('per_page', 10);
+            $slug = strtolower(trim($request->input('slug')));
+            $search = trim($request->input('search', ''));
+            $perPage = (int) $request->input('per_page', 10);
 
-        if ($slug === Module::YOUR_CITY_SLUG) {
+            if ($slug === Module::YOUR_CITY_SLUG) {
 
-          
-            if ($search !== '') {
+                if ($search !== '') {
 
-                $restaurantSearch = Restaurant::search($search);
+                    $restaurantSearch = Restaurant::search($search);
 
-                $restaurantSearch->query(function ($query) {
+                    $restaurantSearch->query(function ($query) {
 
-                    $query
-                        ->where('module_id', Module::YOUR_CITY)
-                        ->where('status', RestaurantStatus::ACTIVE)
-                        ->with('media');
-                });
+                        $query
+                            ->where('module_id', Module::YOUR_CITY)
+                            ->where('status', RestaurantStatus::ACTIVE)
+                            ->with('media');
+                    });
 
-              
-                if ($request->filled('lat') && $request->filled('lng')) {
+                    if ($request->filled('lat') && $request->filled('lng')) {
 
-                    $lat = (float) $request->lat;
-                    $lng = (float) $request->lng;
+                        $lat = trim($request->input('lat'));
+                        $lng = trim($request->input('lng'));
 
-                    $restaurantSearch->options([
-                        'filter' => 'module_id = ' . Module::YOUR_CITY
-                            . ' AND status = ' . RestaurantStatus::ACTIVE,
+                        $restaurantSearch->options([
+                            'filter' => 'module_id = ' . Module::YOUR_CITY
+                                . ' AND status = ' . RestaurantStatus::ACTIVE,
 
-                        'sort' => [
-                            "_geoPoint({$lat}, {$lng}):asc",
-                            'total_orders:desc',
-                        ],
-                    ]);
+                            'sort' => [
+                                "_geoPoint({$lat}, {$lng}):asc",
+                                'total_orders:desc',
+                            ],
+                        ]);
+                    }
+
+                    $restaurants = $restaurantSearch->paginate($perPage);
+
+                    return $this->successPaginationResponse(
+                        message: 'Restaurant search results fetched successfully.',
+                        paginator: $restaurants,
+                        data: PopularRestaurantResource::collection(
+                            $restaurants->items()
+                        )
+                    );
                 }
 
-                $restaurants = $restaurantSearch->paginate($perPage);
+                $query = Restaurant::query()
+                    ->where('module_id', Module::YOUR_CITY)
+                    ->where('status', RestaurantStatus::ACTIVE)
+                    ->with('media');
+
+
+                if ($request->filled('lat') && $request->filled('lng')) {
+
+                    $lat = trim($request->input('lat'));
+                    $lng = trim($request->input('lng'));
+
+                    $query
+                        ->selectRaw(
+                            "
+            restaurants.*,
+            (
+                6371000 * acos(
+                    cos(radians(?)) *
+                    cos(radians(lat)) *
+                    cos(radians(`long`) - radians(?)) +
+                    sin(radians(?)) *
+                    sin(radians(lat))
+                )
+            ) AS distance
+            ",
+                            [
+                                $lat,
+                                $lng,
+                                $lat,
+                            ]
+                        )
+                        ->orderBy('distance', 'asc')
+                        ->orderByDesc('total_orders');
+
+                } else {
+
+
+                    $query->orderByDesc('total_orders');
+                }
+
+                $restaurants = $query->paginate($perPage);
 
                 return $this->successPaginationResponse(
-                    message: 'Restaurant search results fetched successfully.',
+                    message: 'Restaurants fetched successfully.',
                     paginator: $restaurants,
-                    data: RestaurantResource::collection(
+                    data: PopularRestaurantResource::collection(
                         $restaurants->items()
                     )
                 );
             }
 
-            $query = Restaurant::query()
-                ->where('module_id', Module::YOUR_CITY)
-                ->where('status', RestaurantStatus::ACTIVE)
-                ->with('media')
-                ->orderByDesc('total_orders');
+            if ($slug === Module::ALL_OVER_INDIA_SLUG) {
 
-           
-            if ($request->filled('lat') && $request->filled('lng')) {
+                if ($search !== '') {
 
-                $lat = (float) $request->lat;
-                $lng = (float) $request->lng;
+                    $menuSearch = MenuItem::search($search);
 
-                $radius = 10000;
+                    $menuSearch->query(function ($query) {
 
-                $query
-                    ->selectRaw(
-                        "
-                        restaurants.*,
-                        (
-                            6371000 * acos(
-                                cos(radians(?)) *
-                                cos(radians(lat)) *
-                                cos(radians(`long`) - radians(?)) +
-                                sin(radians(?)) *
-                                sin(radians(lat))
-                            )
-                        ) AS distance
-                        ",
-                        [
-                            $lat,
-                            $lng,
-                            $lat,
-                        ]
-                    )
-                    ->whereRaw(
-                        "
-                        (
-                            6371000 * acos(
-                                cos(radians(?)) *
-                                cos(radians(lat)) *
-                                cos(radians(`long`) - radians(?)) +
-                                sin(radians(?)) *
-                                sin(radians(lat))
-                            )
-                        ) <= ?
-                        ",
-                        [
-                            $lat,
-                            $lng,
-                            $lat,
-                            $radius,
-                        ]
-                    )
-                    ->orderBy('distance');
-            }
+                        $query
+                            ->where('module_id', Module::ALL_OVER_INDIA)
+                            ->where('status', MenuItemStatus::ACTIVE)
+                            ->with([
+                                'categories',
+                                'media',
+                                'variations',
+                                'options',
+                            ]);
+                    });
 
-            $restaurants = $query->paginate($perPage);
+                    $matchedItems = $menuSearch
+                        ->take(1000)
+                        ->get();
 
-            return $this->successPaginationResponse(
-                message: 'Restaurants fetched successfully.',
-                paginator: $restaurants,
-                data: RestaurantResource::collection(
-                    $restaurants->items()
-                )
-            );
-        }
+                    $categoryIds = $matchedItems
+                        ->flatMap(function ($item) {
+                            return $item->categories->pluck('id');
+                        })
+                        ->unique()
+                        ->values();
 
-        if ($slug === Module::ALL_OVER_INDIA_SLUG) {
+                    if ($categoryIds->isEmpty()) {
 
-            if ($search !== '') {
+                        $emptyPaginator = new \Illuminate\Pagination\LengthAwarePaginator(
+                            [],
+                            0,
+                            $perPage,
+                            (int) $request->input('page', 1),
+                            [
+                                'path' => $request->url(),
+                                'query' => $request->query(),
+                            ]
+                        );
 
-                $menuSearch = MenuItem::search($search);
+                        return $this->successPaginationResponse(
+                            message: 'No grocery items found.',
+                            paginator: $emptyPaginator,
+                            data: []
+                        );
+                    }
 
-                $menuSearch->query(function ($query) {
-
-                    $query
+                    $categories = Category::query()
                         ->where('module_id', Module::ALL_OVER_INDIA)
-                        ->where('status', MenuItemStatus::ACTIVE)
-                        ->with([
-                            'categories',
+                        ->whereIn('id', $categoryIds)
+                        ->where('status', CategoryStatus::ACTIVE)
+                        ->with('categoryGroup:id,name')
+                        ->get();
+
+                    foreach ($categories as $category) {
+
+                        $categoryIdsForItems = Category::query()
+                            ->where('id', $category->id)
+                            ->orWhere('parent_id', $category->id)
+                            ->pluck('id');
+
+                        $items = MenuItem::with([
                             'media',
+                            'categories',
                             'variations',
                             'options',
-                        ]);
-                });
+                        ])
+                            ->whereHas('categories', function ($q) use ($categoryIdsForItems) {
+                                $q->whereIn(
+                                    'categories.id',
+                                    $categoryIdsForItems
+                                );
+                            })
+                            ->where('module_id', Module::ALL_OVER_INDIA)
+                            ->where('status', MenuItemStatus::ACTIVE)
+                            ->get();
 
-                $matchedItems = $menuSearch
-                    ->take(1000)
-                    ->get();
+                        $matchedIds = $matchedItems
+                            ->whereIn('id', $items->pluck('id'))
+                            ->pluck('id')
+                            ->values()
+                            ->toArray();
 
-                $categoryIds = $matchedItems
-                    ->flatMap(function ($item) {
-                        return $item->categories->pluck('id');
-                    })
-                    ->unique()
-                    ->values();
+                        $items = $items
+                            ->sortBy(function ($item) use ($matchedIds) {
 
-                if ($categoryIds->isEmpty()) {
+                                $index = array_search(
+                                    $item->id,
+                                    $matchedIds,
+                                    true
+                                );
 
-                    $emptyPaginator = new \Illuminate\Pagination\LengthAwarePaginator(
-                        [],
-                        0,
+                                return $index === false
+                                    ? PHP_INT_MAX
+                                    : $index;
+                            })
+                            ->values();
+
+                        $category->items = $items;
+                    }
+
+                    $currentPage = (int) $request->input('page', 1);
+
+                    $paginatedCategories = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $categories
+                            ->forPage($currentPage, $perPage)
+                            ->values(),
+                        $categories->count(),
                         $perPage,
-                        (int) $request->input('page', 1),
+                        $currentPage,
                         [
                             'path' => $request->url(),
                             'query' => $request->query(),
@@ -460,167 +518,88 @@ class SearchController extends BackendController
                     );
 
                     return $this->successPaginationResponse(
-                        message: 'No grocery items found.',
-                        paginator: $emptyPaginator,
-                        data: []
+                        message: 'Grocery search results fetched successfully.',
+                        paginator: $paginatedCategories,
+                        data: GroceryCategoryResource::collection(
+                            $paginatedCategories->items()
+                        )
                     );
                 }
 
-                $categories = Category::query()
-                    ->where('module_id', Module::ALL_OVER_INDIA)
-                    ->whereIn('id', $categoryIds)
-                    ->where('status', CategoryStatus::ACTIVE)
+                $query = Category::query()
+                    ->select([
+                        'id',
+                        'category_group_id',
+                        'name',
+                        'slug',
+                        'module_id',
+                        'parent_id',
+                    ])
                     ->with('categoryGroup:id,name')
-                    ->get();
+                    ->where('module_id', Module::ALL_OVER_INDIA)
+                    ->whereNull('parent_id')
+                    ->where('status', CategoryStatus::ACTIVE)
+                    ->orderBy('name');
 
-             
+                $categories = $query->paginate($perPage);
+
                 foreach ($categories as $category) {
 
-                    $categoryIdsForItems = Category::query()
+                    $categoryIds = Category::query()
                         ->where('id', $category->id)
                         ->orWhere('parent_id', $category->id)
                         ->pluck('id');
 
-                    $items = MenuItem::with([
+                    $category->items = MenuItem::with([
                         'media',
                         'categories',
                         'variations',
                         'options',
                     ])
-                        ->whereHas('categories', function ($q) use ($categoryIdsForItems) {
+                        ->whereHas('categories', function ($q) use ($categoryIds) {
                             $q->whereIn(
                                 'categories.id',
-                                $categoryIdsForItems
+                                $categoryIds
                             );
                         })
                         ->where('module_id', Module::ALL_OVER_INDIA)
                         ->where('status', MenuItemStatus::ACTIVE)
+                        ->limit(10)
                         ->get();
-
-                    $matchedIds = $matchedItems
-                        ->whereIn('id', $items->pluck('id'))
-                        ->pluck('id')
-                        ->values()
-                        ->toArray();
-
-                 
-                    $items = $items
-                        ->sortBy(function ($item) use ($matchedIds) {
-
-                            $index = array_search(
-                                $item->id,
-                                $matchedIds,
-                                true
-                            );
-
-                            return $index === false
-                                ? PHP_INT_MAX
-                                : $index;
-                        })
-                        ->values();
-
-                    $category->items = $items;
                 }
 
-              
-                $currentPage = (int) $request->input('page', 1);
-
-                $paginatedCategories = new \Illuminate\Pagination\LengthAwarePaginator(
-                    $categories
-                        ->forPage($currentPage, $perPage)
-                        ->values(),
-                    $categories->count(),
-                    $perPage,
-                    $currentPage,
-                    [
-                        'path' => $request->url(),
-                        'query' => $request->query(),
-                    ]
-                );
-
                 return $this->successPaginationResponse(
-                    message: 'Grocery search results fetched successfully.',
-                    paginator: $paginatedCategories,
+                    message: 'Grocery categories fetched successfully.',
+                    paginator: $categories,
                     data: GroceryCategoryResource::collection(
-                        $paginatedCategories->items()
+                        $categories->items()
                     )
                 );
             }
 
-          
-            $query = Category::query()
-                ->select([
-                    'id',
-                    'category_group_id',
-                    'name',
-                    'slug',
-                    'module_id',
-                    'parent_id',
-                ])
-                ->with('categoryGroup:id,name')
-                ->where('module_id', Module::ALL_OVER_INDIA)
-                ->whereNull('parent_id')
-                ->where('status', CategoryStatus::ACTIVE)
-                ->orderBy('name');
-
-            $categories = $query->paginate($perPage);
-
-            foreach ($categories as $category) {
-
-                $categoryIds = Category::query()
-                    ->where('id', $category->id)
-                    ->orWhere('parent_id', $category->id)
-                    ->pluck('id');
-
-                $category->items = MenuItem::with([
-                    'media',
-                    'categories',
-                    'variations',
-                    'options',
-                ])
-                    ->whereHas('categories', function ($q) use ($categoryIds) {
-                        $q->whereIn(
-                            'categories.id',
-                            $categoryIds
-                        );
-                    })
-                    ->where('module_id', Module::ALL_OVER_INDIA)
-                    ->where('status', MenuItemStatus::ACTIVE)
-                    ->limit(10)
-                    ->get();
-            }
-
-            return $this->successPaginationResponse(
-                message: 'Grocery categories fetched successfully.',
-                paginator: $categories,
-                data: GroceryCategoryResource::collection(
-                    $categories->items()
-                )
+            return $this->errorResponse(
+                message: 'Invalid module.'
             );
-        }
 
-        
-        return $this->errorResponse(
-            message: 'Invalid module.'
-        );
+        } catch (\Throwable $e) {
 
-    } catch (\Throwable $e) {
+            Log::error('Global Search Error', [
+                'slug' => $request->input('slug'),
+                'search' => $request->input('search'),
+                'page' => $request->input('page'),
+                'per_page' => $request->input('per_page'),
+                'lat' => $request->input('lat'),
+                'lng' => $request->input('lng'),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
-        Log::error('Global Search Error', [
-            'slug' => $request->input('slug'),
-            'search' => $request->input('search'),
-            'page' => $request->input('page'),
-            'per_page' => $request->input('per_page'),
-            'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-        ]);
-
-        return $this->serverErrorResponse(
-            message: config('app.debug')
+            return $this->serverErrorResponse(
+                message: config('app.debug')
                 ? $e->getMessage()
                 : 'Internal Server Error'
-        );
+            );
+        }
     }
-}
 }

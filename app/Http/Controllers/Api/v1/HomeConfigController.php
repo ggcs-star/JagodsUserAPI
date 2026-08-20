@@ -64,7 +64,7 @@ class HomeConfigController extends BackendController
                         ],
 
                         'icon_color' => '#FFE9C6',
-                        'border_color' => '#F58626',
+                        'border_color' => '#427C6D',
                         'background_color' => '#427C6D',
                     ],
 
@@ -186,7 +186,7 @@ class HomeConfigController extends BackendController
                         ],
 
                         'icon_color' => '#FFD6D6',
-                        'border_color' => '#BC2828',
+                        'border_color' => '#7AA2C5',
                         'background_color' => '#7AA2C5',
                     ],
 
