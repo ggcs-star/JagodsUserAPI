@@ -30,15 +30,15 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
-    'stripe'   => [
-        'key'    => env('STRIPE_KEY'),
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
     ],
     'razorpay' => [
-        'key'    => env('RAZORPAY_KEY'),
+        'key' => env('RAZORPAY_KEY'),
         'secret' => env('RAZORPAY_SECRET'),
     ],
-    'setting'  => [
+    'setting' => [
         'timezone' => env('APP_TIMEZONE'),
     ],
     'facebook' => [
@@ -61,6 +61,12 @@ return [
     ],
 
     'business_api' => [
-    'key' => env('BUSINESS_API_KEY'),
-],
+        'key' => env('BUSINESS_API_KEY'),
+    ],
+
+    'shiprocket' => [
+        'email' => env('SHIPROCKET_EMAIL'),
+        'password' => '0zH!avzIZ*$2#8WGfrr9v*Q$N31I4NTb',
+        'pickup_postcode' => env('SHIPROCKET_PICKUP_POSTCODE'),
+    ],
 ];
