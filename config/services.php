@@ -66,7 +66,7 @@ return [
 
     'shiprocket' => [
         'email' => env('SHIPROCKET_EMAIL'),
-        'password' => '0zH!avzIZ*$2#8WGfrr9v*Q$N31I4NTb',
+        'password' => env('SHIPROCKET_PASSWORD'),
         'pickup_postcode' => env('SHIPROCKET_PICKUP_POSTCODE'),
     ],
 ];

@@ -25,17 +25,19 @@ class BusinessSettingController extends Controller
         try {
 
             $request->validate([
+            
                 'pincode' => [
-                    'required',
+                    'nullable',
                     'string',
                     'size:6',
                     'regex:/^[0-9]{6}$/',
                 ],
 
                 'total_qty' => [
-                    'required',
+                    'nullable',
                     'integer',
                     'min:1',
+                    'required_with:pincode',
                 ],
 
                 'cod' => [
@@ -44,34 +46,21 @@ class BusinessSettingController extends Controller
                 ],
             ]);
 
-            $deliveryPincode = trim(
-                $request->input('pincode')
-            );
+            $deliveryPincode = $request->filled('pincode')
+                ? trim($request->input('pincode'))
+                : null;
 
-            $totalQty = (int) $request->input(
-                'total_qty'
-            );
+            $totalQty = $request->filled('total_qty')
+                ? (int) $request->input('total_qty')
+                : null;
 
-            $cod = (int) $request->input(
-                'cod',
-                0
-            );
+            $cod = (int) $request->input('cod', 0);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Weight Calculation
-            |--------------------------------------------------------------------------
-            |
-            | 1 Quantity = 1 KG
-            |
-            */
-            $weight = $totalQty * 1;
+            $weight = $totalQty !== null
+                ? $totalQty * 1
+                : null;
 
-            /*
-            |--------------------------------------------------------------------------
-            | Business Settings
-            |--------------------------------------------------------------------------
-            */
+          
             $settings = Setting::whereNotIn('key', [
                 'purchase_code',
                 'purchase_username',
@@ -84,41 +73,25 @@ class BusinessSettingController extends Controller
                 'aws_secret',
             ])
                 ->pluck('value', 'key');
-
-            /*
-            |--------------------------------------------------------------------------
-            | Default Address
-            |--------------------------------------------------------------------------
-            */
             $defaultAddress = Address::query()
                 ->where('user_id', auth()->id())
                 ->where('is_default', 1)
                 ->first();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Shiprocket
-            |--------------------------------------------------------------------------
-            */
-            $delivery = $this->shiprocketService->getDeliveryRate(
-                deliveryPincode: $deliveryPincode,
-                weight: $weight,
-                cod: $cod
-            );
+            $delivery = null;
 
-            /*
-            |--------------------------------------------------------------------------
-            | Business Settings Resource
-            |--------------------------------------------------------------------------
-            */
+            if ($deliveryPincode !== null) {
+
+                $delivery = $this->shiprocketService->getDeliveryRate(
+                    deliveryPincode: $deliveryPincode,
+                    weight: $weight,
+                    cod: $cod
+                );
+            }
+
             $businessSettings = (new BusinessSettingResource($settings))
                 ->toArray($request);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Response
-            |--------------------------------------------------------------------------
-            */
             return response()->json([
                 'status' => true,
                 'success' => true,
