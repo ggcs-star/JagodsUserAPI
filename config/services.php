@@ -65,6 +65,7 @@ return [
     ],
 
     'shiprocket' => [
+        'enabled' => env('SHIPROCKET_ENABLED'),
         'email' => env('SHIPROCKET_EMAIL'),
         'password' => env('SHIPROCKET_PASSWORD'),
         'pickup_postcode' => env('SHIPROCKET_PICKUP_POSTCODE'),

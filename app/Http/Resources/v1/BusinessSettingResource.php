@@ -15,7 +15,8 @@ class BusinessSettingResource extends JsonResource
             'basic_delivery_charge' => (float) ($this['basic_delivery_charge'] ?? 0),
 
             'max_delivery_radius' => (float) ($this['max_delivery_radius'] ?? 0),
-            
+            'restaurant_lat' => '23.104192',
+            'restaurant_long' => '72.594234',
             'platform_fee' => (float) ($this['platform_fee'] ?? 0),
             'surge_fee' => (float) ($this['surge_fee'] ?? 0),
 
