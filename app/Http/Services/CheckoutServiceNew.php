@@ -22,22 +22,38 @@ use App\Models\OrderHistory;
 class CheckoutServiceNew
 {
     protected $validationService;
+    protected $shiprocketService;
 
-    public function __construct(CheckoutValidationService $validationService)
-    {
+    public function __construct(
+        CheckoutValidationService $validationService,
+        ShiprocketService $shiprocketService
+    ) {
         $this->validationService = $validationService;
+        $this->shiprocketService = $shiprocketService;
     }
 
     public function checkout(array $data, int $userId, $device = null)
     {
         return DB::transaction(function () use ($data, $userId, $device) {
 
-            $validated = $this->validationService->validate($data, $userId);
+            $validated = $this->validationService->validate(
+                $data,
+                $userId
+            );
 
-            $orderPricing = $this->calculateOrderPricing($validated, $data, $userId);
+            $orderPricing = $this->calculateOrderPricing(
+                $validated,
+                $data,
+                $userId
+            );
 
             $frontendTotal = (float) $data['total'];
-            if (abs($orderPricing['total'] - $frontendTotal) > 0.01) {
+
+            if (
+                abs(
+                    $orderPricing['total'] - $frontendTotal
+                ) > 0.01
+            ) {
                 throw new Exception(json_encode([
                     'error_type' => 'total_mismatch',
                     'message' => "Order total has changed. You sent ₹{$frontendTotal}, but current payable amount is ₹{$orderPricing['total']}. Please review your cart.",
@@ -45,79 +61,165 @@ class CheckoutServiceNew
                     'current_total' => $orderPricing['total'],
                 ]), 422);
             }
-            $order = $this->createOrder($data, $validated, $orderPricing, $userId, $device);
+
+            $order = $this->createOrder(
+                $data,
+                $validated,
+                $orderPricing,
+                $userId,
+                $device
+            );
+
             $this->createOrderHistory($order);
 
             if ($orderPricing['coupon_id']) {
-                $this->createDiscountRecord($order, $orderPricing, $userId);
+                $this->createDiscountRecord(
+                    $order,
+                    $orderPricing,
+                    $userId
+                );
             }
 
-            $this->createOrderItems($order, $validated['items']);
+            $this->createOrderItems(
+                $order,
+                $validated['items']
+            );
 
             return $order->fresh([]);
         });
     }
 
-    private function calculateOrderPricing(array $validated, array $data, int $userId): array
-    {
+    private function calculateOrderPricing(
+        array $validated,
+        array $data,
+        int $userId
+    ): array {
+
         $subtotal = $validated['subtotal'];
+
         $settings = Setting::pluck('value', 'key');
 
         $couponId = null;
         $couponDiscount = 0;
 
         if (!empty($data['coupon_code'])) {
-            $coupon = Coupon::whereRaw('BINARY slug = ?', [$data['coupon_code']])
+
+            $coupon = Coupon::whereRaw(
+                'BINARY slug = ?',
+                [$data['coupon_code']]
+            )
                 ->where('from_date', '<=', now())
                 ->where('to_date', '>=', now())
                 ->where('limit', '>', 0)
                 ->where(function ($query) use ($data) {
-                    $query->where('restaurant_id', $data['restaurant_id'])->orWhere('restaurant_id', 0);
-                })->first();
+                    $query
+                        ->where(
+                            'restaurant_id',
+                            $data['restaurant_id']
+                        )
+                        ->orWhere('restaurant_id', 0);
+                })
+                ->first();
 
-            if (!$coupon)
-                throw new Exception('This coupon is invalid or expired.', 422);
-
-            if ($coupon->minimum_order_amount > 0 && $subtotal < $coupon->minimum_order_amount) {
-                throw new Exception('This coupon requires a minimum order amount of ₹' . $coupon->minimum_order_amount, 422);
+            if (!$coupon) {
+                throw new Exception(
+                    'This coupon is invalid or expired.',
+                    422
+                );
             }
 
-            if (Discount::where('coupon_id', $coupon->id)->where('status', DiscountStatus::ACTIVE)->count() >= $coupon->limit) {
-                throw new Exception('This coupon is fully redeemed and no longer available.', 422);
+            if (
+                $coupon->minimum_order_amount > 0 &&
+                $subtotal < $coupon->minimum_order_amount
+            ) {
+                throw new Exception(
+                    'This coupon requires a minimum order amount of ₹' .
+                    $coupon->minimum_order_amount,
+                    422
+                );
             }
 
+            if (
+                Discount::where('coupon_id', $coupon->id)
+                    ->where('status', DiscountStatus::ACTIVE)
+                    ->count() >= $coupon->limit
+            ) {
+                throw new Exception(
+                    'This coupon is fully redeemed and no longer available.',
+                    422
+                );
+            }
 
             $couponId = $coupon->id;
-            $couponDiscount = ($coupon->discount_type === 'percent') ? ($subtotal * $coupon->amount) / 100 : $coupon->amount;
-            $couponDiscount = min($couponDiscount, $subtotal);
+
+            $couponDiscount = (
+                $coupon->discount_type === 'percent'
+            )
+                ? ($subtotal * $coupon->amount) / 100
+                : $coupon->amount;
+
+            $couponDiscount = min(
+                $couponDiscount,
+                $subtotal
+            );
         }
 
-        $taxableAmount = max(0, $subtotal - $couponDiscount);
+        $taxableAmount = max(
+            0,
+            $subtotal - $couponDiscount
+        );
+
         $gstAmount = ($taxableAmount * 5) / 100;
 
-        $totalQuantity = array_sum(array_column($validated['items'], 'quantity'));
+        $packagingCharge = (float) (
+            $settings['packaging_charge'] ?? 0
+        );
 
-        $packagingCharge = (float) ($settings['packaging_charge'] ?? 0);
-        $platformFee = $subtotal > 0 ? (float) ($settings['platform_fee'] ?? 0) : 0;
+        $platformFee = $subtotal > 0
+            ? (float) ($settings['platform_fee'] ?? 0)
+            : 0;
 
         $moduleId = (int) $data['module_id'];
-        $isPickup = ($data['order_type'] == OrderTypeStatus::PICKUP);
+
+        $isPickup = (
+            (int) $data['order_type'] === OrderTypeStatus::PICKUP
+        );
+
 
         $surgeFee = 0;
-        if (!$isPickup && $moduleId == Module::YOUR_CITY) {
-            $surgeFee = $subtotal > 0 ? (float) ($settings['surge_fee'] ?? 0) : 0;
+
+        if (
+            !$isPickup &&
+            $moduleId === Module::YOUR_CITY
+        ) {
+            $surgeFee = $subtotal > 0
+                ? (float) ($settings['surge_fee'] ?? 0)
+                : 0;
         }
+
 
         $deliveryCharge = $this->calculateDeliveryCharge(
             $data,
             $settings,
             $validated['restaurant'],
-            $validated['address']
+            $validated['address'],
+            $validated['items']
         );
 
-        $tipAmount = (float) ($data['tip_amount'] ?? 0);
+        $tipAmount = (float) (
+            $data['tip_amount'] ?? 0
+        );
 
-        $total = max(0, $taxableAmount + $gstAmount + $deliveryCharge + $packagingCharge + $platformFee + $surgeFee + $tipAmount);
+        $total = max(
+            0,
+            $taxableAmount
+            + $gstAmount
+            + $deliveryCharge
+            + $packagingCharge
+            + $platformFee
+            + $surgeFee
+            + $tipAmount
+        );
 
         return [
             'subtotal' => $subtotal,
@@ -131,39 +233,163 @@ class CheckoutServiceNew
             'surge_fee' => $surgeFee,
             'large_order_fee' => 0,
             'tip_amount' => $tipAmount,
-            'total' => round($total, 2)
+            'total' => round($total, 2),
         ];
     }
 
-    private function calculateDeliveryCharge($data, $settings, $restaurant, $address): float
-    {
-        $isPickup = ($data['order_type'] == OrderTypeStatus::PICKUP);
+    private function calculateDeliveryCharge(
+        array $data,
+        $settings,
+        $restaurant,
+        $address,
+        array $items
+    ): float {
+
+        $isPickup = (
+            (int) $data['order_type'] === OrderTypeStatus::PICKUP
+        );
+
         $moduleId = (int) $data['module_id'];
 
         if ($isPickup) {
             return 0;
         }
 
-        if ($moduleId == Module::ALL_OVER_INDIA) {
-            return (float) ($data['delivery_charge'] ?? 0);
+        if ($moduleId === Module::ALL_OVER_INDIA) {
+
+            if (!$address) {
+                throw new Exception(
+                    'Delivery address is required.',
+                    422
+                );
+            }
+
+            if (blank($address->pincode)) {
+                throw new Exception(
+                    'Delivery pincode is required.',
+                    422
+                );
+            }
+
+            $totalQuantity = array_sum(
+                array_column($items, 'quantity')
+            );
+
+            if ($totalQuantity <= 0) {
+                throw new Exception(
+                    'Invalid order quantity.',
+                    422
+                );
+            }
+
+
+            $weight = $totalQuantity * 1;
+
+            $cod = (
+                (int) $data['payment_method']
+                === PaymentMethod::CASH_ON_DELIVERY
+            )
+                ? 1
+                : 0;
+
+            $delivery = $this->shiprocketService->getDeliveryRate(
+                deliveryPincode: (string) $address->pincode,
+                weight: (float) $weight,
+                cod: $cod
+            );
+
+            if (
+                !data_get(
+                    $delivery,
+                    'available',
+                    false
+                )
+            ) {
+                throw new Exception(
+                    data_get(
+                        $delivery,
+                        'message',
+                        'Delivery is not available for this pincode.'
+                    ),
+                    422
+                );
+            }
+
+            return round(
+                (float) data_get(
+                    $delivery,
+                    'courier.total_charge',
+                    0
+                ),
+                2
+            );
         }
 
-        if ($moduleId == Module::YOUR_CITY) {
-            $basicCharge = (float) ($settings['basic_delivery_charge'] ?? 0);
+        if ($moduleId === Module::YOUR_CITY) {
 
-            if (!$restaurant || !$address || !$restaurant->lat || !$address->latitude) {
-                return $basicCharge;
+            $basicDeliveryCharge = (float) (
+                $settings['basic_delivery_charge'] ?? 0
+            );
+
+            if (
+                !$restaurant ||
+                !$address ||
+                $restaurant->lat === null ||
+                $restaurant->long === null ||
+                $address->latitude === null ||
+                $address->longitude === null
+            ) {
+                return round(
+                    $basicDeliveryCharge,
+                    2
+                );
             }
 
-            $distance = $this->calculateDistance($address->latitude, $address->longitude, $restaurant->lat, $restaurant->long);
+            $distance = $this->calculateDistance(
+                (float) $address->latitude,
+                (float) $address->longitude,
+                (float) $restaurant->lat,
+                (float) $restaurant->long
+            );
 
-            $freeRadius = (float) ($settings['free_delivery_radius'] ?? 0);
-            if ($freeRadius > 0 && $distance <= $freeRadius) {
-                return 0;
+            $maxDeliveryRadius = (float) (
+                $settings['max_delivery_radius'] ?? 0
+            );
+
+            if (
+                $maxDeliveryRadius > 0 &&
+                $distance > $maxDeliveryRadius
+            ) {
+                throw new Exception(
+                    "Sorry! This restaurant does not deliver to your location. " .
+                    "Maximum delivery radius is {$maxDeliveryRadius} km, " .
+                    "but you are {$distance} km away.",
+                    422
+                );
             }
 
-            $chargePerKilo = (float) ($settings['charge_per_kilo'] ?? 0);
-            return round($basicCharge + ($distance * $chargePerKilo), 2);
+            $freeDeliveryRadius = (float) (
+                $settings['free_delivery_radius'] ?? 0
+            );
+
+            $chargePerKm = (float) (
+                $settings['charge_per_kilo'] ?? 0
+            );
+
+            $chargeableDistance = max(
+                0,
+                $distance - $freeDeliveryRadius
+            );
+
+
+            $distanceCharge =
+                $chargeableDistance * $chargePerKm;
+
+
+            return round(
+                $basicDeliveryCharge + $distanceCharge,
+                2
+            );
         }
 
         return 0;
