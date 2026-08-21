@@ -48,6 +48,7 @@ class OrderController extends Controller
 
     public function index()
     {
+        dd(auth()->id());
         try {
 
             $orders = Order::where('user_id', auth()->id())
@@ -58,7 +59,7 @@ class OrderController extends Controller
                     'delivery'
                 ])
                 ->get();
-
+dd( $orders);
             $orders->transform(function ($order) {
 
                 $order['status_name'] = trans('order_status.' . $order->status);
