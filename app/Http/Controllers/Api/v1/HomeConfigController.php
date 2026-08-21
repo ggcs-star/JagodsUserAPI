@@ -6,7 +6,7 @@ use App\Http\Controllers\BackendController;
 use App\Traits\ApiResponse;
 class HomeConfigController extends BackendController
 {
-     use ApiResponse;
+    use ApiResponse;
     public function index()
     {
         $data = [
@@ -48,7 +48,28 @@ class HomeConfigController extends BackendController
                             ],
                         ],
                     ],
-
+                    'promo_banners' => [
+                        [
+                            'id' => 1,
+                            'image_url' => 'https://images.jagods.in/landing/jagods-banner-1.svg',
+                        ],
+                        [
+                            'id' => 2,
+                            'image_url' => 'https://images.jagods.in/landing/jagods-banner-2.svg',
+                        ],
+                        [
+                            'id' => 3,
+                            'image_url' => 'https://images.jagods.in/landing/jagods-banner-3.svg',
+                        ],
+                        [
+                            'id' => 4,
+                            'image_url' => 'https://images.jagods.in/landing/jagods-banner-4.svg',
+                        ],
+                        [
+                            'id' => 5,
+                            'image_url' => 'https://images.jagods.in/landing/jagods-banner-5.svg',
+                        ],
+                    ],
                     'color_detail' => [
                         'gradient' => [
                             'web' => [
@@ -59,7 +80,7 @@ class HomeConfigController extends BackendController
                             'mobile' => [
                                 '#427C6D',
                                 '#7CB290',
-                                
+
                             ],
                         ],
 
@@ -69,17 +90,17 @@ class HomeConfigController extends BackendController
                     ],
 
                     'search_placeholder' => [
-                                'Search for products, "Vadapav"',
-                                'Search for products, "Pizza"',
-                                'Search for products, "Burger"',
-                                'Search for products, "Cold Coffee"',
-                                'Search for products, "Sandwich"',
-                                'Search for products, "Pasta"',
-                                'Search for products, "Biryani"',
-                                'Search for products, "Dosa"',
-                                'Search for products, "Chole Bhature"',
-                                'Search for products, "Pav Bhaji"',
-                            ],
+                        'Search for products, "Vadapav"',
+                        'Search for products, "Pizza"',
+                        'Search for products, "Burger"',
+                        'Search for products, "Cold Coffee"',
+                        'Search for products, "Sandwich"',
+                        'Search for products, "Pasta"',
+                        'Search for products, "Biryani"',
+                        'Search for products, "Dosa"',
+                        'Search for products, "Chole Bhature"',
+                        'Search for products, "Pav Bhaji"',
+                    ],
 
 
                     'bottom_navigation' => [
@@ -171,7 +192,25 @@ class HomeConfigController extends BackendController
                             ],
                         ],
                     ],
-
+                    'promo_banners' => [
+                        [
+                            'id' => 1,
+                            'image_url' => 'https://images.jagods.in/landing/images%20(5).jpg',
+                        ],
+                        [
+                            'id' => 2,
+                            'image_url' => 'https://images.jagods.in/landing/images%20(6).jpg',
+                        ],
+                        [
+                            'id' => 3,
+                            'image_url' => 'https://images.jagods.in/landing/images%20(7).jpg',
+                        ],
+                        [
+                            'id' => 4,
+                            'image_url' => 'https://images.jagods.in/landing/images%20(8).jpg',
+                        ],
+                       
+                    ],
                     'color_detail' => [
                         'gradient' => [
                             'web' => [
@@ -191,23 +230,23 @@ class HomeConfigController extends BackendController
                     ],
 
                     'search_placeholder' => [
-                            'Search for products, "Snacks"',
-                            'Search for products, "Atta, Rice & Dal"',
-                            'Search for products, "Cleaning"',
-                            'Search for products, "Dairy, Bread & Eggs"',
-                            'Search for products, "Hair Care"',
-                            'Search for products, "Biscuits"',
-                            'Search for products, "Chips"',
-                            'Search for products, "Namkeen"',
-                            'Search for products, "Chocolate"',
-                            'Search for products, "Cold Drinks"',
-                            'Search for products, "Juices"',
-                            'Search for products, "Tea & Coffee"',
-                            'Search for products, "Milk"',
-                            'Search for products, "Bread"',
-                            'Search for products, "Butter"',
-                            'Search for products, "Cheese"',
-                        ],
+                        'Search for products, "Snacks"',
+                        'Search for products, "Atta, Rice & Dal"',
+                        'Search for products, "Cleaning"',
+                        'Search for products, "Dairy, Bread & Eggs"',
+                        'Search for products, "Hair Care"',
+                        'Search for products, "Biscuits"',
+                        'Search for products, "Chips"',
+                        'Search for products, "Namkeen"',
+                        'Search for products, "Chocolate"',
+                        'Search for products, "Cold Drinks"',
+                        'Search for products, "Juices"',
+                        'Search for products, "Tea & Coffee"',
+                        'Search for products, "Milk"',
+                        'Search for products, "Bread"',
+                        'Search for products, "Butter"',
+                        'Search for products, "Cheese"',
+                    ],
 
 
                     'bottom_navigation' => [

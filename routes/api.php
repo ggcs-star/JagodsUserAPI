@@ -68,7 +68,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('register/resend-otp', [RegisterController::class, 'resendOtp']);
     Route::post('social-login', [SocialLoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('logout', [LogoutController::class, 'action']);
-
+    Route::post('delete-account', [LogoutController::class, 'deleteAccount']);
     Route::get('sessions', [ActiveSessionController::class, 'index']);
 
     // Route::post('forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:otp_send');
