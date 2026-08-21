@@ -20,7 +20,11 @@ class CheckoutRequest extends FormRequest
                 'integer',
                 'in:' . Module::YOUR_CITY . ',' . Module::ALL_OVER_INDIA,
             ],
-            'restaurant_id' => 'required|integer|exists:restaurants,id',
+            'restaurant_id' => [
+    'required',
+    'integer',
+    'min:0',
+],
             'order_type' => 'required|integer',
             'address_id' => 'nullable|integer|exists:addresses,id',
             'order_instructions' => 'nullable|string|max:500',

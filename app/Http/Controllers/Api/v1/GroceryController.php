@@ -96,6 +96,7 @@ class GroceryController extends BackendController
                     ->whereHas('categories', function ($q) use ($categoryIds) {
                         $q->whereIn('categories.id', $categoryIds);
                     })
+                    ->where('module_id', Module::ALL_OVER_INDIA)
                     ->where('status', MenuItemStatus::ACTIVE)
                     ->limit(10)
                     ->get();
@@ -159,6 +160,7 @@ class GroceryController extends BackendController
                     ->whereHas('categories', function ($q) use ($categoryIds) {
                         $q->whereIn('categories.id', $categoryIds);
                     })
+                    ->where('module_id', Module::ALL_OVER_INDIA)
                     ->where('status', MenuItemStatus::ACTIVE)
                     ->limit(10)
                     ->get();
@@ -224,6 +226,7 @@ class GroceryController extends BackendController
                 ->whereHas('categories', function ($q) use ($categoryIds) {
                     $q->whereIn('categories.id', $categoryIds);
                 })
+                ->where('module_id', Module::ALL_OVER_INDIA)
                 ->where('status', MenuItemStatus::ACTIVE);
 
 
@@ -329,6 +332,7 @@ class GroceryController extends BackendController
                 ->whereHas('categories', function ($q) use ($category) {
                     $q->where('categories.id', $category->id);
                 })
+                ->where('module_id', Module::ALL_OVER_INDIA)
                 ->where('status', MenuItemStatus::ACTIVE);
 
 

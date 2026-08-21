@@ -58,7 +58,7 @@ use App\Http\Controllers\Api\v1\BusinessSettingController;
 */
 
 Route::group(['prefix' => 'v1'], function () {
-    Route::get('/home/config', [HomeConfigController::class, 'index']);
+    Route::get('home/config', [HomeConfigController::class, 'index']);
 
     Route::post('login', [LoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('refresh-token', [RefreshTokenController::class, 'refresh']);
