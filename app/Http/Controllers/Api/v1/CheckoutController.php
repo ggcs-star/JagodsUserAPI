@@ -15,6 +15,7 @@ use App\Http\Requests\Api\VerifyPaymentRequest;
 use App\Http\Requests\Api\RepayOrderRequest;
 use App\Models\Order;
 use App\Jobs\SendOrderInvoiceJob;
+use App\Jobs\SendOrderCreatedNotificationJob;
 class CheckoutController extends BackendController
 {
     use ApiResponse;
@@ -112,7 +113,10 @@ class CheckoutController extends BackendController
             $order->refresh();
 
             SendOrderInvoiceJob::dispatch($order);
-
+            SendOrderCreatedNotificationJob::dispatch(
+                orderId: $order->id,
+                userId: auth()->id()
+            );
             return $this->successResponse(
                 message: 'Payment verified successfully.',
                 data: [
