@@ -29,8 +29,8 @@ use App\Http\Resources\v1\OrderApiResource;
 use App\Http\Requests\Api\OrderStoreRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-
-
+use App\Enums\Module;
+use Throwable;
 class OrderController extends Controller
 {
     use ApiResponse;
@@ -46,59 +46,182 @@ class OrderController extends Controller
 
 
 
-    public function index()
+    public function index(Request $request)
     {
         try {
 
-            $orders = Order::where('user_id', auth()->id())
-                ->orderByDesc('id')
-                ->with([
-                    'items.menuItem',
-                    'restaurant.media',
-                    'delivery'
-                ])
-                ->get();
+            $request->validate([
+                'module' => [
+                    'nullable',
+                    'string',
+                    'in:all,' .
+                    Module::YOUR_CITY_SLUG . ',' .
+                    Module::ALL_OVER_INDIA_SLUG,
+                ],
 
-            $orders->transform(function ($order) {
+                'page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                ],
 
-                $order['status_name'] = trans('order_status.' . $order->status);
-                $order['order_code'] = $order->order_code;
-                $order['address'] = orderAddress($order->address);
-                $order['order_type'] = (int) $order->order_type;
-                $order['order_type_name'] = $order->get_order_type;
-                $order['payment_method_name'] = trans('payment_method.' . $order->payment_method);
-                $order['created_at_convert'] = food_date_format($order->created_at);
-                $order['updated_at_convert'] = food_date_format($order->updated_at);
-                $order['brand_name'] = "Jagods";
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:100',
+                ],
+            ]);
 
-                $order['brand_image'] = optional(
-                    optional($order->restaurant)->media->first()
-                )->original_url;
-
-                $order['deliveryBoy'] = $order->delivery_boy_id
-                    ? new UserResource($order->delivery)
-                    : null;
-
-                foreach ($order->items as $item) {
-                    $item['created_at_convert'] = food_date_format($order->created_at);
-                    $item['updated_at_convert'] = food_date_format($order->updated_at);
-
-                    if ($item->menuItem) {
-                        $item->menuItem->image = $item->menuItem->image;
-                    }
-                }
-
-                return $order;
-            });
-
-            return $this->successResponse(
-                message: 'Orders fetched successfully.',
-                data: $orders
+            $module = strtolower(
+                trim(
+                    $request->input('module', 'all')
+                )
             );
 
-        } catch (\Throwable $e) {
+            $perPage = (int) $request->input(
+                'per_page',
+                10
+            );
+
+            $query = Order::query()
+                ->where('user_id', auth()->id())
+                ->orderByDesc('id')
+                ->with([
+                    'items.menuItem.media',
+                    'delivery',
+                    'restaurant.media',
+                ]);
+
+            if ($module === Module::YOUR_CITY_SLUG) {
+
+                $query->where(
+                    'module_id',
+                    Module::YOUR_CITY
+                );
+            } elseif ($module === Module::ALL_OVER_INDIA_SLUG) {
+
+                $query->where(
+                    'module_id',
+                    Module::ALL_OVER_INDIA
+                );
+            }
+
+            $orders = $query->paginate(
+                $perPage
+            );
+
+            $orders->getCollection()->transform(
+                function ($order) {
+
+                    $order['status_name'] = trans(
+                        'order_status.' . $order->status
+                    );
+
+                    $order['order_code'] =
+                        $order->order_code;
+
+                    $order['address'] =
+                        orderAddress(
+                            $order->address
+                        );
+
+                    $order['order_type'] =
+                        (int) $order->order_type;
+
+                    $order['order_type_name'] =
+                        $order->get_order_type;
+
+                    $order['payment_method_name'] =
+                        trans(
+                            'payment_method.' .
+                            $order->payment_method
+                        );
+
+                    $order['created_at_convert'] =
+                        food_date_format(
+                            $order->created_at
+                        );
+
+                    $order['updated_at_convert'] =
+                        food_date_format(
+                            $order->updated_at
+                        );
+
+
+                    if (
+                        (int) $order->module_id ===
+                        Module::YOUR_CITY
+                    ) {
+
+                        $order['brand_name'] =
+                            'Jagods';
+
+                        $order['brand_image'] =
+                            $order->restaurant?->media?->first()?->original_url;
+                    } elseif (
+                        (int) $order->module_id ===
+                        Module::ALL_OVER_INDIA
+                    ) {
+
+                        $order['brand_name'] =
+                            'Grocery';
+
+                        $order['brand_image'] = null;
+
+
+                        $order->unsetRelation(
+                            'restaurant'
+                        );
+                    }
+
+                    $order['deliveryBoy'] =
+                        $order->delivery_boy_id
+                        ? new UserResource(
+                            $order->delivery
+                        )
+                        : null;
+
+                    foreach (
+                        $order->items as $item
+                    ) {
+
+                        $item['created_at_convert'] =
+                            food_date_format(
+                                $order->created_at
+                            );
+
+                        $item['updated_at_convert'] =
+                            food_date_format(
+                                $order->updated_at
+                            );
+
+                        if ($item->menuItem) {
+                            $item->menuItem->image =
+                                $item->menuItem->image;
+                        }
+                    }
+
+                    return $order;
+                }
+            );
+
+            return $this->successPaginationResponse(
+                message: 'Orders fetched successfully.',
+                paginator: $orders,
+                data: $orders->items(),
+                meta: [
+                    'module' => $module,
+                ]
+            );
+
+        } catch (Throwable $e) {
 
             Log::error('Order index API error', [
+                'user_id' => auth()->id(),
+                'module' => $request->input('module'),
+                'page' => $request->input('page'),
+                'per_page' => $request->input('per_page'),
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
@@ -141,9 +264,9 @@ class OrderController extends Controller
             $orderData = new OrderApiResource($orderRecord);
 
             return $this->successResponse(
-    'Order fetched successfully.',
-    $orderData
-);
+                'Order fetched successfully.',
+                $orderData
+            );
 
         } catch (\Exception $e) {
 

@@ -19,6 +19,7 @@ class OrderApiResource extends JsonResource
         return   [
             'id'               => $this->id,
             'order_code'       => $this->order_code,
+            'module_id'         => (int)$this->module_id,
             'user_id'          => (int)$this->user_id,
             'total'            => $this->total,
             'sub_total'        => $this->sub_total,

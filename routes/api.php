@@ -58,7 +58,7 @@ use App\Http\Controllers\Api\v1\BusinessSettingController;
 */
 
 Route::group(['prefix' => 'v1'], function () {
-    Route::get('/home/config', [HomeConfigController::class, 'index']);
+    Route::get('home/config', [HomeConfigController::class, 'index']);
 
     Route::post('login', [LoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('refresh-token', [RefreshTokenController::class, 'refresh']);
@@ -122,7 +122,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('reservation/check', [ReservationController::class, 'check']);
     Route::put('reservation/status/{id}', [ReservationController::class, 'update']);
 
-    Route::get('orders', [OrderController::class, 'index']);
+    Route::post('orders/list', [OrderController::class, 'index']);
     Route::post('orders', [OrderController::class, 'store'])->middleware('throttle:checkout_strict');
     Route::put('orders/{id}', [OrderController::class, 'update']);
     Route::get('orders/{id}/show', [OrderController::class, 'show']);

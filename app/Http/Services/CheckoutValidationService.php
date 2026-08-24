@@ -17,23 +17,39 @@ class CheckoutValidationService
 {
     public function validate(array $data, int $userId): array
     {
-        // ✅ Check 1: Early Reject ALL_INDIA + PICKUP
-        if ((int) $data['module_id'] === Module::ALL_OVER_INDIA && (int) $data['order_type'] === OrderTypeStatus::PICKUP) {
-            throw new Exception('Pickup is not available for All Over India orders.', 422);
+        if (
+            (int) $data['module_id'] === Module::ALL_OVER_INDIA &&
+            (int) $data['order_type'] === OrderTypeStatus::PICKUP
+        ) {
+            throw new Exception(
+                'Pickup is not available for All Over India orders.',
+                422
+            );
         }
 
-        $restaurant = $this->validateRestaurant($data['restaurant_id'], $data['order_type']);
+        $restaurant = $this->validateRestaurant(
+            (int) $data['restaurant_id'],
+            (int) $data['order_type'],
+            (int) $data['module_id']
+        );
 
-        // ✅ Module-aware Address Validation
-        $address = $this->validateAddress($data['address_id'] ?? null, $data['order_type'], $userId, $restaurant, $data['module_id']);
+        $address = $this->validateAddress(
+            $data['address_id'] ?? null,
+            (int) $data['order_type'],
+            $userId,
+            $restaurant,
+            (int) $data['module_id']
+        );
 
-        $this->checkForDuplicateItems($data['items']);
+        $this->checkForDuplicateItems(
+            $data['items']
+        );
 
         $itemsData = $this->validateItems(
             $data['items'],
-            $data['restaurant_id'],
-            $data['order_type'],
-            $data['module_id']
+            (int) $data['restaurant_id'],
+            (int) $data['order_type'],
+            (int) $data['module_id']
         );
 
         return [
@@ -83,9 +99,8 @@ class CheckoutValidationService
                 ]), 422);
             }
 
-            
 
-            // (Ye ab upper level pe early reject ho gaya hai, par item level security ke liye rakh sakte hain)
+
             $moduleSlug = optional($menuItem->module)->slug;
             if ($orderType == OrderTypeStatus::PICKUP && $moduleSlug == Module::ALL_OVER_INDIA_SLUG) {
                 throw new Exception("Pickup is not available for All Over India orders ({$menuItem->name}).", 422);
@@ -178,7 +193,6 @@ class CheckoutValidationService
         ];
     }
 
-    // ✅ Check 2: Unit, Discount aur Final Price teeno strictly compare ho rahe hain
     private function comparePrice(MenuItem $menuItem, array $frontendItem, array $livePrice): void
     {
         $frontendUnitPrice = (float) $frontendItem['unit_price'];
@@ -219,47 +233,118 @@ class CheckoutValidationService
         }
     }
 
-    private function validateRestaurant(int $restaurantId, int $orderType): Restaurant
-    {
+    private function validateRestaurant(
+        int $restaurantId,
+        int $orderType,
+        int $moduleId
+    ): ?Restaurant {
+
+
+        if ($moduleId === Module::ALL_OVER_INDIA) {
+            return null;
+        }
+
         $restaurant = Restaurant::find($restaurantId);
-        if (!$restaurant)
-            throw new Exception('Restaurant not found.', 404);
+
+        if (!$restaurant) {
+            throw new Exception(
+                'Restaurant not found.',
+                404
+            );
+        }
 
         if ($restaurant->status != \App\Enums\Status::ACTIVE) {
-            throw new Exception("{$restaurant->name} is currently inactive and cannot accept orders.", 422);
+            throw new Exception(
+                "{$restaurant->name} is currently inactive and cannot accept orders.",
+                422
+            );
         }
-        if ($orderType == OrderTypeStatus::DELIVERY && $restaurant->delivery_status != \App\Enums\DeliveryStatus::ENABLE) {
-            throw new Exception("Delivery is currently unavailable for {$restaurant->name}.", 422);
+
+        if (
+            $orderType == OrderTypeStatus::DELIVERY &&
+            $restaurant->delivery_status != \App\Enums\DeliveryStatus::ENABLE
+        ) {
+            throw new Exception(
+                "Delivery is currently unavailable for {$restaurant->name}.",
+                422
+            );
         }
-        if ($orderType == OrderTypeStatus::PICKUP && $restaurant->pickup_status != \App\Enums\PickupStatus::ENABLE) {
-            throw new Exception("Pickup is currently unavailable for {$restaurant->name}.", 422);
+
+        if (
+            $orderType == OrderTypeStatus::PICKUP &&
+            $restaurant->pickup_status != \App\Enums\PickupStatus::ENABLE
+        ) {
+            throw new Exception(
+                "Pickup is currently unavailable for {$restaurant->name}.",
+                422
+            );
         }
+
         if ($restaurant->current_status != \App\Enums\CurrentStatus::YES) {
-            throw new Exception("{$restaurant->name} is temporarily not accepting orders.", 422);
+            throw new Exception(
+                "{$restaurant->name} is temporarily not accepting orders.",
+                422
+            );
         }
+
         if (!$restaurant->is_open) {
-            throw new Exception("{$restaurant->name} is currently closed.", 422);
+            throw new Exception(
+                "{$restaurant->name} is currently closed.",
+                422
+            );
         }
 
         return $restaurant;
     }
 
-    // ✅ Check 3: Address Validation ab Module Aware hai (Max radius sirf YOUR_CITY par check hoga)
-    private function validateAddress(?int $addressId, int $orderType, int $userId, Restaurant $restaurant, int $moduleId): ?Address
-    {
-        if ($orderType != OrderTypeStatus::DELIVERY)
+    private function validateAddress(
+        ?int $addressId,
+        int $orderType,
+        int $userId,
+        ?Restaurant $restaurant,
+        int $moduleId
+    ): ?Address {
+
+        if ($orderType != OrderTypeStatus::DELIVERY) {
             return null;
-            
-        if (!$addressId)
-            throw new Exception('Delivery address is required.', 422);
+        }
 
-        $address = Address::where('id', $addressId)->where('user_id', $userId)->first();
-        if (!$address)
-            throw new Exception('Selected delivery address does not belong to you.', 422);
+        if (!$addressId) {
+            throw new Exception(
+                'Delivery address is required.',
+                422
+            );
+        }
 
-        // Sirf local delivery (YOUR_CITY) ke liye max radius check lagoo hoga
+        $address = Address::where('id', $addressId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$address) {
+            throw new Exception(
+                'Selected delivery address does not belong to you.',
+                422
+            );
+        }
+
+
         if ($moduleId === Module::YOUR_CITY) {
-            if ($restaurant->lat !== null && $restaurant->long !== null && $address->latitude !== null && $address->longitude !== null) {
+
+
+            if (!$restaurant) {
+                throw new Exception(
+                    'Restaurant is required for city delivery.',
+                    422
+                );
+            }
+
+            if (
+                $restaurant->lat !== null &&
+                $restaurant->long !== null &&
+                $address->latitude !== null &&
+                $address->longitude !== null
+            ) {
+
                 $distance = $this->calculateDistance(
                     (float) $address->latitude,
                     (float) $address->longitude,
@@ -268,11 +353,32 @@ class CheckoutValidationService
                 );
 
                 $settings = Setting::pluck('value', 'key');
-                $maxRadius = (float) ($settings['max_delivery_radius'] ?? 20);
 
-                if ($maxRadius > 0 && $distance > $maxRadius) {
-                    throw new Exception("Sorry! This restaurant does not deliver to your location. Maximum delivery radius is {$maxRadius} km, but you are {$distance} km away.", 422);
+                $maxRadius = (float) (
+                    $settings['max_delivery_radius'] ?? 20
+                );
+
+                if (
+                    $maxRadius > 0 &&
+                    $distance > $maxRadius
+                ) {
+                    throw new Exception(
+                        "Sorry! This restaurant does not deliver to your location. " .
+                        "Maximum delivery radius is {$maxRadius} km, " .
+                        "but you are {$distance} km away.",
+                        422
+                    );
                 }
+            }
+        }
+
+        if ($moduleId === Module::ALL_OVER_INDIA) {
+
+            if (blank($address->pincode)) {
+                throw new Exception(
+                    'Delivery pincode is required.',
+                    422
+                );
             }
         }
 

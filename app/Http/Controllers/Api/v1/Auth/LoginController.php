@@ -38,7 +38,6 @@ class LoginController extends Controller
                     message: $response['message'],
                     risk: $response['risk'] ?? null,
                     deviceId: $response['device_id'] ?? null,
-                    // 👇 Data me frontend ke liye instructions bhej diye
                     data: [
                         'temp_token' => $response['temp_token'],
                         'purpose'    => $response['purpose'],

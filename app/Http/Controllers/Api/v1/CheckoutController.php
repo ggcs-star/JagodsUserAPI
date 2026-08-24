@@ -15,6 +15,7 @@ use App\Http\Requests\Api\VerifyPaymentRequest;
 use App\Http\Requests\Api\RepayOrderRequest;
 use App\Models\Order;
 use App\Jobs\SendOrderInvoiceJob;
+use App\Jobs\SendOrderCreatedNotificationJob;
 class CheckoutController extends BackendController
 {
     use ApiResponse;
@@ -36,7 +37,7 @@ class CheckoutController extends BackendController
 
         try {
             $currentDevice = $request->attributes->get('current_device');
-            
+
             $order = $this->checkoutService->checkout($request->validated(), auth()->id(), $currentDevice);
 
             if ((int) $request->payment_method === PaymentMethod::CASH_ON_DELIVERY) {
@@ -79,38 +80,79 @@ class CheckoutController extends BackendController
         }
     }
 
-      public function verifyPayment(VerifyPaymentRequest $request)
+    public function verifyPayment(VerifyPaymentRequest $request)
     {
         try {
 
             $order = Order::find($request->order_id);
 
             if (!$order) {
-                return $this->errorResponse('Order not found', 404);
+                return $this->errorResponse(
+                    'Order not found',
+                    404
+                );
             }
 
-            if ($order->user_id !== auth()->id()) {
+            if ((int) $order->user_id !== (int) auth()->id()) {
                 return $this->errorResponse(
                     'You are not authorized to verify this order',
                     403
                 );
             }
 
-            $this->paymentService->verify($order, $request->validated());
+            $this->paymentService->verify(
+                $order,
+                $request->validated()
+            );
 
             $order->update([
-                'status' => \App\Enums\OrderStatus::PENDING
+                'payment_status' => \App\Enums\PaymentStatus::PAID,
+                'status' => \App\Enums\OrderStatus::PENDING,
             ]);
-            SendOrderInvoiceJob::dispatch($order);
 
+            $order->refresh();
+
+            SendOrderInvoiceJob::dispatch($order);
+            SendOrderCreatedNotificationJob::dispatch(
+                orderId: $order->id,
+                userId: auth()->id()
+            );
             return $this->successResponse(
-                message: 'Payment verified successfully.'
+                message: 'Payment verified successfully.',
+                data: [
+
+                    'title' => 'Congratulations!',
+
+                    'message' => 'Your order has been successfully placed.',
+
+                    'total_amount' => (float) $order->total,
+
+                    'payment_status' => [
+                        'code' => (int) $order->payment_status,
+                        'name' => 'Successful',
+                    ],
+                    'module_id' => (int) $order->module_id,
+                    'order_id' => $order->id,
+
+                    'order_code' => data_get(
+                        json_decode($order->misc, true),
+                        'order_code'
+                    ),
+
+                    'order_date' => optional(
+                        $order->created_at
+                    )->format('d M Y, h:i A'),
+                ]
             );
 
         } catch (Exception $e) {
 
             $statusCode = (int) $e->getCode();
-            $statusCode = ($statusCode >= 100 && $statusCode <= 599)
+
+            $statusCode = (
+                $statusCode >= 100 &&
+                $statusCode <= 599
+            )
                 ? $statusCode
                 : 400;
 

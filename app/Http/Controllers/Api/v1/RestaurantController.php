@@ -23,7 +23,7 @@ use App\Http\Resources\v1\MenuItemResource;
 use App\Http\Resources\v1\RestaurantResource;
 use App\Models\MenuItem;
 use App\Http\Resources\v1\RestaurantBannerResource;
-
+use App\Enums\Module;
 class RestaurantController extends BackendController
 {
     use ApiResponse;
@@ -208,6 +208,7 @@ class RestaurantController extends BackendController
 
             $query = MenuItem::query()
                 ->where('restaurant_id', $request->restaurant_id)
+                ->where('module_id', Module::YOUR_CITY)
                 ->where('status', MenuItemStatus::ACTIVE);
 
             if ($request->filled('category_id')) {

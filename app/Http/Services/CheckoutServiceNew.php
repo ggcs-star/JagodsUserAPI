@@ -348,8 +348,8 @@ class CheckoutServiceNew
             $distance = $this->calculateDistance(
                 (float) $address->latitude,
                 (float) $address->longitude,
-                (float) $restaurant->lat,
-                (float) $restaurant->long
+                23.104192,
+                72.594234
             );
 
             $maxDeliveryRadius = (float) (
@@ -414,6 +414,7 @@ class CheckoutServiceNew
             'user_id' => $userId,
             'user_device_id' => $device ? $device->id : null,
             'restaurant_id' => $data['restaurant_id'],
+            'module_id' => $data['module_id'],
             'address_id' => $data['address_id'] ?? null,
             'coupon_id' => $pricing['coupon_id'],
             'order_type' => $data['order_type'],

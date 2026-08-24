@@ -38,7 +38,7 @@ class AuthLoginService
         if (!auth('api')->validate($credentials)) {
             return [
                 'status' => false,
-                'code' => 401,
+                'code' => 422,
                 'message' => 'Invalid credentials.'
             ];
         }
@@ -136,7 +136,6 @@ class AuthLoginService
             ];
         }
 
-        // ... (Pichla code same rahega)
         if ($riskAnalysis['action'] === 'REQUIRE_OTP') {
             $otpResult = $this->otpService->generateAndSend(
                 $user,
@@ -153,7 +152,6 @@ class AuthLoginService
                 ];
             }
 
-            // 👇 Temp token generate kiya aur details cache kar li
             $tempToken = Str::uuid()->toString();
             Cache::put("otp_session_{$tempToken}", [
                 'email_or_phone' => $credentials[$userField],
@@ -167,11 +165,11 @@ class AuthLoginService
                 'requires_otp' => true,
                 'risk' => $riskAnalysis,
                 'device_id' => $device->id,
-                'temp_token' => $tempToken,              // 👇 Token response me add kiya
+                'temp_token' => $tempToken,              
                 'purpose' => 'device_verification'
             ];
         }
-        // ...
+        
 
         return $this->generateTokensAndSession($user, $device, $request, $requestedRole);
     }
