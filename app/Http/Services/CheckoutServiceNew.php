@@ -49,16 +49,18 @@ class CheckoutServiceNew
 
             $frontendTotal = (float) $data['total'];
 
-            if (
-                abs(
-                    $orderPricing['total'] - $frontendTotal
-                ) > 0.01
-            ) {
+            $backendTotal = (float) $orderPricing['total'];
+
+            $difference = abs($backendTotal - $frontendTotal);
+
+            if ($difference >= 1.00) {
+
                 throw new Exception(json_encode([
                     'error_type' => 'total_mismatch',
-                    'message' => "Order total has changed. You sent ₹{$frontendTotal}, but current payable amount is ₹{$orderPricing['total']}. Please review your cart.",
-                    'old_total' => $frontendTotal,
-                    'current_total' => $orderPricing['total'],
+                    'message' => "Order total has changed. You sent ₹{$frontendTotal}, but current payable amount is ₹{$backendTotal}. Please review your cart.",
+                    'old_total' => round($frontendTotal, 2),
+                    'current_total' => round($backendTotal, 2),
+                    'difference' => round($difference, 2),
                 ]), 422);
             }
 
@@ -430,14 +432,14 @@ class CheckoutServiceNew
 
             'lat' => $latitude,
             'long' => $longitude,
-            'mobile' => auth()->user()->phone ?? '',
+            'mobile' => $address->receiver_phone ?? '',
 
             'sub_total' => $pricing['subtotal'],
             'product_discount' => $pricing['product_discount'],
             'discount' => $pricing['discount'],
             'gst_amount' => $pricing['gst_amount'],
             'delivery_charge' => $pricing['delivery_charge'],
-            'packing_charge' => $pricing['packaging_charge'], // Ensure this matches DB column name (packing_charge or packaging_charge)
+            'packing_charge' => $pricing['packaging_charge'], 
             'platform_fee' => $pricing['platform_fee'],
             'large_order_fee' => $pricing['large_order_fee'],
             'surge_fee' => $pricing['surge_fee'],

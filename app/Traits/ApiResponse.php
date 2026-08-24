@@ -310,18 +310,37 @@ trait ApiResponse
         string $message = 'OTP verification required.',
         mixed $risk = null,
         mixed $deviceId = null,
-        array $data = [] // 👇 Yaha $data array add kiya hai
+        array $data = []
     ): JsonResponse {
         return response()->json([
-            'status' => false,
-            'success' => false,
-            'status_code' => Response::HTTP_UNAUTHORIZED,
+            'status' => true,
+            'success' => true,
+            'status_code' => 491,
             'message' => $message,
             'errors' => [],
             'requires_otp' => true,
             'risk' => $risk,
             'device_id' => $deviceId,
-            'data' => $data, // 👇 Yaha data bind kiya hai
-        ], Response::HTTP_UNAUTHORIZED);
+            'data' => $data,
+        ], 491);
+    }
+
+     public function otpRequiredResponseProfile(
+        string $message = 'OTP verification required.',
+        mixed $risk = null,
+        mixed $deviceId = null,
+        array $data = []
+    ): JsonResponse {
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'status_code' => 493,
+            'message' => $message,
+            'errors' => [],
+            'requires_otp' => true,
+            'risk' => $risk,
+            'device_id' => $deviceId,
+            'data' => $data,
+        ], 493);
     }
 }

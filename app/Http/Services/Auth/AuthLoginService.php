@@ -108,7 +108,11 @@ class AuthLoginService
             }
         }
 
-
+        $this->updateFcmToken(
+            $user,
+            $request->input('fcm_token'),
+            $appDeviceType
+        );
         $device = $this->deviceService->processDevice(
             $user,
             $deviceId,
@@ -165,11 +169,11 @@ class AuthLoginService
                 'requires_otp' => true,
                 'risk' => $riskAnalysis,
                 'device_id' => $device->id,
-                'temp_token' => $tempToken,              
+                'temp_token' => $tempToken,
                 'purpose' => 'device_verification'
             ];
         }
-        
+
 
         return $this->generateTokensAndSession($user, $device, $request, $requestedRole);
     }
@@ -247,5 +251,31 @@ class AuthLoginService
             'device' => $device,
             'waiter_id_data' => $waiterId,
         ];
+    }
+
+    private function updateFcmToken(
+        User $user,
+        ?string $fcmToken,
+        ?string $deviceType
+    ): void {
+        if (blank($fcmToken) || blank($deviceType)) {
+            return;
+        }
+
+        if (in_array($deviceType, ['0', '1'], true)) {
+
+            $user->update([
+                'device_token' => $fcmToken,
+            ]);
+
+            return;
+        }
+
+        if ($deviceType === '3') {
+
+            $user->update([
+                'web_token' => $fcmToken,
+            ]);
+        }
     }
 }
