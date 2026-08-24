@@ -120,13 +120,18 @@ trait ApiResponse
 
     public function validationResponse(array $errors): JsonResponse
     {
+        $messages = collect($errors)
+            ->flatten()
+            ->filter()
+            ->values()
+            ->implode(' ');
+
         return $this->errorResponse(
-            message: 'Validation Error',
+            message: $messages ?: 'Validation Error',
             statusCode: Response::HTTP_UNPROCESSABLE_ENTITY,
             errors: $errors
         );
     }
-
 
     public function unauthorizedResponse(
         string $message = 'Unauthorized access'
@@ -229,7 +234,7 @@ trait ApiResponse
         );
     }
 
-  
+
 
     protected function paginationResponse($paginator, mixed $data = [], array $extraData = []): array
     {
@@ -308,15 +313,15 @@ trait ApiResponse
         array $data = [] // 👇 Yaha $data array add kiya hai
     ): JsonResponse {
         return response()->json([
-            'status'        => false,
-            'success'       => false,
-            'status_code'   => Response::HTTP_UNAUTHORIZED,
-            'message'       => $message,
-            'errors'        => [],
-            'requires_otp'  => true,
-            'risk'          => $risk,
-            'device_id'     => $deviceId,
-            'data'          => $data, // 👇 Yaha data bind kiya hai
+            'status' => false,
+            'success' => false,
+            'status_code' => Response::HTTP_UNAUTHORIZED,
+            'message' => $message,
+            'errors' => [],
+            'requires_otp' => true,
+            'risk' => $risk,
+            'device_id' => $deviceId,
+            'data' => $data, // 👇 Yaha data bind kiya hai
         ], Response::HTTP_UNAUTHORIZED);
     }
 }
