@@ -185,12 +185,19 @@ class MeController extends Controller
                     );
                 }
 
-                return $this->otpRequiredResponse(
+                return $this->otpRequiredResponseProfile(
                     message: 'OTP sent to your new contact details. Please verify to confirm changes.',
                     data: [
                         'temp_token' => $tempToken,
                         'purpose' => 'profile_update',
                         'expires_in' => $result['expires_in'] ?? 600,
+
+                        'otp_sent_to' => $newEmail ?: $newPhone,
+
+                        'updated_field' => $newEmail ? 'email' : 'phone',
+
+                        'new_email' => $newEmail,
+                        'new_phone' => $newPhone,
                     ]
                 );
             }

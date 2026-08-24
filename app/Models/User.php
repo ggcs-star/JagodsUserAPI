@@ -35,7 +35,23 @@ class User extends Authenticatable implements JWTSubject, HasMedia
      * @var array
      */
     protected $fillable = [
-        'first_name', 'last_name', 'email', 'username', 'password', 'phone', 'address', 'roles', 'device_token', 'status', 'applied','provider','provider_id','country_code', 'country_code_name'];
+        'first_name',
+        'last_name',
+        'email',
+        'username',
+        'password',
+        'phone',
+        'address',
+        'roles',
+        'device_token',
+        'web_token',
+        'status',
+        'applied',
+        'provider',
+        'provider_id',
+        'country_code',
+        'country_code_name'
+    ];
 
     /**
      * The attributes that should be hidden for arrays.
@@ -43,7 +59,8 @@ class User extends Authenticatable implements JWTSubject, HasMedia
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token',
+        'password',
+        'remember_token',
     ];
 
     /**
@@ -54,7 +71,7 @@ class User extends Authenticatable implements JWTSubject, HasMedia
     protected $casts = [
         'email_verified_at' => 'datetime',
         'status' => 'int',
-        'applied'=>'int',
+        'applied' => 'int',
     ];
 
     protected $appends = ['myrole'];
@@ -91,7 +108,7 @@ class User extends Authenticatable implements JWTSubject, HasMedia
 
     public function reservations()
     {
-        return $this->hasMany(Reservation::class)->with('table','timeSlot');
+        return $this->hasMany(Reservation::class)->with('table', 'timeSlot');
     }
 
     public function restaurants()
@@ -147,14 +164,14 @@ class User extends Authenticatable implements JWTSubject, HasMedia
 
     public function OnModelCreating()
     {
-        $balance               = new Balance();
-        $balance->name         = $this->username;
-        $balance->type         = BalanceType::REGULAR;
-        $balance->balance      = 0;
+        $balance = new Balance();
+        $balance->name = $this->username;
+        $balance->type = BalanceType::REGULAR;
+        $balance->balance = 0;
         $balance->creator_type = 1;
-        $balance->creator_id   = 1;
-        $balance->editor_type  = 1;
-        $balance->editor_id    = 1;
+        $balance->creator_id = 1;
+        $balance->editor_type = 1;
+        $balance->editor_id = 1;
         $balance->save();
 
         $this->balance_id = $balance->id;
@@ -162,10 +179,10 @@ class User extends Authenticatable implements JWTSubject, HasMedia
 
     public function OnModelCreated()
     {
-        $deposit                 = new UserDeposit;
-        $deposit->user_id        = $this->id;
+        $deposit = new UserDeposit;
+        $deposit->user_id = $this->id;
         $deposit->deposit_amount = 0;
-        $deposit->limit_amount   = 0;
+        $deposit->limit_amount = 0;
         $deposit->save();
     }
 
