@@ -32,6 +32,7 @@ class AuthLoginService
         $this->deviceService = $deviceService;
         $this->riskService = $riskService;
         $this->otpService = $otpService;
+        $this->deviceAppInfoService = $deviceAppInfoService;
     }
 
     public function login(array $credentials, $request, $requestedRole = null): array

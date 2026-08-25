@@ -30,6 +30,7 @@ class AuthRegisterService
         $this->otpService = $otpService;
         $this->authLoginService = $authLoginService;
         $this->deviceService = $deviceService;
+        $this->deviceAppInfoService = $deviceAppInfoService;
     }
 
     public function processRegistrationOtp(array $requestData, string $deviceId, string $ip): array
