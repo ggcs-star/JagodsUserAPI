@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 use Jenssegers\Agent\Agent;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Services\DeviceAppInfoService;
 class UniversalOtpController extends Controller
 {
     use ApiResponse;
@@ -24,11 +25,12 @@ class UniversalOtpController extends Controller
     protected $otpService;
     protected $authLoginService;
     protected $deviceService;
-
+    protected $deviceAppInfoService;
     public function __construct(
         OtpService $otpService,
         AuthLoginService $authLoginService,
-        DeviceIdentificationService $deviceService
+        DeviceIdentificationService $deviceService,
+        DeviceAppInfoService $deviceAppInfoService
     ) {
         $this->otpService = $otpService;
         $this->authLoginService = $authLoginService;
@@ -184,7 +186,6 @@ class UniversalOtpController extends Controller
             case 'forgot_password':
                 $resetToken = Str::random(80);
 
-                // 1. Generate Reset Token and store in Cache for exactly 10 minutes
                 Cache::put(
                     "password_reset_{$resetToken}",
                     [
@@ -193,7 +194,6 @@ class UniversalOtpController extends Controller
                     ],
                     now()->addMinutes(10)
                 );
-                // Token verify hone ke baad OTP session clear kar dein
                 Cache::forget("otp_session_{$request->temp_token}");
 
                 return $this->successResponse('OTP verified successfully.', [
@@ -231,27 +231,10 @@ class UniversalOtpController extends Controller
         $appVersion = $request->header('X-App-Version', '1.0.0');
         $appDeviceType = null;
 
-        $appInfo = $request->header('app-info');
+        $appInfo = $this->deviceAppInfoService->parse($request);
 
-        if ($appInfo) {
-
-            $appInfoData = json_decode($appInfo, true);
-
-            if (
-                json_last_error() === JSON_ERROR_NONE &&
-                is_array($appInfoData)
-            ) {
-                $appInfoData = $appInfoData[0] ?? [];
-
-                if (!empty($appInfoData['app_version'])) {
-                    $appVersion = $appInfoData['app_version'];
-                }
-
-                if (isset($appInfoData['device_type'])) {
-                    $appDeviceType = (string) $appInfoData['device_type'];
-                }
-            }
-        }
+        $appVersion = $appInfo['app_version'];
+        $appDeviceType = $appInfo['device_type'];
 
         $device = $this->deviceService->processDevice(
             $user,
