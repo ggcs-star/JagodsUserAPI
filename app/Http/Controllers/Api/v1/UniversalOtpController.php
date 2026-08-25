@@ -35,6 +35,7 @@ class UniversalOtpController extends Controller
         $this->otpService = $otpService;
         $this->authLoginService = $authLoginService;
         $this->deviceService = $deviceService;
+        $this->deviceAppInfoService = $deviceAppInfoService;
     }
 
     public function send(Request $request)

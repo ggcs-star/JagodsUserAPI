@@ -458,45 +458,173 @@ class PushNotificationService
         }
     }
 
-    public  function NotificationForCustomer($order, $user, $type)
-    {
-        try {
-            $FcmWabToken = User::where(['id' => $user->id])->whereNotNull('web_token')->pluck('web_token')->toArray();
-            $message = [
-                "message" => [
-                    "token" => $FcmWabToken[0],
-                    "notification" => [
-                        'title' => 'Order Placed Successfully 🎉',
-                        'body'  => "Hi " .$user->name.", thanks for ordering! Your food for order is now being prepared.",
-                    ]
+    public function NotificationForCustomer($order, $user, $type)
+{
+    try {
+
+        $tokens = User::where('id', $user->id)
+            ->first([
+                'device_token',
+                'web_token',
+            ]);
+
+        if (!$tokens) {
+            Log::warning('FCM Customer Notification: User not found.', [
+                'user_id' => $user->id,
+                'order_id' => $order->id,
+            ]);
+
+            return false;
+        }
+
+        $fcmTokens = collect([
+            $tokens->device_token,
+            $tokens->web_token,
+        ])
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($fcmTokens->isEmpty()) {
+
+            Log::warning(
+                'FCM Customer Notification: No FCM token found.',
+                [
+                    'user_id' => $user->id,
+                    'order_id' => $order->id,
                 ]
-            ]; 
+            );
 
-            $url = 'https://fcm.googleapis.com/v1/projects/' . setting('projectId') . '/messages:send';
+            return false;
+        }
 
-            $headers = [
-                'Authorization: Bearer ' . $this->getAccessToken(),
-                'Content-Type: application/json'
+        $url = 'https://fcm.googleapis.com/v1/projects/'
+            . setting('projectId')
+            . '/messages:send';
+
+        $headers = [
+            'Authorization: Bearer ' . $this->getAccessToken(),
+            'Content-Type: application/json',
+        ];
+
+        $successCount = 0;
+
+        foreach ($fcmTokens as $token) {
+
+            $message = [
+                'message' => [
+                    'token' => $token,
+
+                    'notification' => [
+                        'title' => 'Order Placed Successfully 🎉',
+                        'body' => 'Hi ' . $user->name .
+                            ', your order has been successfully placed.',
+                    ],
+
+                    'data' => [
+                        'title' => 'Order Placed Successfully 🎉',
+                        'body' => 'Your order has been successfully placed.',
+                        'order_id' => (string) $order->id,
+                        'order_code' => (string) $order->order_code,
+                        'type' => 'order_created',
+                        'screen' => 'order_details',
+                        'module_id' => (string) $order->module_id,
+                    ],
+                ],
             ];
 
             $ch = curl_init();
 
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($message));
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_POSTFIELDS => json_encode($message),
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => 30,
+            ]);
+
             $result = curl_exec($ch);
-            if ($result === FALSE) {
-                die('Curl failed: ' . curl_error($ch));
+
+            if ($result === false) {
+
+                Log::error(
+                    'FCM Customer Notification CURL failed.',
+                    [
+                        'user_id' => $user->id,
+                        'order_id' => $order->id,
+                        'token_type' =>
+                            $token === $tokens->web_token
+                                ? 'web_token'
+                                : 'device_token',
+                        'error' => curl_error($ch),
+                    ]
+                );
+
+                curl_close($ch);
+
+                continue;
             }
+
+            $httpCode = curl_getinfo(
+                $ch,
+                CURLINFO_HTTP_CODE
+            );
+
             curl_close($ch);
-            return $result;
-        } catch (\Exception $exception) {
-            Log::error("FCM Error: " . $exception->getMessage());
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+
+                $successCount++;
+
+                Log::info(
+                    'FCM Customer Notification sent.',
+                    [
+                        'user_id' => $user->id,
+                        'order_id' => $order->id,
+                        'token_type' =>
+                            $token === $tokens->web_token
+                                ? 'web_token'
+                                : 'device_token',
+                    ]
+                );
+
+            } else {
+
+                Log::error(
+                    'FCM Customer Notification failed.',
+                    [
+                        'user_id' => $user->id,
+                        'order_id' => $order->id,
+                        'http_code' => $httpCode,
+                        'response' => $result,
+                        'token_type' =>
+                            $token === $tokens->web_token
+                                ? 'web_token'
+                                : 'device_token',
+                    ]
+                );
+            }
         }
+
+        return $successCount > 0;
+
+    } catch (\Throwable $exception) {
+
+        Log::error(
+            'FCM Customer Notification Exception.',
+            [
+                'user_id' => $user->id ?? null,
+                'order_id' => $order->id ?? null,
+                'error' => $exception->getMessage(),
+            ]
+        );
+
+        return false;
     }
+}
 
     public  function NotificationForAppRestaurant($order, $user, $type)
     {
