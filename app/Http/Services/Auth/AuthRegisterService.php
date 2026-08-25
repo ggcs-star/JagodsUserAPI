@@ -14,17 +14,18 @@ use App\Http\Services\DeviceIdentificationService;
 use App\Enums\UserStatus;
 use Exception;
 use Jenssegers\Agent\Agent;
-
+use App\Http\Services\DeviceAppInfoService;
 class AuthRegisterService
 {
     protected $otpService;
     protected $authLoginService;
     protected $deviceService;
-
+    protected $deviceAppInfoService;
     public function __construct(
         OtpService $otpService,
         AuthLoginService $authLoginService,
-        DeviceIdentificationService $deviceService
+        DeviceIdentificationService $deviceService,
+        DeviceAppInfoService $deviceAppInfoService
     ) {
         $this->otpService = $otpService;
         $this->authLoginService = $authLoginService;
@@ -173,28 +174,15 @@ class AuthRegisterService
         $appVersion = $request->header('X-App-Version', '1.0.0');
         $appDeviceType = null;
 
-        $appInfo = $request->header('app-info');
+        $appInfo = $this->deviceAppInfoService->parse($request);
 
-        if ($appInfo) {
-
-            $appInfoData = json_decode($appInfo, true);
-
-            if (
-                json_last_error() === JSON_ERROR_NONE &&
-                is_array($appInfoData)
-            ) {
-                $appInfoData = $appInfoData[0] ?? [];
-
-                if (!empty($appInfoData['app_version'])) {
-                    $appVersion = $appInfoData['app_version'];
-                }
-
-                if (isset($appInfoData['device_type'])) {
-                    $appDeviceType = (string) $appInfoData['device_type'];
-                }
-            }
-        }
-
+        $appVersion = $appInfo['app_version'];
+        $appDeviceType = $appInfo['device_type'];
+        $this->deviceAppInfoService->updateFcmToken(
+            $mainuser,
+            $request->input('fcm_token'),
+            $appDeviceType
+        );
         $device = $this->deviceService->processDevice(
             $mainuser,
             $deviceId,

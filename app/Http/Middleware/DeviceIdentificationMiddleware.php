@@ -8,14 +8,15 @@ use App\Http\Services\DeviceIdentificationService;
 use App\Models\UserDevice;
 use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Cache;
-
+use App\Http\Services\DeviceAppInfoService;
 class DeviceIdentificationMiddleware
 {
     protected $deviceService;
-
-    public function __construct(DeviceIdentificationService $deviceService)
+    protected $deviceAppInfoService;
+    public function __construct(DeviceIdentificationService $deviceService, DeviceAppInfoService $deviceAppInfoService)
     {
         $this->deviceService = $deviceService;
+        $this->deviceAppInfoService = $deviceAppInfoService;
     }
 
     public function handle(Request $request, Closure $next)
@@ -62,27 +63,10 @@ class DeviceIdentificationMiddleware
         $appVersion = $request->header('X-App-Version', '1.0.0');
         $appDeviceType = null;
 
-        $appInfo = $request->header('app-info');
+        $appInfo = $this->deviceAppInfoService->parse($request);
 
-        if ($appInfo) {
-
-            $appInfoData = json_decode($appInfo, true);
-
-            if (
-                json_last_error() === JSON_ERROR_NONE &&
-                is_array($appInfoData)
-            ) {
-                $appInfoData = $appInfoData[0] ?? [];
-
-                if (!empty($appInfoData['app_version'])) {
-                    $appVersion = $appInfoData['app_version'];
-                }
-
-                if (isset($appInfoData['device_type'])) {
-                    $appDeviceType = (string) $appInfoData['device_type'];
-                }
-            }
-        }
+        $appVersion = $appInfo['app_version'];
+        $appDeviceType = $appInfo['device_type'];
 
 
         $device = $this->deviceService->processDevice(

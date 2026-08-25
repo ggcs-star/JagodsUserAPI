@@ -15,18 +15,19 @@ use Illuminate\Support\Facades\Cache;
 use Jenssegers\Agent\Agent;
 use Exception;
 use App\Http\Services\OtpService;
-
+use App\Http\Services\DeviceAppInfoService;
 class AuthLoginService
 {
 
     protected $deviceService;
     protected $riskService;
     protected $otpService;
-
+    protected $deviceAppInfoService;
     public function __construct(
         DeviceIdentificationService $deviceService,
         SecurityRiskService $riskService,
-        OtpService $otpService
+        OtpService $otpService,
+        DeviceAppInfoService $deviceAppInfoService
     ) {
         $this->deviceService = $deviceService;
         $this->riskService = $riskService;
@@ -83,36 +84,17 @@ class AuthLoginService
 
         $deviceId = resolveDeviceId($request);
 
-        $appVersion = $request->header('X-App-Version', '1.0.0');
-        $appDeviceType = null;
+        $appInfo = $this->deviceAppInfoService->parse($request);
 
-        $appInfo = $request->header('app-info');
+        $appVersion = $appInfo['app_version'];
+        $appDeviceType = $appInfo['device_type'];
 
-        if ($appInfo) {
-
-            $appInfoData = json_decode($appInfo, true);
-
-            if (
-                json_last_error() === JSON_ERROR_NONE &&
-                is_array($appInfoData)
-            ) {
-                $appInfoData = $appInfoData[0] ?? [];
-
-                if (!empty($appInfoData['app_version'])) {
-                    $appVersion = $appInfoData['app_version'];
-                }
-
-                if (isset($appInfoData['device_type'])) {
-                    $appDeviceType = (string) $appInfoData['device_type'];
-                }
-            }
-        }
-
-        $this->updateFcmToken(
+        $this->deviceAppInfoService->updateFcmToken(
             $user,
             $request->input('fcm_token'),
             $appDeviceType
         );
+
         $device = $this->deviceService->processDevice(
             $user,
             $deviceId,
@@ -253,29 +235,5 @@ class AuthLoginService
         ];
     }
 
-    private function updateFcmToken(
-        User $user,
-        ?string $fcmToken,
-        ?string $deviceType
-    ): void {
-        if (blank($fcmToken) || blank($deviceType)) {
-            return;
-        }
 
-        if (in_array($deviceType, ['0', '1'], true)) {
-
-            $user->update([
-                'device_token' => $fcmToken,
-            ]);
-
-            return;
-        }
-
-        if ($deviceType === '3') {
-
-            $user->update([
-                'web_token' => $fcmToken,
-            ]);
-        }
-    }
 }

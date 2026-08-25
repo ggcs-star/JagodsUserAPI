@@ -32,6 +32,7 @@ class RegisterRequest extends FormRequest
             'roles'                 => 'nullable|numeric',
             'password'              => 'required|string|min:6|confirmed',
             'password_confirmation' => 'required',
+            'fcm_token'             => 'nullable|string',
         ];
     }
 }
