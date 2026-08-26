@@ -19,11 +19,10 @@ class BusinessSettingResource extends JsonResource
             'restaurant_long' => '72.594234',
             'platform_fee' => (float) ($this['platform_fee'] ?? 0),
             'surge_fee' => (float) ($this['surge_fee'] ?? 0),
-
             'packaging_charge' => (float) ($this['packaging_charge'] ?? 0),
-
             'gst' => 5,
-           
+            'all_over_india_support_phone' => $this['support_phone'] ?? '',
+            'your_city_support_phone' => $this['support_phone'] ?? '',
         ];
     }
 }

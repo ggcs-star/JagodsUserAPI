@@ -78,8 +78,11 @@ class CheckoutValidationService
         $validatedItems = [];
         $subtotal = 0;
         $totalProductDiscount = 0;
+        
+        // NAYA LOGIC: Saare price changes track karne ke liye
+        $cartUpdates = [];
 
-        foreach ($items as $item) {
+        foreach ($items as $index => $item) {
             $menuItem = MenuItem::with('module')->find($item['menu_item_id']);
 
             if (!$menuItem)
@@ -99,8 +102,6 @@ class CheckoutValidationService
                 ]), 422);
             }
 
-
-
             $moduleSlug = optional($menuItem->module)->slug;
             if ($orderType == OrderTypeStatus::PICKUP && $moduleSlug == Module::ALL_OVER_INDIA_SLUG) {
                 throw new Exception("Pickup is not available for All Over India orders ({$menuItem->name}).", 422);
@@ -111,9 +112,11 @@ class CheckoutValidationService
                 throw new Exception("Maximum allowed quantity for {$menuItem->name} is {$menuItem->max_cart_quantity}.", 422);
             }
 
-            $priceData = $this->calculateLivePrice($menuItem, $item['variation_id'] ?? null, $item['options'] ?? []);
+            // $cartUpdates array reference bheja ja raha hai taaki data collect ho sake
+            $priceData = $this->calculateLivePrice($menuItem, $item['variation_id'] ?? null, $item['options'] ?? [], $cartUpdates, $index);
 
-            $this->comparePrice($menuItem, $item, $priceData);
+            // Item ki basic price aur discount compare karne ke liye bhi reference bheja
+            $this->comparePrice($menuItem, $item, $priceData, $cartUpdates, $index);
 
             $itemTotal = round($priceData['final_price'] * $quantity, 2);
             $subtotal += $itemTotal;
@@ -131,6 +134,14 @@ class CheckoutValidationService
             ]);
         }
 
+        if (!empty($cartUpdates)) {
+            throw new Exception(json_encode([
+                'error_type' => 'cart_price_updated',
+                'message' => 'Some item prices have changed. Please review your cart.',
+                'updated_items' => array_values($cartUpdates) 
+            ]), 200);
+        }
+
         return [
             'validated_items' => $validatedItems,
             'subtotal' => round($subtotal, 2),
@@ -138,7 +149,7 @@ class CheckoutValidationService
         ];
     }
 
-    private function calculateLivePrice(MenuItem $menuItem, ?int $variationId, array $frontendOptions): array
+    private function calculateLivePrice(MenuItem $menuItem, ?int $variationId, array $frontendOptions, array &$cartUpdates, int $index): array
     {
         $unitPrice = (float) $menuItem->unit_price;
         $discountPrice = (float) $menuItem->discount_price;
@@ -167,14 +178,17 @@ class CheckoutValidationService
 
             $optionPrice = (float) $option->price;
 
+            // Agar option price change hui hai to data collect kare
             if (abs((float) $optionData['price'] - $optionPrice) > 0.01) {
-                throw new Exception(json_encode([
-                    'error_type' => 'price_mismatch',
-                    'message' => "Option '{$option->name}' price has changed.",
-                    'item_name' => $option->name,
+                if (!isset($cartUpdates[$index])) {
+                    $this->initCartUpdate($cartUpdates, $index, $menuItem);
+                }
+                $cartUpdates[$index]['option_changes'][] = [
+                    'option_id' => $option->id,
+                    'name' => $option->name,
                     'old_price' => (float) $optionData['price'],
-                    'current_price' => $optionPrice,
-                ]), 422);
+                    'new_price' => $optionPrice
+                ];
             }
 
             $options[] = ['id' => $option->id, 'name' => $option->name, 'price' => $optionPrice];
@@ -193,193 +207,108 @@ class CheckoutValidationService
         ];
     }
 
-    private function comparePrice(MenuItem $menuItem, array $frontendItem, array $livePrice): void
+    private function comparePrice(MenuItem $menuItem, array $frontendItem, array $livePrice, array &$cartUpdates, int $index): void
     {
         $frontendUnitPrice = (float) $frontendItem['unit_price'];
         $frontendDiscount = (float) $frontendItem['discount_price'];
         $frontendFinalPrice = (float) $frontendItem['final_price'];
 
+        $changes = [];
+
         if (abs($frontendUnitPrice - $livePrice['unit_price']) > 0.01) {
-            throw new Exception(json_encode([
-                'error_type' => 'price_mismatch',
-                'message' => "{$menuItem->name} base price has changed.",
-                'item_name' => $menuItem->name,
-                'field' => 'unit_price',
-                'old_price' => $frontendUnitPrice,
-                'current_price' => $livePrice['unit_price'],
-            ]), 422);
+            $changes['unit_price'] = ['old' => $frontendUnitPrice, 'new' => $livePrice['unit_price']];
         }
-
         if (abs($frontendDiscount - $livePrice['discount_price']) > 0.01) {
-            throw new Exception(json_encode([
-                'error_type' => 'price_mismatch',
-                'message' => "{$menuItem->name} discount has changed.",
-                'item_name' => $menuItem->name,
-                'field' => 'discount_price',
-                'old_price' => $frontendDiscount,
-                'current_price' => $livePrice['discount_price'],
-            ]), 422);
+            $changes['discount_price'] = ['old' => $frontendDiscount, 'new' => $livePrice['discount_price']];
+        }
+        if (abs($frontendFinalPrice - $livePrice['final_price']) > 0.01) {
+            $changes['final_price'] = ['old' => $frontendFinalPrice, 'new' => $livePrice['final_price']];
         }
 
-        if (abs($frontendFinalPrice - $livePrice['final_price']) > 0.01) {
-            throw new Exception(json_encode([
-                'error_type' => 'price_mismatch',
-                'message' => "{$menuItem->name} final price has changed.",
-                'item_name' => $menuItem->name,
-                'field' => 'final_price',
-                'old_price' => $frontendFinalPrice,
-                'current_price' => $livePrice['final_price'],
-            ]), 422);
+        // Agar items me changes mile, to collect kar lo
+        if (!empty($changes)) {
+            if (!isset($cartUpdates[$index])) {
+                $this->initCartUpdate($cartUpdates, $index, $menuItem);
+            }
+            $cartUpdates[$index]['item_changes'] = $changes;
+            $cartUpdates[$index]['current_live_prices'] = [
+                'unit_price' => $livePrice['unit_price'],
+                'discount_price' => $livePrice['discount_price'],
+                'final_price' => $livePrice['final_price']
+            ];
         }
     }
 
-    private function validateRestaurant(
-        int $restaurantId,
-        int $orderType,
-        int $moduleId
-    ): ?Restaurant {
+    // Helper function taaki array baar baar repeat na likhna pade
+    private function initCartUpdate(array &$cartUpdates, int $index, MenuItem $menuItem): void
+    {
+        $cartUpdates[$index] = [
+            'cart_index' => $index, // App ko pata chalega ki cart ka kaunsa index tha
+            'menu_item_id' => $menuItem->id,
+            'name' => $menuItem->name,
+            'error_type' => 'price_changed',
+            'message' => "Prices for {$menuItem->name} have changed.",
+            'item_changes' => [],
+            'option_changes' => [],
+            'current_live_prices' => []
+        ];
+    }
 
-
-        if ($moduleId === Module::ALL_OVER_INDIA) {
-            return null;
-        }
+    private function validateRestaurant(int $restaurantId, int $orderType, int $moduleId): ?Restaurant 
+    {
+        if ($moduleId === Module::ALL_OVER_INDIA) return null;
 
         $restaurant = Restaurant::find($restaurantId);
-
-        if (!$restaurant) {
-            throw new Exception(
-                'Restaurant not found.',
-                404
-            );
-        }
+        if (!$restaurant) throw new Exception('Restaurant not found.', 404);
 
         if ($restaurant->status != \App\Enums\Status::ACTIVE) {
-            throw new Exception(
-                "{$restaurant->name} is currently inactive and cannot accept orders.",
-                422
-            );
+            throw new Exception("{$restaurant->name} is currently inactive and cannot accept orders.", 422);
         }
 
-        if (
-            $orderType == OrderTypeStatus::DELIVERY &&
-            $restaurant->delivery_status != \App\Enums\DeliveryStatus::ENABLE
-        ) {
-            throw new Exception(
-                "Delivery is currently unavailable for {$restaurant->name}.",
-                422
-            );
+        if ($orderType == OrderTypeStatus::DELIVERY && $restaurant->delivery_status != \App\Enums\DeliveryStatus::ENABLE) {
+            throw new Exception("Delivery is currently unavailable for {$restaurant->name}.", 422);
         }
 
-        if (
-            $orderType == OrderTypeStatus::PICKUP &&
-            $restaurant->pickup_status != \App\Enums\PickupStatus::ENABLE
-        ) {
-            throw new Exception(
-                "Pickup is currently unavailable for {$restaurant->name}.",
-                422
-            );
+        if ($orderType == OrderTypeStatus::PICKUP && $restaurant->pickup_status != \App\Enums\PickupStatus::ENABLE) {
+            throw new Exception("Pickup is currently unavailable for {$restaurant->name}.", 422);
         }
 
         if ($restaurant->current_status != \App\Enums\CurrentStatus::YES) {
-            throw new Exception(
-                "{$restaurant->name} is temporarily not accepting orders.",
-                422
-            );
+            throw new Exception("{$restaurant->name} is temporarily not accepting orders.", 422);
         }
 
         if (!$restaurant->is_open) {
-            throw new Exception(
-                "{$restaurant->name} is currently closed.",
-                422
-            );
+            throw new Exception("{$restaurant->name} is currently closed.", 422);
         }
 
         return $restaurant;
     }
 
-    private function validateAddress(
-        ?int $addressId,
-        int $orderType,
-        int $userId,
-        ?Restaurant $restaurant,
-        int $moduleId
-    ): ?Address {
+    private function validateAddress(?int $addressId, int $orderType, int $userId, ?Restaurant $restaurant, int $moduleId): ?Address 
+    {
+        if ($orderType != OrderTypeStatus::DELIVERY) return null;
 
-        if ($orderType != OrderTypeStatus::DELIVERY) {
-            return null;
-        }
+        if (!$addressId) throw new Exception('Delivery address is required.', 422);
 
-        if (!$addressId) {
-            throw new Exception(
-                'Delivery address is required.',
-                422
-            );
-        }
-
-        $address = Address::where('id', $addressId)
-            ->where('user_id', $userId)
-            ->first();
-
-        if (!$address) {
-            throw new Exception(
-                'Selected delivery address does not belong to you.',
-                422
-            );
-        }
-
+        $address = Address::where('id', $addressId)->where('user_id', $userId)->first();
+        if (!$address) throw new Exception('Selected delivery address does not belong to you.', 422);
 
         if ($moduleId === Module::YOUR_CITY) {
+            if (!$restaurant) throw new Exception('Restaurant is required for city delivery.', 422);
 
-
-            if (!$restaurant) {
-                throw new Exception(
-                    'Restaurant is required for city delivery.',
-                    422
-                );
-            }
-
-            if (
-                $restaurant->lat !== null &&
-                $restaurant->long !== null &&
-                $address->latitude !== null &&
-                $address->longitude !== null
-            ) {
-
-                $distance = $this->calculateDistance(
-                    (float) $address->latitude,
-                    (float) $address->longitude,
-                    (float) $restaurant->lat,
-                    (float) $restaurant->long
-                );
-
+            if ($restaurant->lat !== null && $restaurant->long !== null && $address->latitude !== null && $address->longitude !== null) {
+                $distance = $this->calculateDistance((float) $address->latitude, (float) $address->longitude, (float) $restaurant->lat, (float) $restaurant->long);
                 $settings = Setting::pluck('value', 'key');
+                $maxRadius = (float) ($settings['max_delivery_radius'] ?? 20);
 
-                $maxRadius = (float) (
-                    $settings['max_delivery_radius'] ?? 20
-                );
-
-                if (
-                    $maxRadius > 0 &&
-                    $distance > $maxRadius
-                ) {
-                    throw new Exception(
-                        "Sorry! This restaurant does not deliver to your location. " .
-                        "Maximum delivery radius is {$maxRadius} km, " .
-                        "but you are {$distance} km away.",
-                        422
-                    );
+                if ($maxRadius > 0 && $distance > $maxRadius) {
+                    throw new Exception("Sorry! This restaurant does not deliver to your location. Maximum delivery radius is {$maxRadius} km, but you are {$distance} km away.", 422);
                 }
             }
         }
 
         if ($moduleId === Module::ALL_OVER_INDIA) {
-
-            if (blank($address->pincode)) {
-                throw new Exception(
-                    'Delivery pincode is required.',
-                    422
-                );
-            }
+            if (blank($address->pincode)) throw new Exception('Delivery pincode is required.', 422);
         }
 
         return $address;
