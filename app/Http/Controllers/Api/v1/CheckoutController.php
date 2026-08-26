@@ -69,7 +69,7 @@ class CheckoutController extends BackendController
 
             $payload = json_decode($e->getMessage(), true);
             if (json_last_error() === JSON_ERROR_NONE && isset($payload['error_type'])) {
-                return $this->errorResponse(
+                return $this->errorResponsecart(
                     message: $payload['message'],
                     statusCode: $statusCode,
                     data: $payload

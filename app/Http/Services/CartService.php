@@ -475,6 +475,7 @@ class CartService
                 'code' => $coupon->slug,
                 'discount_type' => $coupon->discount_type,
                 'amount' => (float) $coupon->amount,
+                'minimum_order_amount' => (float) $coupon->minimum_order_amount,
             ],
 
             'pricing' => [

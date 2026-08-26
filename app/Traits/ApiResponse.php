@@ -62,6 +62,26 @@ trait ApiResponse
         ], $statusCode);
     }
 
+     public function errorResponsecart(
+        string $message = 'Something went wrong',
+        int $statusCode = Response::HTTP_BAD_REQUEST,
+        array $errors = [],
+        mixed $data = []
+    ): JsonResponse {
+        if ($data === null) {
+            $data = [];
+        }
+
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'status_code' => $statusCode,
+            'errors' => $errors,
+            'message' => $message,
+            'data' => $data,
+        ], $statusCode);
+    }
+
     public function loginSuccessResponse(
         string $message = 'Login successful',
         mixed $userResource = [],
