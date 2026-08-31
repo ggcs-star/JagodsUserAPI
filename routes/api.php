@@ -45,7 +45,7 @@ use App\Http\Controllers\Api\v1\HomeConfigController;
 use App\Http\Controllers\Api\v1\GroceryController;
 use App\Http\Controllers\Api\v1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\v1\BusinessSettingController;
-
+use App\Http\Controllers\Api\v1\VersionController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -59,7 +59,7 @@ use App\Http\Controllers\Api\v1\BusinessSettingController;
 
 Route::group(['prefix' => 'v1'], function () {
     Route::get('home/config', [HomeConfigController::class, 'index']);
-
+    Route::post('version-show',[VersionController::class, 'versionShow']);
     Route::post('login', [LoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('refresh-token', [RefreshTokenController::class, 'refresh']);
     // Route::post('reg', [RegisterController::class, 'action']);

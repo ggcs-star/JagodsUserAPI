@@ -526,10 +526,44 @@ ADD `receiver_phone` VARCHAR(20) NULL AFTER `receiver_name`;
 ALTER TABLE menu_items
 ADD FULLTEXT INDEX menu_items_name_description_fulltext (name, description);
 
-=======================================================================done
+
 
 ALTER TABLE addresses
 ADD COLUMN landmark VARCHAR(150) NULL AFTER apartment,
 ADD COLUMN city VARCHAR(100) NULL AFTER landmark,
 ADD COLUMN state VARCHAR(100) NULL AFTER city,
 ADD COLUMN country VARCHAR(100) NULL AFTER state;
+
+=======================================================================done
+
+CREATE TABLE `app_versions` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+    `device_type` TINYINT UNSIGNED NOT NULL,
+
+    `version` VARCHAR(20) NOT NULL,
+
+    `minimum_supported_version` VARCHAR(20) NOT NULL,
+
+    `platform` VARCHAR(50) NOT NULL,
+
+    `whats_new` TEXT NULL,
+
+    `app_storage_url` TEXT NOT NULL,
+
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+
+    `released_at` TIMESTAMP NULL DEFAULT NULL,
+
+    `created_at` TIMESTAMP NULL DEFAULT NULL,
+
+    `updated_at` TIMESTAMP NULL DEFAULT NULL,
+
+    PRIMARY KEY (`id`),
+
+    INDEX `app_versions_device_type_is_active_index`
+        (`device_type`, `is_active`),
+
+    INDEX `app_versions_device_type_version_index`
+        (`device_type`, `version`)
+);

@@ -21,8 +21,9 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
         // ModuleSeeder::class,
-        CategoryGroupSeeder::class,
-        CategorySeeder::class,
+        // CategoryGroupSeeder::class,
+        // CategorySeeder::class,
+        AppVersionSeeder::class,
     ]);
     }
 }
