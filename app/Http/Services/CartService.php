@@ -316,175 +316,193 @@ class CartService
     }
 
     public function applyCoupon(array $data, $userId)
-    {
-        $today = now();
+{
+    // dd($data);
+    $today = now();
 
-        $coupon = Coupon::whereRaw('BINARY slug = ?', [$data['coupon']])
-            ->where('from_date', '<=', $today)
-            ->where('to_date', '>=', $today)
-            ->where('limit', '>', 0)
-            ->where(function ($query) use ($data) {
-                $query->where('restaurant_id', $data['restaurant_id'])
-                    ->orWhere('restaurant_id', 0);
-            })
-            ->first();
+    $coupon = Coupon::whereRaw(
+        'BINARY slug = ?',
+        [$data['coupon']]
+    )
+        ->where('from_date', '<=', $today)
+        ->where('to_date', '>=', $today)
+        ->where('limit', '>', 0)
+        ->where(function ($query) use ($data) {
+            $query
+                ->where(
+                    'restaurant_id',
+                    $data['restaurant_id']
+                )
+                ->orWhere('restaurant_id', 0);
+        })
+        ->first();
 
-        if (!$coupon) {
+    if (!$coupon) {
+        throw new Exception(
+            'This Coupon is Invalid or Expired',
+            422
+        );
+    }
+
+    if (
+        $coupon->restaurant_id != 0 &&
+        (int) $coupon->restaurant_id !== (int) $data['restaurant_id']
+    ) {
+        throw new Exception(
+            'This Coupon is Invalid for this restaurant.',
+            422
+        );
+    }
+
+    $subtotal = 0;
+
+    foreach ($data['items'] as $itemData) {
+
+        $menuItem = MenuItem::find(
+            $itemData['menu_item_id']
+        );
+
+        if (!$menuItem) {
             throw new Exception(
-                'This Coupon is Invalid or Expired',
+                'Menu item not found.',
+                422
+            );
+        }
+
+        if ($menuItem->status != MenuItemStatus::ACTIVE) {
+            throw new Exception(
+                "{$menuItem->name} is currently unavailable.",
                 422
             );
         }
 
         if (
             $coupon->restaurant_id != 0 &&
-            (int) $coupon->restaurant_id !== (int) $data['restaurant_id']
+            (int) $coupon->restaurant_id !==
+            (int) $data['restaurant_id']
         ) {
             throw new Exception(
-                'This Coupon is Invalid for this restaurant.',
+                "{$menuItem->name} does not belong to the selected restaurant.",
                 422
             );
         }
 
-        $subtotal = 0;
+        $quantity = (int) $itemData['quantity'];
 
-        foreach ($data['items'] as $itemData) {
-
-            $menuItem = MenuItem::find($itemData['menu_item_id']);
-
-            if (!$menuItem) {
-                throw new Exception(
-                    'Menu item not found.',
-                    422
-                );
-            }
-
-
-            if ($menuItem->status != MenuItemStatus::ACTIVE) {
-                throw new Exception(
-                    "{$menuItem->name} is currently unavailable.",
-                    422
-                );
-            }
-
-
-            if (
-                $coupon->restaurant_id != 0 &&
-                (int) $coupon->restaurant_id !== (int) $data['restaurant_id']
-            ) {
-                throw new Exception(
-                    "{$menuItem->name} does not belong to the selected restaurant.",
-                    422
-                );
-            }
-
-            $quantity = (int) $itemData['quantity'];
-
-            if ($quantity > $menuItem->max_cart_quantity) {
-                throw new Exception(
-                    "Maximum allowed quantity for {$menuItem->name} is {$menuItem->max_cart_quantity}.",
-                    422
-                );
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Calculate LIVE Item Price
-            |--------------------------------------------------------------------------
-            */
-            $priceDetails = $this->calculateItemPrice(
-                $menuItem,
-                $itemData['variation_id'] ?? null,
-                $itemData['options'] ?? []
-            );
-
-            $subtotal += $priceDetails['final_price'] * $quantity;
-        }
-
-        $subtotal = round($subtotal, 2);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Minimum Order Amount
-        |--------------------------------------------------------------------------
-        */
-        if (
-            $coupon->minimum_order_amount > 0 &&
-            $subtotal < $coupon->minimum_order_amount
-        ) {
+        if ($quantity > $menuItem->max_cart_quantity) {
             throw new Exception(
-                'This coupon requires a minimum order amount of ₹' .
-                $coupon->minimum_order_amount,
+                "Maximum allowed quantity for {$menuItem->name} is {$menuItem->max_cart_quantity}.",
                 422
             );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Global Coupon Usage
-        |--------------------------------------------------------------------------
-        */
-        $totalUsed = Discount::where('coupon_id', $coupon->id)
-            ->where('status', DiscountStatus::ACTIVE)
-            ->count();
+        $priceDetails = $this->calculateItemPrice(
+            $menuItem,
+            $itemData['variation_id'] ?? null,
+            $itemData['options'] ?? []
+        );
 
-        if ($totalUsed >= $coupon->limit) {
-            throw new Exception(
-                'This Coupon is fully redeemed and no longer available.',
-                422
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | User Coupon Usage
-        |--------------------------------------------------------------------------
-        */
-        $userUsedCount = Discount::where('coupon_id', $coupon->id)
-            ->where('user_id', $userId)
-            ->where('status', DiscountStatus::ACTIVE)
-            ->count();
-
-        $userLimit = $coupon->user_limit > 0
-            ? $coupon->user_limit
-            : 1;
-
-        if ($userUsedCount >= $userLimit) {
-            throw new Exception(
-                'You have already reached the maximum usage limit for this coupon.',
-                422
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Calculate Coupon Discount
-        |--------------------------------------------------------------------------
-        */
-        if ($coupon->discount_type === 'percent') {
-            $discount = ($subtotal * $coupon->amount) / 100;
-        } else {
-            $discount = $coupon->amount;
-        }
-
-        $discount = min($discount, $subtotal);
-
-        return [
-            'coupon' => [
-                'id' => $coupon->id,
-                'code' => $coupon->slug,
-                'discount_type' => $coupon->discount_type,
-                'amount' => (float) $coupon->amount,
-                'minimum_order_amount' => (float) $coupon->minimum_order_amount,
-            ],
-
-            'pricing' => [
-                'subtotal' => $subtotal,
-                'coupon_discount' => round($discount, 2),
-                'after_coupon' => round($subtotal - $discount, 2),
-            ],
-        ];
+        $subtotal +=
+            $priceDetails['final_price'] * $quantity;
     }
+
+    $subtotal = round($subtotal, 2);
+
+    $total = round(
+        (float) ($data['total'] ?? 0),
+        2
+    );
+
+    if (
+        $coupon->minimum_order_amount > 0 &&
+        $total < $coupon->minimum_order_amount
+    ) {
+        throw new Exception(
+            'This coupon requires a minimum order amount of ₹' .
+            $coupon->minimum_order_amount,
+            422
+        );
+    }
+
+
+    $totalUsed = Discount::where(
+        'coupon_id',
+        $coupon->id
+    )
+        ->where(
+            'status',
+            DiscountStatus::ACTIVE
+        )
+        ->count();
+
+    if ($totalUsed >= $coupon->limit) {
+        throw new Exception(
+            'This Coupon is fully redeemed and no longer available.',
+            422
+        );
+    }
+
+    $userUsedCount = Discount::where(
+        'coupon_id',
+        $coupon->id
+    )
+        ->where(
+            'user_id',
+            $userId
+        )
+        ->where(
+            'status',
+            DiscountStatus::ACTIVE
+        )
+        ->count();
+
+    $userLimit = $coupon->user_limit > 0
+        ? $coupon->user_limit
+        : 1;
+
+   
+
+    if ($coupon->discount_type === 'percent') {
+
+        $discount = (
+            $total * (float) $coupon->amount
+        ) / 100;
+
+    } else {
+
+        $discount = (float) $coupon->amount;
+    }
+
+    $discount = min(
+        max(0, $discount),
+        $total
+    );
+
+    $afterCoupon = round(
+        $total - $discount,
+        2
+    );
+
+    return [
+        'coupon' => [
+            'id' => $coupon->id,
+            'code' => $coupon->slug,
+            'discount_type' => $coupon->discount_type,
+            'amount' => (float) $coupon->amount,
+            'minimum_order_amount' => (float) $coupon->minimum_order_amount,
+        ],
+
+        'pricing' => [
+            'subtotal' => $subtotal,
+            'total' => $total,
+            'coupon_discount' => round(
+                $discount,
+                2
+            ),
+            'after_coupon' => $afterCoupon,
+        ],
+    ];
+}
 
     private function getCartOrFail($userId)
     {
