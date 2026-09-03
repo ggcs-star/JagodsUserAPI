@@ -24,6 +24,7 @@ use App\Http\Resources\v1\RestaurantResource;
 use App\Models\MenuItem;
 use App\Http\Resources\v1\RestaurantBannerResource;
 use App\Enums\Module;
+
 class RestaurantController extends BackendController
 {
     use ApiResponse;
@@ -55,13 +56,12 @@ class RestaurantController extends BackendController
                 message: 'Restaurant list fetched successfully',
                 data: RestaurantResource::collection($restaurants)
             );
-
         } catch (\Exception $e) {
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Internal Server Error'
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
             );
         }
     }
@@ -180,13 +180,12 @@ class RestaurantController extends BackendController
                 message: 'Restaurant details fetched successfully.',
                 data: $this->data
             );
-
         } catch (\Throwable $e) {
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Internal Server Error'
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
             );
         }
     }
@@ -200,16 +199,24 @@ class RestaurantController extends BackendController
                 'per_page' => 'nullable|integer|min:1|max:100',
                 'category_id' => 'nullable|exists:categories,id',
                 'search' => 'nullable|string|max:100',
+                'restro_type' => 'nullable|in:veg,non-veg',
                 'sort_by' => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
             ]);
 
             $perPage = $request->input('per_page', 10);
             $search = trim($request->input('search', ''));
+            $restroType = $request->input('restro_type');
 
             $query = MenuItem::query()
                 ->where('restaurant_id', $request->restaurant_id)
                 ->where('module_id', Module::YOUR_CITY)
                 ->where('status', MenuItemStatus::ACTIVE);
+
+            if (!blank($restroType)) {
+                $query->where('restroType', $restroType);
+            }
+
+
 
             if ($request->filled('category_id')) {
                 $query->whereHas('categories', function ($q) use ($request) {
@@ -224,6 +231,7 @@ class RestaurantController extends BackendController
                     search: $search
                 );
             }
+
 
             switch ($request->sort_by) {
 
@@ -274,16 +282,17 @@ class RestaurantController extends BackendController
                 paginator: $menuItems,
                 data: [
                     'suggestions' => $suggestions,
-                    'items' => MenuItemResource::collection($menuItems->items()),
+                    'items' => MenuItemResource::collection(
+                        $menuItems->items()
+                    ),
                 ]
             );
-
         } catch (\Throwable $e) {
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Internal Server Error'
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
             );
         }
     }
@@ -470,6 +479,4 @@ class RestaurantController extends BackendController
             default => 60,
         };
     }
-
-
 }

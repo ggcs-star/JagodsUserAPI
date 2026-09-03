@@ -16,6 +16,7 @@ use App\Http\Requests\Api\RepayOrderRequest;
 use App\Models\Order;
 use App\Jobs\SendOrderInvoiceJob;
 use App\Jobs\SendOrderCreatedNotificationJob;
+
 class CheckoutController extends BackendController
 {
     use ApiResponse;
@@ -38,52 +39,51 @@ class CheckoutController extends BackendController
         try {
             $currentDevice = $request->attributes->get('current_device');
 
-          $order = $this->checkoutService->checkout(
-    $request->validated(),
-    auth()->id(),
-    $currentDevice
-);
+            $order = $this->checkoutService->checkout(
+                $request->validated(),
+                auth()->id(),
+                $currentDevice
+            );
 
 
-if ((float) $order->total < 1.00) {
+            if ((float) $order->total < 1.00) {
 
-    $order->update([
-        'payment_status' => \App\Enums\PaymentStatus::PAID,
-        'status' => \App\Enums\OrderStatus::PENDING,
-        'paid_amount' => 0,
-    ]);
+                $order->update([
+                    'payment_status' => \App\Enums\PaymentStatus::PAID,
+                    'status' => \App\Enums\OrderStatus::PENDING,
+                    'paid_amount' => 0,
+                ]);
 
-    $order->refresh();
+                $order->refresh();
 
-    return $this->successResponse(
-        message: 'Order placed successfully.',
-        data: [
-            'order' => $order,
-        ]
-    );
-}
+                return $this->successResponse(
+                    message: 'Order placed successfully.',
+                    data: [
+                        'order' => $order,
+                    ]
+                );
+            }
 
-if (
-    (int) $request->payment_method
-    === PaymentMethod::CASH_ON_DELIVERY
-) {
-    return $this->successResponse(
-        message: 'Order placed successfully.',
-        data: $order
-    );
-}
+            if (
+                (int) $request->payment_method
+                === PaymentMethod::CASH_ON_DELIVERY
+            ) {
+                return $this->successResponse(
+                    message: 'Order placed successfully.',
+                    data: $order
+                );
+            }
 
 
-$payment = $this->paymentService->create($order);
+            $payment = $this->paymentService->create($order);
 
-return $this->successResponse(
-    message: 'Payment initialized successfully.',
-    data: [
-        'order' => $order,
-        'payment' => $payment,
-    ]
-);
-
+            return $this->successResponse(
+                message: 'Payment initialized successfully.',
+                data: [
+                    'order' => $order,
+                    'payment' => $payment,
+                ]
+            );
         } catch (Exception $e) {
             if ($order && (int) $request->payment_method !== PaymentMethod::CASH_ON_DELIVERY) {
                 $order->orderLines()->delete();
@@ -171,7 +171,6 @@ return $this->successResponse(
                     )->format('d M Y, h:i A'),
                 ]
             );
-
         } catch (Exception $e) {
 
             $statusCode = (int) $e->getCode();
@@ -220,7 +219,6 @@ return $this->successResponse(
                 message: 'Repayment initiated successfully.',
                 data: $paymentData
             );
-
         } catch (Exception $e) {
             $statusCode = (int) $e->getCode();
             $statusCode = ($statusCode >= 100 && $statusCode <= 599) ? $statusCode : 400;
