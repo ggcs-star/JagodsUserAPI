@@ -23,6 +23,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Laravel\Scout\Searchable;
+
 class Restaurant extends BaseModel implements HasMedia
 {
     use WatchableTrait, InteractsWithMedia, HasSlug, SoftDeletes, Searchable;
@@ -287,14 +288,40 @@ class Restaurant extends BaseModel implements HasMedia
     }
 
     public function module()
-{
-    return $this->belongsTo(Module::class);
-}
+    {
+        return $this->belongsTo(Module::class);
+    }
 
-public function scopeModule($query, $slug)
-{
-    return $query->whereHas('module', function ($q) use ($slug) {
-        $q->where('slug', $slug);
-    });
-}
+    public function scopeModule($query, $slug)
+    {
+        return $query->whereHas('module', function ($q) use ($slug) {
+            $q->where('slug', $slug);
+        });
+    }
+    public function scopeRestroType($query, ?string $type)
+    {
+        if (blank($type)) {
+            return $query;
+        }
+
+        return match ($type) {
+
+            'veg' => $query->whereIn('restroType', [
+                'veg',
+                'veg-and-non-veg',
+            ]),
+
+            'pure_veg' => $query->where(
+                'restroType',
+                'veg'
+            ),
+
+            'non_veg' => $query->whereIn('restroType', [
+                'non-veg',
+                'veg-and-non-veg',
+            ]),
+
+            default => $query,
+        };
+    }
 }

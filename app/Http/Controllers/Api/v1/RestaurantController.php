@@ -24,18 +24,20 @@ use App\Http\Resources\v1\RestaurantResource;
 use App\Models\MenuItem;
 use App\Http\Resources\v1\RestaurantBannerResource;
 use App\Enums\Module;
+use App\Http\Services\RestaurantTypeService;
 
 class RestaurantController extends BackendController
 {
     use ApiResponse;
     protected $restaurantService;
-
-    public function __construct(RestaurantService $restaurantService)
+    protected $restaurantTypeService;
+    public function __construct(RestaurantService $restaurantService, RestaurantTypeService $restaurantTypeService)
     {
         parent::__construct();
         $this->data['siteTitle'] = 'Restaurants';
         // $this->middleware('auth:api');
         $this->restaurantService = $restaurantService;
+        $this->restaurantTypeService = $restaurantTypeService;
     }
     /**
      * Display a listing of the resource.
@@ -199,39 +201,94 @@ class RestaurantController extends BackendController
                 'per_page' => 'nullable|integer|min:1|max:100',
                 'category_id' => 'nullable|exists:categories,id',
                 'search' => 'nullable|string|max:100',
+
                 'restro_type' => 'nullable|in:veg,non-veg',
+
+                'hide_non_veg' => 'nullable|boolean',
+
                 'sort_by' => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
             ]);
 
-            $perPage = $request->input('per_page', 10);
-            $search = trim($request->input('search', ''));
+            $perPage = (int) $request->input('per_page', 10);
+
+            $search = trim(
+                $request->input('search', '')
+            );
+
             $restroType = $request->input('restro_type');
 
-            $query = MenuItem::query()
-                ->where('restaurant_id', $request->restaurant_id)
-                ->where('module_id', Module::YOUR_CITY)
-                ->where('status', MenuItemStatus::ACTIVE);
 
-            if (!blank($restroType)) {
-                $query->where('restroType', $restroType);
+            $headerRestroType = $this->restaurantTypeService
+                ->getHeaderType($request);
+
+
+            $showHideNonVegFilter = in_array(
+                $headerRestroType,
+                ['veg', 'pure_veg'],
+                true
+            );
+
+            $hideNonVeg = $request->boolean(
+                'hide_non_veg'
+            );
+
+            $query = MenuItem::query()
+                ->where(
+                    'restaurant_id',
+                    $request->restaurant_id
+                )
+                ->where(
+                    'module_id',
+                    Module::YOUR_CITY
+                )
+                ->where(
+                    'status',
+                    MenuItemStatus::ACTIVE
+                );
+
+            if (
+                blank($headerRestroType) &&
+                !blank($restroType)
+            ) {
+                $query->where(
+                    'restroType',
+                    $restroType
+                );
             }
 
-
+            if (
+                $showHideNonVegFilter &&
+                $hideNonVeg
+            ) {
+                $query->where(
+                    'restroType',
+                    'veg'
+                );
+            }
 
             if ($request->filled('category_id')) {
-                $query->whereHas('categories', function ($q) use ($request) {
-                    $q->where('categories.id', $request->category_id);
-                });
+
+                $query->whereHas(
+                    'categories',
+                    function ($q) use ($request) {
+
+                        $q->where(
+                            'categories.id',
+                            $request->category_id
+                        );
+                    }
+                );
             }
 
+
             if ($search !== '') {
+
                 $query = $this->applyFuzzyMenuSearch(
                     query: $query,
                     restaurantId: $request->restaurant_id,
                     search: $search
                 );
             }
-
 
             switch ($request->sort_by) {
 
@@ -255,7 +312,10 @@ class RestaurantController extends BackendController
                     $query->orderByRaw("
                     CASE
                         WHEN unit_price > 0
-                        THEN ((unit_price - discount_price) / unit_price) * 100
+                        THEN (
+                            (unit_price - discount_price)
+                            / unit_price
+                        ) * 100
                         ELSE 0
                     END DESC
                 ");
@@ -271,6 +331,7 @@ class RestaurantController extends BackendController
             $suggestions = [];
 
             if ($search !== '') {
+
                 $suggestions = $this->getMenuItemSuggestions(
                     restaurantId: $request->restaurant_id,
                     search: $search
@@ -279,9 +340,12 @@ class RestaurantController extends BackendController
 
             return $this->successPaginationResponse(
                 message: 'Menu items fetched successfully.',
+
                 paginator: $menuItems,
+
                 data: [
                     'suggestions' => $suggestions,
+
                     'items' => MenuItemResource::collection(
                         $menuItems->items()
                     ),

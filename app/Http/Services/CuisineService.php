@@ -6,35 +6,63 @@ namespace App\Http\Services;
 use App\Enums\CuisinesStatus;
 use App\Models\Cuisine;
 use Illuminate\Http\Request;
+use App\Http\Services\RestaurantTypeService;
 
 class CuisineService
 {
-    public function allCuisines(Request $request)
-{
-    $perPage = (int) $request->get('per_page', 10);
+    protected RestaurantTypeService $restaurantTypeService;
 
-    $query = Cuisine::where('status', CuisinesStatus::ACTIVE);
-
-    if ($request->filled('id')) {
-
-        $search = trim($request->id);
-
-        $query->where(function ($q) use ($search) {
-
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('description', 'like', "%{$search}%");
-
-        });
+    public function __construct(
+        RestaurantTypeService $restaurantTypeService
+    ) {
+        $this->restaurantTypeService = $restaurantTypeService;
     }
+    public function allCuisines(Request $request)
+    {
+        $perPage = (int) $request->get('per_page', 10);
 
-    return $query
-        ->descending()
-        ->paginate($perPage);
-}
+        $query = Cuisine::query()
+            ->where('status', CuisinesStatus::ACTIVE);
+
+        $restroType = $this->restaurantTypeService
+            ->getHeaderType($request);
+
+        $allowedTypes = $this->restaurantTypeService
+            ->getAllowedTypes($restroType);
+
+        if ($allowedTypes !== null) {
+            $query->whereIn(
+                'restroType',
+                $allowedTypes
+            );
+        }
+
+        if ($request->filled('id')) {
+
+            $search = trim($request->id);
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where(
+                    'name',
+                    'like',
+                    "%{$search}%"
+                )
+                    ->orWhere(
+                        'description',
+                        'like',
+                        "%{$search}%"
+                    );
+            });
+        }
+
+        return $query
+            ->descending()
+            ->paginate($perPage);
+    }
     public function show($id)
     {
         return Cuisine::find($id);
-       
     }
 
     public function store(Request $request)
@@ -59,7 +87,7 @@ class CuisineService
         }
     }
 
-    public function update(Request $request, $cuisine) : void
+    public function update(Request $request, $cuisine): void
     {
         $cuisine->name        = $request->name;
         $cuisine->description = $request->description;
@@ -80,5 +108,4 @@ class CuisineService
     {
         $table->delete();
     }
-
 }

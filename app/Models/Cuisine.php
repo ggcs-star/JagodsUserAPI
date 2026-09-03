@@ -18,7 +18,7 @@ class Cuisine extends BaseModel implements HasMedia
 
     protected $table       = 'cuisines';
     protected $auditColumn       = true;
-    protected $fillable    = ['name', 'slug', 'description', 'status', 'requested'];
+    protected $fillable    = ['name', 'slug', 'description', 'status', 'requested','restroType'];
     protected $casts = [
         'status' => 'int',
         'requested' => 'int',

@@ -137,7 +137,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::middleware('business.api')->group(function () {
     Route::post('business-settings', [BusinessSettingController::class, 'index']);
     });
-    Route::get('banners', [BannerController::class, 'index']);
+    Route::post('banners', [BannerController::class, 'index']);
     Route::post('sort-banner', [BannerController::class, 'sortBanner'])->name('sort.banner');
 
     Route::get('category', [CategoryController::class, 'index']);

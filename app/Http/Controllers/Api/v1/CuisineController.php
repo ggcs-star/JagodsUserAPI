@@ -13,19 +13,21 @@ use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Services\RestaurantTypeService;
 
 class CuisineController extends BackendController
 {
     use ApiResponse;
     protected $cuisineService;
-
-    public function __construct(CuisineService $cuisineService)
+    protected $restaurantTypeService;
+    public function __construct(CuisineService $cuisineService, RestaurantTypeService $restaurantTypeService)
     {
         parent::__construct();
         // $this->middleware('auth:api');
         $this->cuisineService = $cuisineService;
-
+        $this->restaurantTypeService = $restaurantTypeService;
     }
+
     /**
      * Display a listing of the resource.
      * @param Request $request
@@ -42,13 +44,12 @@ class CuisineController extends BackendController
                 paginator: $cuisines,
                 data: CuisineResource::collection($cuisines->items())
             );
-
         } catch (\Throwable $e) {
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Internal Server Error'
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
             );
         }
     }
@@ -61,26 +62,49 @@ class CuisineController extends BackendController
 
             $cuisine = $this->cuisineService->show($id);
 
+            $restroType = $this->restaurantTypeService
+                ->getHeaderType($request);
+
+
+            $allowedTypes = $this->restaurantTypeService
+                ->getAllowedTypes($restroType);
+
             $activeRestaurants = $cuisine->restaurants()
-                ->where('restaurants.status', \App\Enums\RestaurantStatus::ACTIVE)
+                ->where(
+                    'restaurants.status',
+                    \App\Enums\RestaurantStatus::ACTIVE
+                )
+                ->when(
+                    $allowedTypes !== null,
+                    function ($query) use ($allowedTypes) {
+
+                        $query->whereIn(
+                            'restaurants.restroType',
+                            $allowedTypes
+                        );
+                    }
+                )
                 ->get();
 
-            $this->data['cuisine'] = new CuisineResource($cuisine);
-            $this->data['restaurants'] = PopularRestaurantResource::collection($activeRestaurants);
+            $this->data['cuisine'] =
+                new CuisineResource($cuisine);
+
+            $this->data['restaurants'] =
+                PopularRestaurantResource::collection(
+                    $activeRestaurants
+                );
 
             return $this->successResponse(
                 message: 'Cuisine details fetched successfully',
                 data: $this->data
             );
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Internal Server Error'
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
             );
         }
     }
-
 }

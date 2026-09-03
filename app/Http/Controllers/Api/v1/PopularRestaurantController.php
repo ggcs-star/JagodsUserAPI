@@ -13,16 +13,17 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 use Illuminate\Support\Facades\Cache;
 use App\Enums\Module;
+use App\Http\Services\RestaurantTypeService;
 
 class PopularRestaurantController extends BackendController
 {
     use ApiResponse;
-
-    public function __construct()
+    protected $restaurantTypeService;
+    public function __construct(RestaurantTypeService $restaurantTypeService)
     {
         parent::__construct();
         // $this->middleware('auth:api');
-
+        $this->restaurantTypeService = $restaurantTypeService;
     }
     /**
      * Display a listing of the resource.
@@ -35,10 +36,18 @@ class PopularRestaurantController extends BackendController
     {
         try {
 
-            $restroType = $request->get('restro_type');
+            $restroType = $this->restaurantTypeService
+                ->getHeaderType($request);
 
-            $perPage = (int) $request->get('per_page', 10);
-            $page = (int) $request->get('page', 1);
+            $perPage = (int) $request->get(
+                'per_page',
+                10
+            );
+
+            $page = (int) $request->get(
+                'page',
+                1
+            );
 
             $cacheKey = "home_restaurants_{$restroType}_{$page}_{$perPage}";
 
@@ -68,7 +77,9 @@ class PopularRestaurantController extends BackendController
                         'avg_rating',
                         'total_reviews',
                     ])
-                        ->module(Module::YOUR_CITY_SLUG)
+                        ->module(
+                            Module::YOUR_CITY_SLUG
+                        )
                         ->where(
                             'status',
                             RestaurantStatus::ACTIVE
@@ -77,23 +88,16 @@ class PopularRestaurantController extends BackendController
                             'current_status',
                             CurrentStatus::YES
                         );
-                    if (!blank($restroType)) {
 
-                        $allowedTypes = [
-                            'veg',
-                            'non-veg',
-                            'veg-and-non-veg',
-                        ];
+                    $query = $this->restaurantTypeService->apply(
+                        $query,
+                        $restroType,
+                        'restroType'
+                    );
 
-                        if (in_array($restroType, $allowedTypes, true)) {
-                            $query->where(
-                                'restroType',
-                                $restroType
-                            );
-                        }
-                    }
-
-                    $query->orderByDesc('total_orders');
+                    $query->orderByDesc(
+                        'total_orders'
+                    );
 
                     return $query->paginate(
                         $perPage,
@@ -116,9 +120,17 @@ class PopularRestaurantController extends BackendController
             Log::error(
                 'PopularRestaurant API Error',
                 [
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
+                    'restro_type' =>
+                    $request->header('restro_type'),
+
+                    'message' =>
+                    $e->getMessage(),
+
+                    'file' =>
+                    $e->getFile(),
+
+                    'line' =>
+                    $e->getLine(),
                 ]
             );
 

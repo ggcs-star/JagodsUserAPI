@@ -534,7 +534,6 @@ ADD COLUMN city VARCHAR(100) NULL AFTER landmark,
 ADD COLUMN state VARCHAR(100) NULL AFTER city,
 ADD COLUMN country VARCHAR(100) NULL AFTER state;
 
-=======================================================================done
 
 CREATE TABLE `app_versions` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -567,3 +566,12 @@ CREATE TABLE `app_versions` (
     INDEX `app_versions_device_type_version_index`
         (`device_type`, `version`)
 );
+
+=======================================================================done
+
+ALTER TABLE cuisines
+ADD COLUMN restroType VARCHAR(191)
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci
+NULL
+AFTER updated_at;

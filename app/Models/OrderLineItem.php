@@ -23,18 +23,13 @@ class OrderLineItem extends Model
     ];
 
     protected $casts = [
-        'restaurant_id' => 'integer',
-        'order_id' => 'integer',
-        'menu_item_id' => 'integer',
-        'quantity' => 'integer',
-        'menu_item_variation_id' => 'integer',
-
-        'unit_price' => 'float',
-        'discounted_price' => 'float',
-        'item_total' => 'float',
-        'options_total' => 'float',
-
-        'options' => 'array',
+        'restaurant_id' => 'int',
+        'product_id' => 'int',
+        'order_id' => 'int',
+        'quantity' => 'int',
+        'menu_item_variation_id' => 'int',
+        'menu_item_id' => 'int',
+        'options_total' => 'int',
     ];
 
     public function restaurant()
