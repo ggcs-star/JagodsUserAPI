@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: user
- * Date: 7/14/20
- * Time: 3:19 PM
- */
 
 namespace App\Http\Resources\v1;
 
@@ -12,15 +6,32 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class MenuItemVariationResource extends JsonResource
 {
-    public function toArray( $request )
+    public function toArray($request)
     {
         return [
-            'id'             => $this->id,
-            'name'           => $this->name,
-            'unit_price'     => $this->price,
-            "currency_code"     => setting('currency_code'),
-            'discount_price' => $this->discount_price,
+            'id' => (int) $this->id,
+
+            'menu_item_id' => (int) $this->menu_item_id,
+
+            'variation_group_id' => $this->variation_group_id
+                ? (int) $this->variation_group_id
+                : null,
+
+            'name' => $this->name,
+
+            'price' => (float) $this->price,
+
+            'discount_price' => (float) (
+                $this->discount_price ?? 0
+            ),
+
+            'sort_order' => (int) (
+                $this->sort_order ?? 0
+            ),
+
+            'status' => (int) (
+                $this->status ?? 1
+            ),
         ];
     }
-
 }

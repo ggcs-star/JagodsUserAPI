@@ -34,8 +34,7 @@ class RestaurantTypeService
 
     public function getHeaderType($request): ?string
     {
-        $type = $request->header('restro_type');
-
+        $type = $request->header('X-Restro-Type');// restro_type
         return blank($type)
             ? null
             : strtolower(trim($type));

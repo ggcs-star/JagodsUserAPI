@@ -567,7 +567,7 @@ CREATE TABLE `app_versions` (
         (`device_type`, `version`)
 );
 
-=======================================================================done
+
 
 ALTER TABLE cuisines
 ADD COLUMN restroType VARCHAR(191)
@@ -575,3 +575,109 @@ CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci
 NULL
 AFTER updated_at;
+
+=======================================================================done
+
+
+CREATE TABLE menu_item_variation_groups (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    menu_item_id BIGINT UNSIGNED NOT NULL,
+    restaurant_id BIGINT UNSIGNED NOT NULL,
+
+    name VARCHAR(191) NOT NULL,
+    online_display_name VARCHAR(191) NULL,
+
+    selection_type ENUM('single', 'multiple')
+        NOT NULL DEFAULT 'single',
+
+    is_required TINYINT(1)
+        NOT NULL DEFAULT 0,
+
+    min_selection INT NOT NULL DEFAULT 0,
+    max_selection INT NOT NULL DEFAULT 1,
+
+    show_online TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    show_dinein_qr TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    allow_open_quantity TINYINT(1)
+        NOT NULL DEFAULT 0,
+
+    max_selection_per_item INT
+        NOT NULL DEFAULT 1,
+
+    sort_order INT
+        NOT NULL DEFAULT 0,
+
+    status TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    INDEX idx_mivg_menu_item (menu_item_id),
+    INDEX idx_mivg_restaurant (restaurant_id)
+);
+
+
+ALTER TABLE menu_item_variations
+ADD COLUMN variation_group_id BIGINT UNSIGNED NULL AFTER restaurant_id,
+ADD COLUMN sort_order INT NOT NULL DEFAULT 0 AFTER discount_price,
+ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order;
+
+CREATE INDEX idx_variation_group
+ON menu_item_variations (variation_group_id);
+
+
+CREATE TABLE menu_item_option_groups (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    menu_item_id BIGINT UNSIGNED NOT NULL,
+    restaurant_id BIGINT UNSIGNED NOT NULL,
+
+    name VARCHAR(191) NOT NULL,
+    online_display_name VARCHAR(191) NULL,
+
+    selection_type ENUM('single', 'multiple')
+        NOT NULL DEFAULT 'multiple',
+
+    is_required TINYINT(1)
+        NOT NULL DEFAULT 0,
+
+    min_selection INT NOT NULL DEFAULT 0,
+    max_selection INT NOT NULL DEFAULT 1,
+
+    max_selection_per_item INT NOT NULL DEFAULT 1,
+
+    show_online TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    show_dinein_qr TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    allow_open_quantity TINYINT(1)
+        NOT NULL DEFAULT 0,
+
+    sort_order INT NOT NULL DEFAULT 0,
+
+    status TINYINT(1) NOT NULL DEFAULT 1,
+
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    INDEX idx_miog_menu_item (menu_item_id),
+    INDEX idx_miog_restaurant (restaurant_id)
+);
+
+
+ALTER TABLE menu_item_options
+ADD COLUMN option_group_id BIGINT UNSIGNED NULL AFTER restaurant_id,
+ADD COLUMN external_option_id VARCHAR(100) NULL AFTER option_group_id,
+ADD COLUMN attribute ENUM('veg', 'non_veg', 'egg') NULL AFTER price,
+ADD COLUMN sort_order INT NOT NULL DEFAULT 0 AFTER attribute,
+ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order;
+
+CREATE INDEX idx_option_group
+ON menu_item_options (option_group_id);

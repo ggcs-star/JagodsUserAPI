@@ -19,36 +19,37 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Enums\RestaurantStatus;
 use Spatie\Permission\Models\Role;
+use Illuminate\Database\Eloquent\Builder;
 
 class RestaurantService
 {
-    public function getallrestaurant($id,$status,$applied)
+    public function __construct(
+        protected RestaurantTypeService $restaurantTypeService
+    ) {}
+    public function getallrestaurant($id, $status, $applied)
     {
 
-        if(is_null($id)){
+        if (is_null($id)) {
             $queryArray = [];
-            $queryArray['status']=RestaurantStatus::ACTIVE;
-            $queryArray['current_status']=CurrentStatus::YES;
+            $queryArray['status'] = RestaurantStatus::ACTIVE;
+            $queryArray['current_status'] = CurrentStatus::YES;
 
             if (!empty($applied)) {
                 $queryArray['applied'] = $applied;
             }
             $current_time = now()->format('H:i');
             if (!blank($queryArray)) {
-                $restaurants = Restaurant::where([['opening_time', '>', 'closing_time'],['opening_time', '<', $current_time]])
-                    ->Orwhere([['opening_time', '<', 'closing_time'],['opening_time', '<', $current_time],['closing_time', '>', $current_time]])
+                $restaurants = Restaurant::where([['opening_time', '>', 'closing_time'], ['opening_time', '<', $current_time]])
+                    ->Orwhere([['opening_time', '<', 'closing_time'], ['opening_time', '<', $current_time], ['closing_time', '>', $current_time]])
                     ->where($queryArray)->restaurantowner()->descending()->select()->get();
             } else {
-                $restaurants = Restaurant::where([['opening_time', '>', 'closing_time'],['opening_time', '<', $current_time]])
-                    ->Orwhere([['opening_time', '<', 'closing_time'],['opening_time', '<', $current_time],['closing_time', '>', $current_time]])->
-                    restaurantowner()->descending()->select()->get();
+                $restaurants = Restaurant::where([['opening_time', '>', 'closing_time'], ['opening_time', '<', $current_time]])
+                    ->Orwhere([['opening_time', '<', 'closing_time'], ['opening_time', '<', $current_time], ['closing_time', '>', $current_time]])->restaurantowner()->descending()->select()->get();
             }
 
             return  $restaurants;
         }
-       return  $this->show($id);
-
-
+        return  $this->show($id);
     }
 
     public function show($id)
@@ -60,7 +61,7 @@ class RestaurantService
         }
         $restaurant = Restaurant::restaurantowner()->findOrFail($id);
         if (blank($restaurant->user)) {
-            $this->data['error']='the user not found';
+            $this->data['error'] = 'the user not found';
             return $this->data;
         }
         $orders = Order::where(['restaurant_id' => $id])->whereDate('created_at', Carbon::today())->orderowner()->get();
@@ -71,7 +72,7 @@ class RestaurantService
         $this->data['completed_order'] = $orders->where('status', OrderStatus::COMPLETED)->count();
 
         $this->data['restaurant'] = $restaurant;
-        $this->data['images'] = $this->getMedia( $id);
+        $this->data['images'] = $this->getMedia($id);
         $this->data['menuitems'] = $this->getMenuItem($id);
 
 
@@ -117,7 +118,7 @@ class RestaurantService
 
 
         //Store Image
-        if ( !blank($request->input('document')) ) {
+        if (!blank($request->input('document'))) {
             foreach ($request->input('document', []) as $file) {
                 $restaurant->addMedia(storage_path('tmp/uploads/' . $file))->toMediaCollection('restaurant');
             }
@@ -134,70 +135,69 @@ class RestaurantService
         }
         $depositService = app(DepositService::class)->depositAdjust($user->id, $depositAmount, $limitAmount);
         if ($depositService->status) {
-            $message='Restaurant saved';
+            $message = 'Restaurant saved';
             return $message;
         }
-        $message=$depositService->message;
+        $message = $depositService->message;
         return $message;
     }
 
 
 
-    public function update( $request,$restaurant)
+    public function update($request, $restaurant)
     {
 
-            $user = $restaurant->user;
-            $depositAmount  = blank($request->deposit_amount) ? 0 : $request->deposit_amount;
-            $limitAmount    = blank($request->limit_amount) ? 0 : $request->limit_amount;
-            $depositService = app(DepositService::class)->depositAdjust($user->id, $depositAmount, $limitAmount);
+        $user = $restaurant->user;
+        $depositAmount  = blank($request->deposit_amount) ? 0 : $request->deposit_amount;
+        $limitAmount    = blank($request->limit_amount) ? 0 : $request->limit_amount;
+        $depositService = app(DepositService::class)->depositAdjust($user->id, $depositAmount, $limitAmount);
 
-            if ($depositService->status) {
+        if ($depositService->status) {
 
-                $user->first_name = $request->get('first_name');
-                $user->last_name  = $request->get('last_name');
-                $user->email      = $request->get('email');
-                $user->username   = $request->username ?? generateUsername($request->email);
-                $user->phone      = $request->get('phone');
-                $user->address    = $request->get('address');
-                $user->status     = $request->get('userstatus');
-                if (!blank($request->get('password')) && (strlen($request->get('password')) >= 4)) {
-                    $user->password = bcrypt($request->get('password'));
-                }
-                $user->save();
-
-                $role = Role::find(3);
-                $user->assignRole($role->name);
-
-                $restaurant->user_id         = $user->id;
-                $restaurant->name            = $request->name;
-                $restaurant->description     = $request->description;
-                $restaurant->lat             = $request->lat;
-                $restaurant->long            = $request->long;
-                $restaurant->opening_time    = date('H:i:s', strtotime($request->opening_time));
-                $restaurant->closing_time    = date('H:i:s', strtotime($request->closing_time));
-                $restaurant->address         = $request->restaurantaddress;
-                $restaurant->current_status  = $request->current_status;
-                $restaurant->delivery_status = $request->delivery_status;
-                $restaurant->pickup_status   = $request->pickup_status;
-                $restaurant->table_status    = $request->table_status;
-                $restaurant->status          = $request->status;
-                if ($user->status == UserStatus::INACTIVE) {
-                    $restaurant->status = RestaurantStatus::INACTIVE;
-                }
-                $restaurant->save();
-                $restaurant->cuisines()->sync($request->get('cuisines'));
-
-
-                if ($request->hasFile('image') && $request->file('image')->isValid()) {
-                    $restaurant->media()->delete($restaurant->id);
-                    $restaurant->addMediaFromRequest('image')->toMediaCollection('restaurant');
-                }
-                $message='The data updated successfully.';
-                return $message;
+            $user->first_name = $request->get('first_name');
+            $user->last_name  = $request->get('last_name');
+            $user->email      = $request->get('email');
+            $user->username   = $request->username ?? generateUsername($request->email);
+            $user->phone      = $request->get('phone');
+            $user->address    = $request->get('address');
+            $user->status     = $request->get('userstatus');
+            if (!blank($request->get('password')) && (strlen($request->get('password')) >= 4)) {
+                $user->password = bcrypt($request->get('password'));
             }
-            $message=$depositService->message;
-            return $message;
+            $user->save();
 
+            $role = Role::find(3);
+            $user->assignRole($role->name);
+
+            $restaurant->user_id         = $user->id;
+            $restaurant->name            = $request->name;
+            $restaurant->description     = $request->description;
+            $restaurant->lat             = $request->lat;
+            $restaurant->long            = $request->long;
+            $restaurant->opening_time    = date('H:i:s', strtotime($request->opening_time));
+            $restaurant->closing_time    = date('H:i:s', strtotime($request->closing_time));
+            $restaurant->address         = $request->restaurantaddress;
+            $restaurant->current_status  = $request->current_status;
+            $restaurant->delivery_status = $request->delivery_status;
+            $restaurant->pickup_status   = $request->pickup_status;
+            $restaurant->table_status    = $request->table_status;
+            $restaurant->status          = $request->status;
+            if ($user->status == UserStatus::INACTIVE) {
+                $restaurant->status = RestaurantStatus::INACTIVE;
+            }
+            $restaurant->save();
+            $restaurant->cuisines()->sync($request->get('cuisines'));
+
+
+            if ($request->hasFile('image') && $request->file('image')->isValid()) {
+                $restaurant->media()->delete($restaurant->id);
+                $restaurant->addMediaFromRequest('image')->toMediaCollection('restaurant');
+            }
+            $message = 'The data updated successfully.';
+            return $message;
+        }
+        $message = $depositService->message;
+        return $message;
     }
 
     public function delete($table)
@@ -207,37 +207,36 @@ class RestaurantService
     public function getMenuItem($id)
     {
 
-            $queryArray = [];
-            if (!empty($id) && (int) $id) {
-                $queryArray['restaurant_id'] = $id;
-            }
+        $queryArray = [];
+        if (!empty($id) && (int) $id) {
+            $queryArray['restaurant_id'] = $id;
+        }
 
-            if (!blank($queryArray)) {
-                $menuItems = MenuItem::owner()->with('categories')->where($queryArray)->descending()->select();
-            } else {
-                $menuItems = MenuItem::owner()->with('categories')->descending()->select();
-            }
+        if (!blank($queryArray)) {
+            $menuItems = MenuItem::owner()->with('categories')->where($queryArray)->descending()->select();
+        } else {
+            $menuItems = MenuItem::owner()->with('categories')->descending()->select();
+        }
 
-            return $menuItems;
-
+        return $menuItems;
     }
-    public function getMedia( $id)
+    public function getMedia($id)
     {
         $restaurant   = Restaurant::find($id);
         $addMedias = $restaurant->getMedia('restaurant');
         $retArr    = [];
-        if ( count($addMedias) ) {
+        if (count($addMedias)) {
             $i = 0;
-            foreach ( $addMedias as $addMedia ) {
+            foreach ($addMedias as $addMedia) {
                 $i++;
-                $retArr[ $i ]['name'] = $addMedia->file_name;
-                $retArr[ $i ]['size'] = $addMedia->size;
-                $retArr[ $i ]['url']  = asset($addMedia->getUrl());
+                $retArr[$i]['name'] = $addMedia->file_name;
+                $retArr[$i]['size'] = $addMedia->size;
+                $retArr[$i]['url']  = asset($addMedia->getUrl());
             }
         }
         return $retArr;
     }
-    public function storeMedia( $request)
+    public function storeMedia($request)
     {
         $path = storage_path('tmp/uploads');
 
@@ -256,7 +255,7 @@ class RestaurantService
             'original_name' => $file->getClientOriginalName(),
         ]);
     }
-    public function updateMedia( $request,$restaurant)
+    public function updateMedia($request, $restaurant)
     {
         $path = storage_path('tmp/uploads');
 
@@ -268,7 +267,7 @@ class RestaurantService
 
         $name = uniqid() . '_' . trim($file->getClientOriginalName());
         $file->move($path, $name);
-        $restaurant->addMedia($path.'/'.$name)->toMediaCollection('restaurant');
+        $restaurant->addMedia($path . '/' . $name)->toMediaCollection('restaurant');
 
         return response()->json([
             'name'          => $name,
@@ -279,18 +278,145 @@ class RestaurantService
     public function deleteMedia(Request $request)
     {
         $path = storage_path('tmp/uploads/' . $request->filename);
-        if ( file_exists($path) ) {
+        if (file_exists($path)) {
             unlink($path);
         }
     }
 
 
-    public function removeMedia( Request $request )
+    public function removeMedia(Request $request)
     {
         $restaurant = Restaurant::find($request->id);
         $restaurant->deleteMedia($restaurant, $request->media, $request->id);
         return $this->getMedia($request);
     }
 
+    public function findActiveRestaurant(int $restaurantId): ?Restaurant
+    {
+        return Restaurant::query()
+            ->where('id', $restaurantId)
+            ->where('status', 5)
+            ->first();
+    }
+    public function getMenuFilters(
+        Restaurant $restaurant,
+        ?string $headerRestroType = null
+    ): array {
 
+        $restaurantType = strtolower(
+            trim((string) $restaurant->restroType)
+        );
+
+        $isMixedRestaurant = $restaurantType === 'veg-and-non-veg';
+
+        $headerRestroType = blank($headerRestroType)
+            ? null
+            : strtolower(trim($headerRestroType));
+
+        $showRestroTypeFilter =
+            $headerRestroType === null &&
+            $isMixedRestaurant;
+
+
+        $showHideNonVegFilter = in_array(
+            $headerRestroType,
+            ['veg', 'pure_veg'],
+            true
+        );
+
+        return [
+
+            'restaurant_type' => $restaurantType,
+
+            'show_restro_type_filter' => $showRestroTypeFilter,
+
+            'restro_type_filter' => [
+                'enabled' => $showRestroTypeFilter,
+
+                'options' => $showRestroTypeFilter
+                    ? [
+                        [
+                            'label' => 'Veg',
+                            'value' => 'veg',
+                        ],
+                        [
+                            'label' => 'Non-Veg',
+                            'value' => 'non-veg',
+                        ],
+                    ]
+                    : [],
+            ],
+
+            'show_hide_non_veg_filter' => $showHideNonVegFilter,
+
+            'hide_non_veg_filter' => [
+                'enabled' => $showHideNonVegFilter,
+
+                'label' => 'Hide Non-Veg',
+
+                'value' => $showHideNonVegFilter
+                    ? [
+                        [
+                            'label' => 'Show All',
+                            'value' => false,
+                        ],
+                        [
+                            'label' => 'Hide Non-Veg',
+                            'value' => true,
+                        ],
+                    ]
+                    : [],
+            ],
+        ];
+    }
+    public function applyMenuFilters(
+        Builder $query,
+        Request $request,
+        Restaurant $restaurant
+    ): Builder {
+
+        $restaurantType = strtolower(
+            trim((string) $restaurant->restroType)
+        );
+
+        $headerRestroType = $this->restaurantTypeService
+            ->getHeaderType($request);
+        // dd($headerRestroType);
+
+        if ($headerRestroType === null) {
+
+            $restroType = $request->input('restro_type');
+
+            if (
+                $restaurantType === 'veg-and-non-veg' &&
+                in_array($restroType, ['veg', 'non-veg'], true)
+            ) {
+                $query->where(
+                    'restroType',
+                    $restroType
+                );
+            }
+
+            return $query;
+        }
+
+        if (in_array(
+            $headerRestroType,
+            ['veg', 'pure_veg'],
+            true
+        )) {
+
+            if ($request->boolean('hide_non_veg')) {
+
+                $query->where(
+                    'restroType',
+                    'veg'
+                );
+            }
+
+            return $query;
+        }
+
+        return $query;
+    }
 }

@@ -197,9 +197,12 @@ class RestaurantController extends BackendController
 
             $request->validate([
                 'restaurant_id' => 'required|exists:restaurants,id',
+
                 'page' => 'nullable|integer|min:1',
                 'per_page' => 'nullable|integer|min:1|max:100',
+
                 'category_id' => 'nullable|exists:categories,id',
+
                 'search' => 'nullable|string|max:100',
 
                 'restro_type' => 'nullable|in:veg,non-veg',
@@ -215,56 +218,31 @@ class RestaurantController extends BackendController
                 $request->input('search', '')
             );
 
-            $restroType = $request->input('restro_type');
+            $restaurant = $this->restaurantService
+                ->findActiveRestaurant(
+                    (int) $request->restaurant_id
+                );
 
+            if (!$restaurant) {
+
+                return $this->notFoundResponse(
+                    message: 'Restaurant not found.'
+                );
+            }
 
             $headerRestroType = $this->restaurantTypeService
                 ->getHeaderType($request);
 
-
-            $showHideNonVegFilter = in_array(
-                $headerRestroType,
-                ['veg', 'pure_veg'],
-                true
-            );
-
-            $hideNonVeg = $request->boolean(
-                'hide_non_veg'
-            );
-
             $query = MenuItem::query()
-                ->where(
-                    'restaurant_id',
-                    $request->restaurant_id
-                )
-                ->where(
-                    'module_id',
-                    Module::YOUR_CITY
-                )
-                ->where(
-                    'status',
-                    MenuItemStatus::ACTIVE
-                );
+                ->where('restaurant_id', $restaurant->id)
+                ->where('module_id', Module::YOUR_CITY)
+                ->where('status', MenuItemStatus::ACTIVE);
 
-            if (
-                blank($headerRestroType) &&
-                !blank($restroType)
-            ) {
-                $query->where(
-                    'restroType',
-                    $restroType
-                );
-            }
-
-            if (
-                $showHideNonVegFilter &&
-                $hideNonVeg
-            ) {
-                $query->where(
-                    'restroType',
-                    'veg'
-                );
-            }
+            $query = $this->restaurantService->applyMenuFilters(
+                query: $query,
+                request: $request,
+                restaurant: $restaurant
+            );
 
             if ($request->filled('category_id')) {
 
@@ -280,15 +258,15 @@ class RestaurantController extends BackendController
                 );
             }
 
-
             if ($search !== '') {
 
                 $query = $this->applyFuzzyMenuSearch(
                     query: $query,
-                    restaurantId: $request->restaurant_id,
+                    restaurantId: $restaurant->id,
                     search: $search
                 );
             }
+
 
             switch ($request->sort_by) {
 
@@ -326,6 +304,7 @@ class RestaurantController extends BackendController
                     break;
             }
 
+
             $menuItems = $query->paginate($perPage);
 
             $suggestions = [];
@@ -333,10 +312,17 @@ class RestaurantController extends BackendController
             if ($search !== '') {
 
                 $suggestions = $this->getMenuItemSuggestions(
-                    restaurantId: $request->restaurant_id,
+                    restaurantId: $restaurant->id,
                     search: $search
                 );
             }
+
+
+            $filters = $this->restaurantService
+                ->getMenuFilters(
+                    restaurant: $restaurant,
+                    headerRestroType: $headerRestroType
+                );
 
             return $this->successPaginationResponse(
                 message: 'Menu items fetched successfully.',
@@ -344,6 +330,8 @@ class RestaurantController extends BackendController
                 paginator: $menuItems,
 
                 data: [
+                    'filters' => $filters,
+
                     'suggestions' => $suggestions,
 
                     'items' => MenuItemResource::collection(
