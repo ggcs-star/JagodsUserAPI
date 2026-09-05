@@ -26,9 +26,12 @@ class MenuItemService
     {
         return MenuItem::with([
             'categories',
+
             'variations',
             'options',
-            'restaurant',
+
+            'variationGroups.variations',
+            'optionGroups.options',
         ])->find($id);
     }
 
@@ -83,5 +86,4 @@ class MenuItemService
     {
         $menuItem->delete();
     }
-
 }

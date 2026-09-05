@@ -13,6 +13,7 @@ use Shipu\Watchable\Traits\WatchableTrait;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Laravel\Scout\Searchable;
+
 class MenuItem extends BaseModel implements HasMedia
 {
     use HasSlug, WatchableTrait, InteractsWithMedia, Searchable;
@@ -113,7 +114,6 @@ class MenuItem extends BaseModel implements HasMedia
         }
 
         return $retArray;
-
     }
 
     public function MenuItemWithVariation($restaurant_id, $variation_id = 0)
@@ -175,15 +175,38 @@ class MenuItem extends BaseModel implements HasMedia
     {
         return $this->belongsTo(Category::class);
     }
+    public function variationGroups()
+    {
+        return $this->hasMany(
+            MenuItemVariationGroup::class,
+            'menu_item_id'
+        )->where('status', 1)
+            ->orderBy('sort_order');
+    }
+
+    public function optionGroups()
+    {
+        return $this->hasMany(
+            MenuItemOptionGroup::class,
+            'menu_item_id'
+        )->where('status', 1)
+            ->orderBy('sort_order');
+    }
 
     public function variations()
     {
-        return $this->hasMany(MenuItemVariation::class);
+        return $this->hasMany(
+            MenuItemVariation::class,
+            'menu_item_id'
+        );
     }
 
     public function options()
     {
-        return $this->hasMany(MenuItemOption::class);
+        return $this->hasMany(
+            MenuItemOption::class,
+            'menu_item_id'
+        );
     }
 
     public function getStatusNameAttribute()
@@ -218,32 +241,32 @@ class MenuItem extends BaseModel implements HasMedia
     }
 
     public function module()
-{
-    return $this->belongsTo(Module::class);
-}
-
-public function scopeModule($query, $slug)
-{
-    return $query->whereHas('module', function ($q) use ($slug) {
-        $q->where('slug', $slug);
-    });
-}
-
-public function scopeSearch($query, ?string $search)
-{
-    if (blank($search)) {
-        return $query;
+    {
+        return $this->belongsTo(Module::class);
     }
 
-    $search = trim($search);
+    public function scopeModule($query, $slug)
+    {
+        return $query->whereHas('module', function ($q) use ($slug) {
+            $q->where('slug', $slug);
+        });
+    }
 
-    return $query->where(function ($q) use ($search) {
-        $q->where('name', 'LIKE', "%{$search}%")
-            ->orWhere('description', 'LIKE', "%{$search}%")
-            ->orWhereRaw(
-                "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
-                [$search]
-            );
-    });
-}
+    public function scopeSearch($query, ?string $search)
+    {
+        if (blank($search)) {
+            return $query;
+        }
+
+        $search = trim($search);
+
+        return $query->where(function ($q) use ($search) {
+            $q->where('name', 'LIKE', "%{$search}%")
+                ->orWhere('description', 'LIKE', "%{$search}%")
+                ->orWhereRaw(
+                    "MATCH(name, description) AGAINST(? IN BOOLEAN MODE)",
+                    [$search]
+                );
+        });
+    }
 }
