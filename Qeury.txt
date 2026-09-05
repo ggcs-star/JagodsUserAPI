@@ -683,3 +683,18 @@ CREATE INDEX idx_option_group
 ON menu_item_options (option_group_id);
 
 =======================================================================done
+
+ALTER TABLE `order_line_items`
+    ADD COLUMN `menu_item_name` VARCHAR(255) NULL AFTER `menu_item_id`,
+
+    ADD COLUMN `variation_group_id` BIGINT UNSIGNED NULL AFTER `menu_item_variation_id`,
+
+    ADD COLUMN `variation_group_name` VARCHAR(255) NULL AFTER `variation_group_id`,
+
+    ADD COLUMN `variation_name` VARCHAR(255) NULL AFTER `variation_group_name`,
+
+    ADD COLUMN `variation_price` DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER `variation_name`,
+
+    ADD COLUMN `variation_discount_price` DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER `variation_price`,
+
+    ADD COLUMN `final_unit_price` DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER `variation_discount_price`;

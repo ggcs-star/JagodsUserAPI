@@ -40,7 +40,7 @@ class CheckoutServiceNew
                 $data,
                 $userId
             );
-// dd($validated);
+            // dd($validated);
             $orderPricing = $this->calculateOrderPricing(
                 $validated,
                 $data,
@@ -71,7 +71,7 @@ class CheckoutServiceNew
                 $userId,
                 $device
             );
-// dd($order);
+            // dd($order);
             $this->createOrderHistory($order);
 
             if ($orderPricing['coupon_id']) {
@@ -91,184 +91,183 @@ class CheckoutServiceNew
         });
     }
 
-   private function calculateOrderPricing(
-    array $validated,
-    array $data,
-    int $userId
-): array {
+    private function calculateOrderPricing(
+        array $validated,
+        array $data,
+        int $userId
+    ): array {
 
-    $subtotal = (float) $validated['subtotal'];
+        $subtotal = (float) $validated['subtotal'];
 
-    $settings = Setting::pluck('value', 'key');
+        $settings = Setting::pluck('value', 'key');
 
-    $couponId = null;
-    $couponDiscount = 0.0;
-    $coupon = null;
+        $couponId = null;
+        $couponDiscount = 0.0;
+        $coupon = null;
 
-    $packagingCharge = (float) (
-        $settings['packaging_charge'] ?? 0
-    );
+        $packagingCharge = (float) (
+            $settings['packaging_charge'] ?? 0
+        );
 
-    $platformFee = $subtotal > 0
-        ? (float) ($settings['platform_fee'] ?? 0)
-        : 0;
-
-    $moduleId = (int) $data['module_id'];
-
-    $isPickup = (
-        (int) $data['order_type']
-        === OrderTypeStatus::PICKUP
-    );
-
-    $surgeFee = 0;
-
-    if (
-        !$isPickup &&
-        $moduleId === Module::YOUR_CITY
-    ) {
-        $surgeFee = $subtotal > 0
-            ? (float) ($settings['surge_fee'] ?? 0)
+        $platformFee = $subtotal > 0
+            ? (float) ($settings['platform_fee'] ?? 0)
             : 0;
-    }
 
-    $deliveryCharge = $this->calculateDeliveryCharge(
-        $data,
-        $settings,
-        $validated['restaurant'],
-        $validated['address'],
-        $validated['items']
-    );
+        $moduleId = (int) $data['module_id'];
 
-    $tipAmount = (float) (
-        $data['tip_amount'] ?? 0
-    );
+        $isPickup = (
+            (int) $data['order_type']
+            === OrderTypeStatus::PICKUP
+        );
 
-    $productDiscount = (float) (
-        $validated['product_discount'] ?? 0
-    );
-
-    $gstAmount = round(
-        $subtotal * 5 / 100,
-        2
-    );
-
-    $totalBeforeCoupon = round(
-        $subtotal
-        + $gstAmount
-        + $deliveryCharge
-        + $packagingCharge
-        + $platformFee
-        + $surgeFee
-        + $tipAmount,
-        2
-    );
-
-    if (!empty($data['coupon_code'])) {
-
-        $coupon = Coupon::whereRaw(
-            'BINARY slug = ?',
-            [$data['coupon_code']]
-        )
-            ->where('from_date', '<=', now())
-            ->where('to_date', '>=', now())
-            ->where('limit', '>', 0)
-            ->where(function ($query) use ($data) {
-                $query
-                    ->where(
-                        'restaurant_id',
-                        $data['restaurant_id']
-                    )
-                    ->orWhere('restaurant_id', 0);
-            })
-            ->first();
-
-        if (!$coupon) {
-            throw new Exception(
-                'This coupon is invalid or expired.',
-                422
-            );
-        }
+        $surgeFee = 0;
 
         if (
-            $coupon->minimum_order_amount > 0 &&
-            $totalBeforeCoupon < $coupon->minimum_order_amount
+            !$isPickup &&
+            $moduleId === Module::YOUR_CITY
         ) {
-            throw new Exception(
-                'This coupon requires a minimum order amount of ₹' .
-                $coupon->minimum_order_amount,
-                422
-            );
+            $surgeFee = $subtotal > 0
+                ? (float) ($settings['surge_fee'] ?? 0)
+                : 0;
         }
 
-        if (
-            Discount::where('coupon_id', $coupon->id)
+        $deliveryCharge = $this->calculateDeliveryCharge(
+            $data,
+            $settings,
+            $validated['restaurant'],
+            $validated['address'],
+            $validated['items']
+        );
+
+        $tipAmount = (float) (
+            $data['tip_amount'] ?? 0
+        );
+
+        $productDiscount = (float) (
+            $validated['product_discount'] ?? 0
+        );
+
+        $gstAmount = round(
+            $subtotal * 5 / 100,
+            2
+        );
+
+        $totalBeforeCoupon = round(
+            $subtotal
+                + $gstAmount
+                + $deliveryCharge
+                + $packagingCharge
+                + $platformFee
+                + $surgeFee
+                + $tipAmount,
+            2
+        );
+
+        if (!empty($data['coupon_code'])) {
+
+            $coupon = Coupon::whereRaw(
+                'BINARY slug = ?',
+                [$data['coupon_code']]
+            )
+                ->where('from_date', '<=', now())
+                ->where('to_date', '>=', now())
+                ->where('limit', '>', 0)
+                ->where(function ($query) use ($data) {
+                    $query
+                        ->where(
+                            'restaurant_id',
+                            $data['restaurant_id']
+                        )
+                        ->orWhere('restaurant_id', 0);
+                })
+                ->first();
+
+            if (!$coupon) {
+                throw new Exception(
+                    'This coupon is invalid or expired.',
+                    422
+                );
+            }
+
+            if (
+                $coupon->minimum_order_amount > 0 &&
+                $totalBeforeCoupon < $coupon->minimum_order_amount
+            ) {
+                throw new Exception(
+                    'This coupon requires a minimum order amount of ₹' .
+                        $coupon->minimum_order_amount,
+                    422
+                );
+            }
+
+            if (
+                Discount::where('coupon_id', $coupon->id)
                 ->where('status', DiscountStatus::ACTIVE)
                 ->count() >= $coupon->limit
-        ) {
-            throw new Exception(
-                'This coupon is fully redeemed and no longer available.',
-                422
+            ) {
+                throw new Exception(
+                    'This coupon is fully redeemed and no longer available.',
+                    422
+                );
+            }
+
+            $couponId = $coupon->id;
+
+            if ($coupon->discount_type === 'percent') {
+
+                $couponDiscount = (
+                    $totalBeforeCoupon * (float) $coupon->amount
+                ) / 100;
+            } else {
+
+                $couponDiscount = (float) $coupon->amount;
+            }
+
+            $couponDiscount = min(
+                max(0, $couponDiscount),
+                $totalBeforeCoupon
             );
         }
 
-        $couponId = $coupon->id;
-
-        if ($coupon->discount_type === 'percent') {
-
-            $couponDiscount = (
-                $totalBeforeCoupon * (float) $coupon->amount
-            ) / 100;
-
-        } else {
-
-            $couponDiscount = (float) $coupon->amount;
-        }
-
-        $couponDiscount = min(
-            max(0, $couponDiscount),
-            $totalBeforeCoupon
-        );
-    }
-
-    $total = round(
-        max(
-            0,
-            $totalBeforeCoupon - $couponDiscount
-        ),
-        2
-    );
-
-    return [
-        'subtotal' => $subtotal,
-
-        'product_discount' => $productDiscount,
-
-        'coupon_id' => $couponId,
-
-        'discount' => round(
-            $couponDiscount,
+        $total = round(
+            max(
+                0,
+                $totalBeforeCoupon - $couponDiscount
+            ),
             2
-        ),
+        );
 
-        'gst_amount' => $gstAmount,
+        return [
+            'subtotal' => $subtotal,
 
-        'delivery_charge' => $deliveryCharge,
+            'product_discount' => $productDiscount,
 
-        'packaging_charge' => $packagingCharge,
+            'coupon_id' => $couponId,
 
-        'platform_fee' => $platformFee,
+            'discount' => round(
+                $couponDiscount,
+                2
+            ),
 
-        'surge_fee' => $surgeFee,
+            'gst_amount' => $gstAmount,
 
-        'large_order_fee' => 0,
+            'delivery_charge' => $deliveryCharge,
 
-        'tip_amount' => $tipAmount,
+            'packaging_charge' => $packagingCharge,
 
-        'total_before_coupon' => $totalBeforeCoupon,
+            'platform_fee' => $platformFee,
 
-        'total' => $total,
-    ];
-}
+            'surge_fee' => $surgeFee,
+
+            'large_order_fee' => 0,
+
+            'tip_amount' => $tipAmount,
+
+            'total_before_coupon' => $totalBeforeCoupon,
+
+            'total' => $total,
+        ];
+    }
 
     private function calculateDeliveryCharge(
         array $data,
@@ -395,8 +394,8 @@ class CheckoutServiceNew
             ) {
                 throw new Exception(
                     "Sorry! This restaurant does not deliver to your location. " .
-                    "Maximum delivery radius is {$maxDeliveryRadius} km, " .
-                    "but you are {$distance} km away.",
+                        "Maximum delivery radius is {$maxDeliveryRadius} km, " .
+                        "but you are {$distance} km away.",
                     422
                 );
             }
@@ -470,7 +469,7 @@ class CheckoutServiceNew
             'discount' => $pricing['discount'],
             'gst_amount' => $pricing['gst_amount'],
             'delivery_charge' => $pricing['delivery_charge'],
-            'packing_charge' => $pricing['packaging_charge'], 
+            'packing_charge' => $pricing['packaging_charge'],
             'platform_fee' => $pricing['platform_fee'],
             'large_order_fee' => $pricing['large_order_fee'],
             'surge_fee' => $pricing['surge_fee'],
@@ -508,26 +507,118 @@ class CheckoutServiceNew
         ]);
     }
 
-    private function createOrderItems(Order $order, array $validatedItems): void
-    {
+    private function createOrderItems(
+        Order $order,
+        array $validatedItems
+    ): void {
+
         $orderItems = [];
+
         foreach ($validatedItems as $item) {
+
             $orderItems[] = [
-                'order_id' => $order->id,
-                'restaurant_id' => $order->restaurant_id,
-                'menu_item_id' => $item['menu_item_id'],
-                'menu_item_variation_id' => $item['variation_id'],
-                'unit_price' => $item['unit_price'],
-                'discounted_price' => $item['discount_price'],
-                'quantity' => $item['quantity'],
-                'item_total' => $item['item_total'],
-                'options' => json_encode($item['options']),
-                'options_total' => $item['options_total'],
-                'instructions' => $item['instructions'],
-                'created_at' => now(),
-                'updated_at' => now(),
+                'order_id' =>
+                $order->id,
+
+                'restaurant_id' =>
+                $order->restaurant_id,
+
+                /*
+            |--------------------------------------------------------------------------
+            | Menu item snapshot
+            |--------------------------------------------------------------------------
+            */
+                'menu_item_id' =>
+                $item['menu_item_id'],
+
+                'menu_item_name' =>
+                $item['menu_name'],
+
+                /*
+            |--------------------------------------------------------------------------
+            | Base price snapshot
+            |--------------------------------------------------------------------------
+            */
+                'unit_price' =>
+                $item['unit_price'],
+
+                'discounted_price' =>
+                $item['discount_price'],
+
+                /*
+            |--------------------------------------------------------------------------
+            | Variation snapshot
+            |--------------------------------------------------------------------------
+            */
+                'menu_item_variation_id' =>
+                $item['variation_id'],
+
+                'variation_group_id' =>
+                $item['variation_group_id'],
+
+                'variation_group_name' =>
+                $item['variation_group_name'],
+
+                'variation_name' =>
+                $item['variation_name'],
+
+                'variation_price' =>
+                $item['variation_price'],
+
+                'variation_discount_price' =>
+                $item['variation_discount_price'],
+
+                /*
+            |--------------------------------------------------------------------------
+            | Final unit price
+            |--------------------------------------------------------------------------
+            */
+                'final_unit_price' =>
+                $item['final_price'],
+
+                /*
+            |--------------------------------------------------------------------------
+            | Quantity
+            |--------------------------------------------------------------------------
+            */
+                'quantity' =>
+                $item['quantity'],
+
+                /*
+            |--------------------------------------------------------------------------
+            | Options snapshot
+            |--------------------------------------------------------------------------
+            */
+                'options' =>
+                json_encode(
+                    $item['options'],
+                    JSON_UNESCAPED_UNICODE
+                ),
+
+                'options_total' =>
+                $item['options_total'],
+
+                /*
+            |--------------------------------------------------------------------------
+            | Item total
+            |--------------------------------------------------------------------------
+            */
+                'item_total' =>
+                $item['item_total'],
+
+                'instructions' =>
+                $item['instructions'] ?? null,
+
+                'created_at' =>
+                now(),
+
+                'updated_at' =>
+                now(),
             ];
         }
-        OrderLineItem::insert($orderItems);
+
+        OrderLineItem::insert(
+            $orderItems
+        );
     }
 }
