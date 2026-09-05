@@ -8,6 +8,8 @@ class MenuItemVariationResource extends JsonResource
 {
     public function toArray($request)
     {
+        $basePrice = (float) ($this->menuItem?->unit_price ?? 0);
+        $additionalPrice = (float) ($this->price ?? 0);
         return [
             'id' => (int) $this->id,
 
@@ -19,8 +21,9 @@ class MenuItemVariationResource extends JsonResource
 
             'name' => $this->name,
 
-            'price' => (float) $this->price,
+            'price' => $additionalPrice,
 
+            'final_price' => $basePrice + $additionalPrice,
             'discount_price' => (float) (
                 $this->discount_price ?? 0
             ),
