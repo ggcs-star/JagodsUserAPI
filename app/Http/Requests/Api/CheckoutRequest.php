@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use Illuminate\Foundation\Http\FormRequest;
 use App\Enums\PaymentMethod;
 use App\Enums\Module;
+
 class CheckoutRequest extends FormRequest
 {
     public function authorize(): bool
@@ -15,16 +16,16 @@ class CheckoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-             'module_id' => [
+            'module_id' => [
                 'required',
                 'integer',
                 'in:' . Module::YOUR_CITY . ',' . Module::ALL_OVER_INDIA,
             ],
             'restaurant_id' => [
-    'required',
-    'integer',
-    'min:0',
-],
+                'required',
+                'integer',
+                'min:0',
+            ],
             'order_type' => 'required|integer',
             'address_id' => 'nullable|integer|exists:addresses,id',
             'order_instructions' => 'nullable|string|max:500',
@@ -41,11 +42,11 @@ class CheckoutRequest extends FormRequest
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.discount_price' => 'required|numeric|min:0',
             'items.*.final_price' => 'required|numeric|min:0',
-            
+
             'items.*.options' => 'nullable|array',
             'items.*.options.*.id' => 'required|integer|exists:menu_item_options,id',
             'items.*.options.*.price' => 'required|numeric|min:0',
-            
+
             'items.*.instructions' => 'nullable|string|max:500',
         ];
     }

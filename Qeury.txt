@@ -576,7 +576,7 @@ COLLATE utf8mb4_unicode_ci
 NULL
 AFTER updated_at;
 
-=======================================================================done
+
 
 
 CREATE TABLE menu_item_variation_groups (
@@ -681,3 +681,5 @@ ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order;
 
 CREATE INDEX idx_option_group
 ON menu_item_options (option_group_id);
+
+=======================================================================done

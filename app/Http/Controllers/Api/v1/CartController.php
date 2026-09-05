@@ -11,6 +11,7 @@ use App\Http\Services\CartService;
 use Illuminate\Http\Request;
 use App\Http\Resources\v1\CartResource;
 use Illuminate\Validation\ValidationException;
+
 class CartController extends BackendController
 {
     use ApiResponse;
@@ -42,13 +43,12 @@ class CartController extends BackendController
                 message: 'Cart fetched successfully.',
                 data: new CartResource($cart)
             );
-
         } catch (\Throwable $e) {
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Internal Server Error'
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
             );
         }
     }
@@ -66,7 +66,6 @@ class CartController extends BackendController
                 message: 'Item added to cart successfully.',
                 data: new CartResource($cart)
             );
-
         } catch (\Throwable $e) {
 
             // Module mismatch exception
@@ -111,7 +110,6 @@ class CartController extends BackendController
                 message: 'Cart updated successfully.',
                 data: new CartResource($cart)
             );
-
         } catch (\Throwable $e) {
 
             return $this->errorResponse(
@@ -129,13 +127,12 @@ class CartController extends BackendController
             return $this->deletedResponse(
                 message: 'Cart cleared successfully.'
             );
-
         } catch (\Throwable $e) {
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Internal Server Error'
+                    ? $e->getMessage()
+                    : 'Internal Server Error'
             );
         }
     }
@@ -155,13 +152,11 @@ class CartController extends BackendController
             return $this->deletedResponse(
                 message: 'Item removed successfully.'
             );
-
         } catch (ValidationException $e) {
 
             return $this->notFoundResponse(
                 'Cart item not found.'
             );
-
         } catch (\Throwable $e) {
 
             return $this->errorResponse(
@@ -184,7 +179,6 @@ class CartController extends BackendController
                 message: $data['message'] ?? 'Quantity updated successfully.',
                 data: $data
             );
-
         } catch (\Throwable $e) {
 
             return $this->errorResponse(
@@ -208,7 +202,6 @@ class CartController extends BackendController
                 message: 'Coupon applied successfully.',
                 data: $data
             );
-
         } catch (\Throwable $e) {
 
             $statusCode = (int) $e->getCode();

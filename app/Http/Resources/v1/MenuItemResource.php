@@ -20,9 +20,9 @@ class MenuItemResource extends JsonResource
 
             'menu_number' => $this->menu_number,
 
-            'unit_price' => (float) $this->unit_price,
+            'unit_price' => (string) $this->unit_price,
 
-            'discount_price' => (float) $this->discount_price,
+            'discount_price' => (string) $this->discount_price,
 
             'final_price' => max(
                 0,

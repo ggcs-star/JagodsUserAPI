@@ -23,42 +23,39 @@ class ApplyCouponRequest extends FormRequest
 
             'restaurant_id' => [
                 'required',
-                'integer',
-    
+                'integer'
             ],
-         'total' => [
+
+            'total' => [
                 'required',
                 'numeric',
                 'min:0',
             ],
+
             'items' => [
                 'required',
                 'array',
                 'min:1',
             ],
 
-          
             'items.*.menu_item_id' => [
                 'required',
                 'integer',
                 'exists:menu_items,id',
             ],
 
-           
             'items.*.variation_id' => [
                 'nullable',
                 'integer',
                 'exists:menu_item_variations,id',
             ],
 
-           
             'items.*.quantity' => [
                 'required',
                 'integer',
                 'min:1',
             ],
 
-         
             'items.*.options' => [
                 'nullable',
                 'array',
@@ -66,6 +63,7 @@ class ApplyCouponRequest extends FormRequest
 
             'items.*.options.*' => [
                 'integer',
+                'distinct',
                 'exists:menu_item_options,id',
             ],
         ];
@@ -76,43 +74,49 @@ class ApplyCouponRequest extends FormRequest
         return [
 
             'coupon.required' =>
-                'Coupon code is required.',
+            'Coupon code is required.',
 
             'restaurant_id.required' =>
-                'Restaurant is required.',
+            'Restaurant is required.',
 
             'restaurant_id.exists' =>
-                'Restaurant not found.',
+            'Restaurant not found.',
+
+            'total.required' =>
+            'Total amount is required.',
 
             'items.required' =>
-                'Cart items are required.',
+            'Cart items are required.',
 
             'items.array' =>
-                'Items must be an array.',
+            'Items must be an array.',
 
             'items.min' =>
-                'At least one item is required.',
+            'At least one item is required.',
 
             'items.*.menu_item_id.required' =>
-                'Menu item is required.',
+            'Menu item is required.',
 
             'items.*.menu_item_id.exists' =>
-                'Menu item not found.',
+            'Menu item not found.',
 
             'items.*.variation_id.exists' =>
-                'Variation not found.',
+            'Variation not found.',
 
             'items.*.quantity.required' =>
-                'Quantity is required.',
+            'Quantity is required.',
 
             'items.*.quantity.min' =>
-                'Quantity must be at least 1.',
+            'Quantity must be at least 1.',
 
             'items.*.options.array' =>
-                'Options must be an array.',
+            'Options must be an array.',
+
+            'items.*.options.*.distinct' =>
+            'Duplicate option is not allowed.',
 
             'items.*.options.*.exists' =>
-                'Selected option not found.',
+            'Selected option not found.',
         ];
     }
 }

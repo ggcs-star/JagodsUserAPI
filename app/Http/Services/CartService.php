@@ -19,6 +19,7 @@ use App\Models\Address;
 use App\Enums\Module;
 use Illuminate\Support\Facades\DB;
 use App\Enums\MenuItemStatus;
+
 class CartService
 {
     public function getCart($userId)
@@ -149,7 +150,6 @@ class CartService
                 'is_available' => true,
                 'is_price_changed' => false,
             ]);
-
         } else {
             CartItem::create([
                 'cart_id' => $cart->id,
@@ -315,194 +315,7 @@ class CartService
         ];
     }
 
-    public function applyCoupon(array $data, $userId)
-{
-    // dd($data);
-    $today = now();
 
-    $coupon = Coupon::whereRaw(
-        'BINARY slug = ?',
-        [$data['coupon']]
-    )
-        ->where('from_date', '<=', $today)
-        ->where('to_date', '>=', $today)
-        ->where('limit', '>', 0)
-        ->where(function ($query) use ($data) {
-            $query
-                ->where(
-                    'restaurant_id',
-                    $data['restaurant_id']
-                )
-                ->orWhere('restaurant_id', 0);
-        })
-        ->first();
-
-    if (!$coupon) {
-        throw new Exception(
-            'This Coupon is Invalid or Expired',
-            422
-        );
-    }
-
-    if (
-        $coupon->restaurant_id != 0 &&
-        (int) $coupon->restaurant_id !== (int) $data['restaurant_id']
-    ) {
-        throw new Exception(
-            'This Coupon is Invalid for this restaurant.',
-            422
-        );
-    }
-
-    $subtotal = 0;
-
-    foreach ($data['items'] as $itemData) {
-
-        $menuItem = MenuItem::find(
-            $itemData['menu_item_id']
-        );
-
-        if (!$menuItem) {
-            throw new Exception(
-                'Menu item not found.',
-                422
-            );
-        }
-
-        if ($menuItem->status != MenuItemStatus::ACTIVE) {
-            throw new Exception(
-                "{$menuItem->name} is currently unavailable.",
-                422
-            );
-        }
-
-        if (
-            $coupon->restaurant_id != 0 &&
-            (int) $coupon->restaurant_id !==
-            (int) $data['restaurant_id']
-        ) {
-            throw new Exception(
-                "{$menuItem->name} does not belong to the selected restaurant.",
-                422
-            );
-        }
-
-        $quantity = (int) $itemData['quantity'];
-
-        if ($quantity > $menuItem->max_cart_quantity) {
-            throw new Exception(
-                "Maximum allowed quantity for {$menuItem->name} is {$menuItem->max_cart_quantity}.",
-                422
-            );
-        }
-
-        $priceDetails = $this->calculateItemPrice(
-            $menuItem,
-            $itemData['variation_id'] ?? null,
-            $itemData['options'] ?? []
-        );
-
-        $subtotal +=
-            $priceDetails['final_price'] * $quantity;
-    }
-
-    $subtotal = round($subtotal, 2);
-
-    $total = round(
-        (float) ($data['total'] ?? 0),
-        2
-    );
-
-    if (
-        $coupon->minimum_order_amount > 0 &&
-        $total < $coupon->minimum_order_amount
-    ) {
-        throw new Exception(
-            'This coupon requires a minimum order amount of ₹' .
-            $coupon->minimum_order_amount,
-            422
-        );
-    }
-
-
-    $totalUsed = Discount::where(
-        'coupon_id',
-        $coupon->id
-    )
-        ->where(
-            'status',
-            DiscountStatus::ACTIVE
-        )
-        ->count();
-
-    if ($totalUsed >= $coupon->limit) {
-        throw new Exception(
-            'This Coupon is fully redeemed and no longer available.',
-            422
-        );
-    }
-
-    $userUsedCount = Discount::where(
-        'coupon_id',
-        $coupon->id
-    )
-        ->where(
-            'user_id',
-            $userId
-        )
-        ->where(
-            'status',
-            DiscountStatus::ACTIVE
-        )
-        ->count();
-
-    $userLimit = $coupon->user_limit > 0
-        ? $coupon->user_limit
-        : 1;
-
-   
-
-    if ($coupon->discount_type === 'percent') {
-
-        $discount = (
-            $total * (float) $coupon->amount
-        ) / 100;
-
-    } else {
-
-        $discount = (float) $coupon->amount;
-    }
-
-    $discount = min(
-        max(0, $discount),
-        $total
-    );
-
-    $afterCoupon = round(
-        $total - $discount,
-        2
-    );
-
-    return [
-        'coupon' => [
-            'id' => $coupon->id,
-            'code' => $coupon->slug,
-            'discount_type' => $coupon->discount_type,
-            'amount' => (float) $coupon->amount,
-            'minimum_order_amount' => (float) $coupon->minimum_order_amount,
-        ],
-
-        'pricing' => [
-            'subtotal' => $subtotal,
-            'total' => $total,
-            'coupon_discount' => round(
-                $discount,
-                2
-            ),
-            'after_coupon' => $afterCoupon,
-        ],
-    ];
-}
 
     private function getCartOrFail($userId)
     {
@@ -540,52 +353,7 @@ class CartService
     }
 
     // ✅ Step 1: Updated logic
-    private function calculateItemPrice($menuItem, $variationId, $optionIds)
-    {
-        $unitPrice = (float) $menuItem->unit_price;
-        $productDiscount = (float) $menuItem->discount_price;
 
-        $finalPrice = max(0, $unitPrice - $productDiscount);
-
-        $finalVariationId = null;
-        $variationName = null;
-
-        if ($variationId) {
-            $variation = MenuItemVariation::find($variationId);
-
-            if (!$variation) {
-                throw new Exception('Variation not found', 404);
-            }
-
-            $finalVariationId = $variation->id;
-            $variationName = $variation->name;
-
-            $finalPrice += $variation->price;
-        }
-
-        $optionArray = [];
-
-        if (!empty($optionIds)) {
-            $options = MenuItemOption::whereIn('id', $optionIds)->get();
-            foreach ($options as $option) {
-                $optionArray[] = [
-                    'id' => $option->id,
-                    'name' => $option->name,
-                    'price' => $option->price
-                ];
-                $finalPrice += $option->price;
-            }
-        }
-
-        return [
-            'unit_price' => $unitPrice,
-            'discount_price' => $productDiscount,
-            'final_price' => $finalPrice,
-            'variation_id' => $finalVariationId,
-            'variation_name' => $variationName,
-            'options' => $optionArray,
-        ];
-    }
 
     public function updateCartTotals(Cart $cart)
     {
@@ -829,5 +597,250 @@ class CartService
         }
 
         return true;
+    }
+
+    public function applyCoupon(array $data, $userId)
+    {
+        $today = now();
+
+        $coupon = Coupon::whereRaw(
+            'BINARY slug = ?',
+            [$data['coupon']]
+        )
+            ->where('from_date', '<=', $today)
+            ->where('to_date', '>=', $today)
+            ->where('limit', '>', 0)
+            ->where(function ($query) use ($data) {
+                $query
+                    ->where(
+                        'restaurant_id',
+                        $data['restaurant_id']
+                    )
+                    ->orWhere('restaurant_id', 0);
+            })
+            ->first();
+
+        if (!$coupon) {
+            throw new Exception(
+                'This Coupon is Invalid or Expired',
+                422
+            );
+        }
+
+        if (
+            $coupon->restaurant_id != 0 &&
+            (int) $coupon->restaurant_id !==
+            (int) $data['restaurant_id']
+        ) {
+            throw new Exception(
+                'This Coupon is Invalid for this restaurant.',
+                422
+            );
+        }
+
+        $subtotal = 0;
+
+        foreach ($data['items'] as $itemData) {
+
+            $menuItem = MenuItem::query()
+                ->where('id', $itemData['menu_item_id'])
+                
+                ->first();
+// dd($menuItem);
+            if ((int) $menuItem->status !== MenuItemStatus::ACTIVE) {
+                throw new Exception(
+                    "{$menuItem->name} is currently unavailable.",
+                    422
+                );
+            }
+
+            $quantity = (int) $itemData['quantity'];
+
+            if (
+                $menuItem->max_cart_quantity > 0 &&
+                $quantity > $menuItem->max_cart_quantity
+            ) {
+                throw new Exception(
+                    "Maximum allowed quantity for {$menuItem->name} is {$menuItem->max_cart_quantity}.",
+                    422
+                );
+            }
+
+            $priceDetails = $this->calculateItemPrice(
+                $menuItem,
+                $itemData['variation_id'] ?? null,
+                $itemData['options'] ?? []
+            );
+
+            $subtotal +=
+                $priceDetails['final_price'] * $quantity;
+        }
+
+        $subtotal = round($subtotal, 2);
+
+        $total = round(
+            (float) ($data['total'] ?? 0),
+            2
+        );
+
+        if (
+            $coupon->minimum_order_amount > 0 &&
+            $total < $coupon->minimum_order_amount
+        ) {
+            throw new Exception(
+                'This coupon requires a minimum order amount of ₹' .
+                    $coupon->minimum_order_amount,
+                422
+            );
+        }
+
+        $totalUsed = Discount::where(
+            'coupon_id',
+            $coupon->id
+        )
+            ->where(
+                'status',
+                DiscountStatus::ACTIVE
+            )
+            ->count();
+
+        if ($totalUsed >= $coupon->limit) {
+            throw new Exception(
+                'This Coupon is fully redeemed and no longer available.',
+                422
+            );
+        }
+
+        $userUsedCount = Discount::where(
+            'coupon_id',
+            $coupon->id
+        )
+            ->where(
+                'user_id',
+                $userId
+            )
+            ->where(
+                'status',
+                DiscountStatus::ACTIVE
+            )
+            ->count();
+
+        $userLimit = $coupon->user_limit > 0
+            ? $coupon->user_limit
+            : 1;
+
+        if ($userUsedCount >= $userLimit) {
+            throw new Exception(
+                'You have already used this coupon maximum allowed times.',
+                422
+            );
+        }
+
+        if ($coupon->discount_type === 'percent') {
+
+            $discount = (
+                $total * (float) $coupon->amount
+            ) / 100;
+        } else {
+
+            $discount = (float) $coupon->amount;
+        }
+
+        $discount = min(
+            max(0, $discount),
+            $total
+        );
+
+        $afterCoupon = round(
+            $total - $discount,
+            2
+        );
+
+        return [
+            'coupon' => [
+                'id' => $coupon->id,
+                'code' => $coupon->slug,
+                'discount_type' => $coupon->discount_type,
+                'amount' => (float) $coupon->amount,
+                'minimum_order_amount' => (float) $coupon->minimum_order_amount,
+            ],
+
+            'pricing' => [
+                'subtotal' => $subtotal,
+                'total' => $total,
+                'coupon_discount' => round(
+                    $discount,
+                    2
+                ),
+                'after_coupon' => $afterCoupon,
+            ],
+        ];
+    }
+
+    private function calculateItemPrice(
+        $menuItem,
+        $variationId,
+        $optionIds
+    ) {
+        $unitPrice = (float) $menuItem->unit_price;
+
+        $productDiscount = (float) $menuItem->discount_price;
+
+        $finalPrice = max(
+            0,
+            $unitPrice - $productDiscount
+        );
+
+        $finalVariationId = null;
+
+        $variationName = null;
+
+        if ($variationId) {
+
+            $variation = MenuItemVariation::find($variationId);
+
+            if (!$variation) {
+                throw new Exception(
+                    'Variation not found',
+                    404
+                );
+            }
+
+            $finalVariationId = $variation->id;
+
+            $variationName = $variation->name;
+
+            $finalPrice += (float) $variation->price;
+        }
+
+        $optionArray = [];
+
+        if (!empty($optionIds)) {
+
+            $options = MenuItemOption::whereIn(
+                'id',
+                $optionIds
+            )->get();
+
+            foreach ($options as $option) {
+
+                $optionArray[] = [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'price' => (float) $option->price,
+                ];
+
+                $finalPrice += (float) $option->price;
+            }
+        }
+
+        return [
+            'unit_price' => $unitPrice,
+            'discount_price' => $productDiscount,
+            'final_price' => round($finalPrice, 2),
+            'variation_id' => $finalVariationId,
+            'variation_name' => $variationName,
+            'options' => $optionArray,
+        ];
     }
 }
