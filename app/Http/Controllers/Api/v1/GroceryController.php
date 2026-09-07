@@ -19,6 +19,7 @@ use App\Enums\MenuItemStatus;
 use App\Http\Resources\v1\GroceryCategoryDetailResource;
 use App\Http\Resources\v1\MenuItemResource;
 use App\Http\Resources\v1\GrocerySubCategoryResource;
+
 class GroceryController extends BackendController
 {
     use ApiResponse;
@@ -41,7 +42,6 @@ class GroceryController extends BackendController
                 paginator: $groups,
                 data: GroceryCategoryGroupResource::collection($groups->items())
             );
-
         } catch (Throwable $e) {
 
             Log::error('Grocery Category API', [
@@ -52,8 +52,8 @@ class GroceryController extends BackendController
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Something went wrong while fetching category groups.'
+                    ? $e->getMessage()
+                    : 'Something went wrong while fetching category groups.'
             );
         }
     }
@@ -63,28 +63,57 @@ class GroceryController extends BackendController
         try {
 
             $request->validate([
-                'per_page' => 'nullable|integer|min:1|max:50',
+                'module_id' => [
+                    'required',
+                    'integer',
+                    'exists:modules,id',
+                ],
+
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:50',
+                ],
             ]);
 
-            $perPage = (int) $request->get('per_page', 10);
+            $moduleId = (int) $request->input('module_id');
+
+            $perPage = (int) $request->get(
+                'per_page',
+                10
+            );
 
             $categories = Category::select(
                 'id',
                 'category_group_id',
                 'name',
-                'slug'
+                'slug',
+                'display_module_id'
             )
                 ->with('categoryGroup:id,name')
-                ->where('module_id', Module::ALL_OVER_INDIA)
+                ->whereJsonContains(
+                    'display_module_id',
+                    $moduleId
+                )
                 ->whereNull('parent_id')
-                ->where('status', CategoryStatus::ACTIVE)
+                ->where(
+                    'status',
+                    CategoryStatus::ACTIVE
+                )
                 ->orderBy('name')
                 ->paginate($perPage);
 
             foreach ($categories as $category) {
 
-                $categoryIds = Category::where('id', $category->id)
-                    ->orWhere('parent_id', $category->id)
+                $categoryIds = Category::where(
+                    'id',
+                    $category->id
+                )
+                    ->orWhere(
+                        'parent_id',
+                        $category->id
+                    )
                     ->pluck('id');
 
                 $category->items = MenuItem::with([
@@ -93,11 +122,23 @@ class GroceryController extends BackendController
                     'variations',
                     'options',
                 ])
-                    ->whereHas('categories', function ($q) use ($categoryIds) {
-                        $q->whereIn('categories.id', $categoryIds);
-                    })
-                    ->where('module_id', Module::ALL_OVER_INDIA)
-                    ->where('status', MenuItemStatus::ACTIVE)
+                    ->whereHas(
+                        'categories',
+                        function ($q) use ($categoryIds) {
+                            $q->whereIn(
+                                'categories.id',
+                                $categoryIds
+                            );
+                        }
+                    )
+                    ->where(
+                        'module_id',
+                        Module::ALL_OVER_INDIA
+                    )
+                    ->where(
+                        'status',
+                        MenuItemStatus::ACTIVE
+                    )
                     ->limit(10)
                     ->get();
             }
@@ -105,9 +146,10 @@ class GroceryController extends BackendController
             return $this->successPaginationResponse(
                 message: 'Main categories fetched successfully.',
                 paginator: $categories,
-                data: GroceryCategoryResource::collection($categories->items())
+                data: GroceryCategoryResource::collection(
+                    $categories->items()
+                )
             );
-
         } catch (Throwable $e) {
 
             Log::error('Main Category API', [
@@ -118,8 +160,8 @@ class GroceryController extends BackendController
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Something went wrong while fetching categories.'
+                    ? $e->getMessage()
+                    : 'Something went wrong while fetching categories.'
             );
         }
     }
@@ -170,7 +212,6 @@ class GroceryController extends BackendController
                 message: 'Main categories fetched successfully.',
                 data: GroceryCategoryResource::collection($categories)
             );
-
         } catch (Throwable $e) {
 
             Log::error('Main Category API', [
@@ -181,8 +222,8 @@ class GroceryController extends BackendController
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Something went wrong while fetching categories.'
+                    ? $e->getMessage()
+                    : 'Something went wrong while fetching categories.'
             );
         }
     }
@@ -272,11 +313,9 @@ class GroceryController extends BackendController
                     'items' => MenuItemResource::collection($items->items()),
                 ]
             );
-
         } catch (\Illuminate\Validation\ValidationException $e) {
 
             return $this->validationResponse($e->errors());
-
         } catch (\Throwable $e) {
 
             Log::error('Category Details API', [
@@ -287,8 +326,8 @@ class GroceryController extends BackendController
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Something went wrong.'
+                    ? $e->getMessage()
+                    : 'Something went wrong.'
             );
         }
     }
@@ -380,11 +419,9 @@ class GroceryController extends BackendController
                     'items' => MenuItemResource::collection($items->items()),
                 ]
             );
-
         } catch (\Illuminate\Validation\ValidationException $e) {
 
             return $this->validationResponse($e->errors());
-
         } catch (Throwable $e) {
 
             Log::error('Sub Category API', [
@@ -395,8 +432,8 @@ class GroceryController extends BackendController
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
-                ? $e->getMessage()
-                : 'Something went wrong.'
+                    ? $e->getMessage()
+                    : 'Something went wrong.'
             );
         }
     }

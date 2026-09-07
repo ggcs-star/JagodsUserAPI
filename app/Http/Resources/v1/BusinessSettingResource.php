@@ -23,6 +23,8 @@ class BusinessSettingResource extends JsonResource
             'gst' => 5,
             'all_over_india_support_phone' => $this['support_phone'] ?? '',
             'your_city_support_phone' => $this['support_phone'] ?? '',
+            'your_city_delivery_time' => "Delivery in 25–30 Minutes",
+            'all_over_india_delivery_time' => "Delivery in 7 Days",
         ];
     }
 }

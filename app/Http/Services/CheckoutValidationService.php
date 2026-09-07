@@ -162,28 +162,9 @@ class CheckoutValidationService
 
             $frontendOptions = $item['options'] ?? [];
 
-            /*
-            |--------------------------------------------------------------------------
-            | Optional: maximum 2 options
-            |--------------------------------------------------------------------------
-            | Screenshot me "Select up to 2 options" hai.
-            | Isko enforce karna ho to ye validation rakho.
-            */
-            if (count($frontendOptions) > 2) {
-                throw new Exception(
-                    "You can select maximum 2 options for {$menuItem->name}.",
-                    422
-                );
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Duplicate options check
-            |--------------------------------------------------------------------------
-            */
             $optionIds = collect($frontendOptions)
                 ->pluck('id')
-                ->map(fn ($id) => (int) $id)
+                ->map(fn($id) => (int) $id)
                 ->values();
 
             if ($optionIds->count() !== $optionIds->unique()->count()) {
@@ -193,26 +174,15 @@ class CheckoutValidationService
                 );
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Calculate live backend prices
-            |--------------------------------------------------------------------------
-            */
             $priceData = $this->calculateLivePrice(
                 $menuItem,
                 $item['variation_id'] ?? null,
+                isset($item['variation_price']) ? (float) $item['variation_price'] : null,
                 $frontendOptions,
                 $cartUpdates,
                 $index
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            | Compare only BASE ITEM price
-            |--------------------------------------------------------------------------
-            | frontend final_price = base item final price
-            | options/variation alag se calculate honge.
-            */
             $this->comparePrice(
                 $menuItem,
                 $item,
@@ -221,11 +191,6 @@ class CheckoutValidationService
                 $index
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            | Final item unit price
-            |--------------------------------------------------------------------------
-            */
             $itemTotal = round(
                 $priceData['final_price'] * $quantity,
                 2
@@ -233,63 +198,57 @@ class CheckoutValidationService
 
             $subtotal += $itemTotal;
 
-            /*
-            |--------------------------------------------------------------------------
-            | Product discount = only base item discount
-            |--------------------------------------------------------------------------
-            */
             $totalProductDiscount +=
                 $priceData['discount_price'] * $quantity;
 
             $validatedItems[] = array_merge(
                 $item,
                 [
-                    'menu_name' => $menuItem->name,
+                    'menu_name' =>
+                    $menuItem->name,
 
                     'variation_id' =>
-                        $priceData['variation_id'],
+                    $priceData['variation_id'],
+
+                    'variation_group_id' =>
+                    $priceData['variation_group_id'],
+
+                    'variation_group_name' =>
+                    $priceData['variation_group_name'],
 
                     'variation_name' =>
-                        $priceData['variation_name'],
-
-                    'item_total' =>
-                        $itemTotal,
-
-                    'options_total' =>
-                        $priceData['options_total'],
-
-                    'unit_price' =>
-                        $priceData['unit_price'],
-
-                    'discount_price' =>
-                        $priceData['discount_price'],
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | IMPORTANT:
-                    | final_price = BASE + VARIATION + OPTIONS
-                    |--------------------------------------------------------------------------
-                    */
-                    'final_price' =>
-                        $priceData['final_price'],
-
-                    'base_final_price' =>
-                        $priceData['base_final_price'],
+                    $priceData['variation_name'],
 
                     'variation_price' =>
-                        $priceData['variation_price'],
+                    $priceData['variation_price'],
+
+                    'variation_discount_price' =>
+                    $priceData['variation_discount_price'],
+
+                    'item_total' =>
+                    $itemTotal,
+
+                    'options_total' =>
+                    $priceData['options_total'],
+
+                    'unit_price' =>
+                    $priceData['unit_price'],
+
+                    'discount_price' =>
+                    $priceData['discount_price'],
+
+                    'final_price' =>
+                    $priceData['final_price'],
+
+                    'base_final_price' =>
+                    $priceData['base_final_price'],
 
                     'options' =>
-                        $priceData['options'],
+                    $priceData['options'],
                 ]
             );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Cart price changed
-        |--------------------------------------------------------------------------
-        */
         if (!empty($cartUpdates)) {
 
             throw new Exception(
@@ -312,16 +271,12 @@ class CheckoutValidationService
     private function calculateLivePrice(
         MenuItem $menuItem,
         ?int $variationId,
+        ?float $frontendVariationPrice,
         array $frontendOptions,
         array &$cartUpdates,
         int $index
     ): array {
 
-        /*
-        |--------------------------------------------------------------------------
-        | Base item price
-        |--------------------------------------------------------------------------
-        */
         $unitPrice = (float) $menuItem->unit_price;
 
         $discountPrice = (float) $menuItem->discount_price;
@@ -331,149 +286,498 @@ class CheckoutValidationService
             $unitPrice - $discountPrice
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Variation
-        |--------------------------------------------------------------------------
-        */
         $variationIdFinal = null;
+        $variationGroupId = null;
+        $variationGroupName = null;
         $variationName = null;
         $variationPrice = 0;
+        $variationDiscountPrice = 0;
 
-        if ($variationId) {
+        $variationGroups = $menuItem->variationGroups()
+            ->with([
+                'variations' => function ($query) {
+                    $query
+                        ->where('status', 1)
+                        ->orderBy('sort_order');
+                }
+            ])
+            ->where('show_online', 1)
+            ->orderBy('sort_order')
+            ->get();
 
-            $variation = MenuItemVariation::where('id', $variationId)
-                ->where('menu_item_id', $menuItem->id)
-                ->first();
+        foreach ($variationGroups as $group) {
 
-            if (!$variation) {
-                throw new Exception(
-                    "{$menuItem->name}: selected variation is invalid.",
-                    422
-                );
+            $selectedVariation = null;
+
+            if ($variationId !== null) {
+                $selectedVariation = $group->variations
+                    ->firstWhere('id', $variationId);
             }
-
-            $variationIdFinal = $variation->id;
-            $variationName = $variation->name;
-            $variationPrice = (float) $variation->price;
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Options / Add-ons
-        |--------------------------------------------------------------------------
-        */
-        $options = [];
-        $optionsTotal = 0;
-
-        foreach ($frontendOptions as $optionData) {
-
-            if (!isset($optionData['id'])) {
-                throw new Exception(
-                    "Invalid option selected for {$menuItem->name}.",
-                    422
-                );
-            }
-
-            $option = MenuItemOption::where(
-                    'id',
-                    (int) $optionData['id']
-                )
-                ->where(
-                    'menu_item_id',
-                    $menuItem->id
-                )
-                ->first();
-
-            if (!$option) {
-                throw new Exception(
-                    "Selected option is not valid for {$menuItem->name}.",
-                    422
-                );
-            }
-
-            $optionPrice = (float) $option->price;
-
-            /*
-            |--------------------------------------------------------------------------
-            | Frontend option price compare
-            |--------------------------------------------------------------------------
-            */
-            $frontendOptionPrice =
-                isset($optionData['price'])
-                    ? (float) $optionData['price']
-                    : $optionPrice;
 
             if (
-                abs(
-                    $frontendOptionPrice - $optionPrice
-                ) > 0.01
+                $group->is_required &&
+                !$selectedVariation
             ) {
+                throw new Exception(
+                    "{$group->online_display_name} is required.",
+                    422
+                );
+            }
 
-                if (!isset($cartUpdates[$index])) {
-                    $this->initCartUpdate(
-                        $cartUpdates,
-                        $index,
-                        $menuItem
+            if ($selectedVariation) {
+
+                if ($group->selection_type !== 'single') {
+                    throw new Exception(
+                        "{$group->online_display_name} has invalid selection configuration.",
+                        422
                     );
                 }
 
-                $cartUpdates[$index]['option_changes'][] = [
-                    'option_id' => $option->id,
-                    'name' => $option->name,
-                    'old_price' => $frontendOptionPrice,
-                    'new_price' => $optionPrice,
+                $variationIdFinal =
+                    (int) $selectedVariation->id;
+
+                $variationGroupId =
+                    (int) $group->id;
+
+                $variationGroupName =
+                    $group->online_display_name
+                    ?: $group->name;
+
+                $variationName =
+                    $selectedVariation->name;
+
+                $variationPrice =
+                    (float) $selectedVariation->price;
+
+                $variationDiscountPrice =
+                    (float) $selectedVariation->discount_price;
+
+                if (
+                    $frontendVariationPrice !== null &&
+                    abs($frontendVariationPrice - $variationPrice) > 0.01
+                ) {
+
+                    if (!isset($cartUpdates[$index])) {
+                        $this->initCartUpdate(
+                            $cartUpdates,
+                            $index,
+                            $menuItem
+                        );
+                    }
+
+                    $cartUpdates[$index]['variation_changes'][] = [
+                        'variation_group_id' =>
+                        $group->id,
+
+                        'variation_group_name' =>
+                        $group->online_display_name ?: $group->name,
+
+                        'variation_id' =>
+                        $selectedVariation->id,
+
+                        'variation_name' =>
+                        $selectedVariation->name,
+
+                        'old_price' =>
+                        $frontendVariationPrice,
+
+                        'new_price' =>
+                        $variationPrice,
+                    ];
+                }
+            }
+        }
+
+        if (
+            $variationId !== null &&
+            $variationIdFinal === null
+        ) {
+            throw new Exception(
+                "{$menuItem->name}: selected variation is invalid.",
+                422
+            );
+        }
+
+        $variationFinalPrice = max(
+            0,
+            $variationPrice - $variationDiscountPrice
+        );
+
+        $options = [];
+
+        $optionsTotal = 0;
+
+        $optionGroups = $menuItem->optionGroups()
+            ->with([
+                'options' => function ($query) {
+                    $query
+                        ->where('status', 1)
+                        ->orderBy('sort_order');
+                }
+            ])
+            ->where('show_online', 1)
+            ->orderBy('sort_order')
+            ->get();
+
+        $frontendOptions = collect($frontendOptions)
+            ->map(function ($option) {
+
+                return [
+                    'id' => (int) $option['id'],
+
+                    'price' => isset($option['price'])
+                        ? (float) $option['price']
+                        : null,
+
+                    'quantity' => isset($option['quantity'])
+                        ? (int) $option['quantity']
+                        : 1,
                 ];
+            })
+            ->values();
+
+        $optionIds = $frontendOptions->pluck('id');
+
+        if (
+            $optionIds->count() !==
+            $optionIds->unique()->count()
+        ) {
+            throw new Exception(
+                "Duplicate options selected for {$menuItem->name}.",
+                422
+            );
+        }
+
+        foreach ($optionGroups as $group) {
+
+            $groupOptionIds = $group->options
+                ->pluck('id')
+                ->map(fn($id) => (int) $id);
+
+            $selectedOptions = $frontendOptions
+                ->whereIn('id', $groupOptionIds)
+                ->values();
+
+            $selectedCount = $selectedOptions->count();
+
+            if (
+                $group->is_required &&
+                $selectedCount < $group->min_selection
+            ) {
+                throw new Exception(
+                    "{$group->online_display_name} requires at least {$group->min_selection} selection(s).",
+                    422
+                );
             }
 
-            $options[] = [
-                'id' => $option->id,
-                'name' => $option->name,
-                'price' => $optionPrice,
-            ];
+            if (
+                $group->max_selection > 0 &&
+                $selectedCount > $group->max_selection
+            ) {
+                throw new Exception(
+                    "{$group->online_display_name} allows maximum {$group->max_selection} selection(s).",
+                    422
+                );
+            }
 
-            $optionsTotal += $optionPrice;
+            if (
+                $group->selection_type === 'single' &&
+                $selectedCount > 1
+            ) {
+                throw new Exception(
+                    "{$group->online_display_name} allows only one selection.",
+                    422
+                );
+            }
+
+            foreach ($selectedOptions as $frontendOption) {
+
+                $option = $group->options->firstWhere(
+                    'id',
+                    $frontendOption['id']
+                );
+
+                if (!$option) {
+                    throw new Exception(
+                        "Selected option is invalid for {$menuItem->name}.",
+                        422
+                    );
+                }
+
+                $optionPrice = (float) $option->price;
+
+                $optionQuantity =
+                    (int) ($frontendOption['quantity'] ?? 1);
+
+                if ($optionQuantity < 1) {
+                    throw new Exception(
+                        "Invalid quantity for {$option->name}.",
+                        422
+                    );
+                }
+
+                /*
+            | Open quantity disabled
+            */
+                if (
+                    !$group->allow_open_quantity &&
+                    $optionQuantity !== 1
+                ) {
+                    throw new Exception(
+                        "{$option->name} allows only one quantity.",
+                        422
+                    );
+                }
+
+                /*
+            | Maximum quantity per selected option
+            */
+                if (
+                    $group->max_selection_per_item > 0 &&
+                    $optionQuantity >
+                    $group->max_selection_per_item
+                ) {
+                    throw new Exception(
+                        "Maximum quantity for {$option->name} is {$group->max_selection_per_item}.",
+                        422
+                    );
+                }
+
+                /*
+            |--------------------------------------------------------------------------
+            | Frontend option price comparison
+            |--------------------------------------------------------------------------
+            */
+                $frontendOptionPrice =
+                    $frontendOption['price'];
+
+                if (
+                    $frontendOptionPrice !== null &&
+                    abs(
+                        $frontendOptionPrice -
+                            $optionPrice
+                    ) > 0.01
+                ) {
+
+                    if (!isset($cartUpdates[$index])) {
+
+                        $this->initCartUpdate(
+                            $cartUpdates,
+                            $index,
+                            $menuItem
+                        );
+                    }
+
+                    $cartUpdates[$index]['option_changes'][] = [
+                        'option_group_id' =>
+                        $group->id,
+
+                        'option_group_name' =>
+                        $group->online_display_name ?: $group->name,
+
+                        'option_id' =>
+                        $option->id,
+
+                        'name' =>
+                        $option->name,
+
+                        'old_price' =>
+                        $frontendOptionPrice,
+
+                        'new_price' =>
+                        $optionPrice,
+                    ];
+
+                    /*
+    |--------------------------------------------------------------------------
+    | Current live prices
+    |--------------------------------------------------------------------------
+    */
+                    $cartUpdates[$index]['current_live_prices'] = [
+                        'unit_price' =>
+                        $unitPrice,
+
+                        'discount_price' =>
+                        $discountPrice,
+
+                        'base_final_price' =>
+                        $baseFinalPrice,
+
+                        'variation_price' =>
+                        $variationFinalPrice,
+
+                        'options_total' =>
+                        round(
+                            $optionsTotal,
+                            2
+                        ),
+
+                        'final_price' =>
+                        round(
+                            $baseFinalPrice
+                                + $variationFinalPrice
+                                + $optionsTotal,
+                            2
+                        ),
+                    ];
+                }
+
+                /*
+            |--------------------------------------------------------------------------
+            | Snapshot
+            |--------------------------------------------------------------------------
+            */
+                $options[] = [
+                    'id' =>
+                    $option->id,
+
+                    'option_group_id' =>
+                    $group->id,
+
+                    'option_group_name' =>
+                    $group->online_display_name
+                        ?: $group->name,
+
+                    'external_option_id' =>
+                    $option->external_option_id,
+
+                    'name' =>
+                    $option->name,
+
+                    'price' =>
+                    $optionPrice,
+
+                    'quantity' =>
+                    $optionQuantity,
+
+                    'attribute' =>
+                    $option->attribute,
+                ];
+
+                $optionsTotal +=
+                    $optionPrice * $optionQuantity;
+            }
         }
 
         /*
-        |--------------------------------------------------------------------------
-        | Final actual backend price
-        |--------------------------------------------------------------------------
-        */
+    |--------------------------------------------------------------------------
+    | Ensure requested options belong to item
+    |--------------------------------------------------------------------------
+    */
+        $validOptionIds = $optionGroups
+            ->flatMap(fn($group) => $group->options)
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->toArray();
+
+        foreach ($optionIds as $optionId) {
+
+            if (
+                !in_array(
+                    (int) $optionId,
+                    $validOptionIds,
+                    true
+                )
+            ) {
+                throw new Exception(
+                    "Selected option is invalid for {$menuItem->name}.",
+                    422
+                );
+            }
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Final actual backend price
+    |--------------------------------------------------------------------------
+    */
         $finalPrice = round(
             $baseFinalPrice
-            + $variationPrice
-            + $optionsTotal,
+                + $variationFinalPrice
+                + $optionsTotal,
             2
         );
 
+        if (!empty($cartUpdates[$index])) {
+
+            $cartUpdates[$index]['current_live_prices'] = [
+                'unit_price' =>
+                $unitPrice,
+
+                'discount_price' =>
+                $discountPrice,
+
+                'base_final_price' =>
+                round(
+                    $baseFinalPrice,
+                    2
+                ),
+
+                'variation_price' =>
+                round(
+                    $variationFinalPrice,
+                    2
+                ),
+
+                'options_total' =>
+                round(
+                    $optionsTotal,
+                    2
+                ),
+
+                'final_price' =>
+                $finalPrice,
+            ];
+        }
+
         return [
-            'unit_price' => $unitPrice,
+            'unit_price' =>
+            $unitPrice,
 
-            'discount_price' => $discountPrice,
+            'discount_price' =>
+            $discountPrice,
 
-            'base_final_price' => round(
+            'base_final_price' =>
+            round(
                 $baseFinalPrice,
                 2
             ),
 
-            'variation_id' => $variationIdFinal,
+            'variation_id' =>
+            $variationIdFinal,
 
-            'variation_name' => $variationName,
+            'variation_group_id' =>
+            $variationGroupId,
 
-            'variation_price' => round(
+            'variation_group_name' =>
+            $variationGroupName,
+
+            'variation_name' =>
+            $variationName,
+
+            'variation_price' =>
+            round(
                 $variationPrice,
                 2
             ),
 
-            'options' => $options,
+            'variation_discount_price' =>
+            round(
+                $variationDiscountPrice,
+                2
+            ),
 
-            'options_total' => round(
+            'options' =>
+            $options,
+
+            'options_total' =>
+            round(
                 $optionsTotal,
                 2
             ),
 
-            'final_price' => $finalPrice,
+            'final_price' =>
+            $finalPrice,
         ];
     }
 
@@ -517,30 +821,30 @@ class CheckoutValidationService
         if (
             abs(
                 $frontendUnitPrice -
-                $livePrice['unit_price']
+                    $livePrice['unit_price']
             ) > 0.01
         ) {
             $changes['unit_price'] = [
                 'old' =>
-                    $frontendUnitPrice,
+                $frontendUnitPrice,
 
                 'new' =>
-                    $livePrice['unit_price'],
+                $livePrice['unit_price'],
             ];
         }
 
         if (
             abs(
                 $frontendDiscount -
-                $livePrice['discount_price']
+                    $livePrice['discount_price']
             ) > 0.01
         ) {
             $changes['discount_price'] = [
                 'old' =>
-                    $frontendDiscount,
+                $frontendDiscount,
 
                 'new' =>
-                    $livePrice['discount_price'],
+                $livePrice['discount_price'],
             ];
         }
 
@@ -552,15 +856,15 @@ class CheckoutValidationService
         if (
             abs(
                 $frontendBaseFinalPrice -
-                $livePrice['base_final_price']
+                    $livePrice['base_final_price']
             ) > 0.01
         ) {
             $changes['final_price'] = [
                 'old' =>
-                    $frontendBaseFinalPrice,
+                $frontendBaseFinalPrice,
 
                 'new' =>
-                    $livePrice['base_final_price'],
+                $livePrice['base_final_price'],
             ];
         }
 
@@ -578,22 +882,22 @@ class CheckoutValidationService
 
             $cartUpdates[$index]['current_live_prices'] = [
                 'unit_price' =>
-                    $livePrice['unit_price'],
+                $livePrice['unit_price'],
 
                 'discount_price' =>
-                    $livePrice['discount_price'],
+                $livePrice['discount_price'],
 
                 'base_final_price' =>
-                    $livePrice['base_final_price'],
+                $livePrice['base_final_price'],
 
                 'variation_price' =>
-                    $livePrice['variation_price'],
+                $livePrice['variation_price'],
 
                 'options_total' =>
-                    $livePrice['options_total'],
+                $livePrice['options_total'],
 
                 'final_price' =>
-                    $livePrice['final_price'],
+                $livePrice['final_price'],
             ];
         }
     }
@@ -606,28 +910,31 @@ class CheckoutValidationService
 
         $cartUpdates[$index] = [
             'cart_index' =>
-                $index,
+            $index,
 
             'menu_item_id' =>
-                $menuItem->id,
+            $menuItem->id,
 
             'name' =>
-                $menuItem->name,
+            $menuItem->name,
 
             'error_type' =>
-                'price_changed',
+            'price_changed',
 
             'message' =>
-                "Prices for {$menuItem->name} have changed.",
+            "Prices for {$menuItem->name} have changed.",
 
             'item_changes' =>
-                [],
+            [],
+
+            'variation_changes' =>
+            [],
 
             'option_changes' =>
-                [],
+            [],
 
             'current_live_prices' =>
-                [],
+            [],
         ];
     }
 
@@ -836,13 +1143,13 @@ class CheckoutValidationService
 
         return round(
             $earthRadius *
-            (
-                2 *
-                atan2(
-                    sqrt($a),
-                    sqrt(1 - $a)
-                )
-            ),
+                (
+                    2 *
+                    atan2(
+                        sqrt($a),
+                        sqrt(1 - $a)
+                    )
+                ),
             2
         );
     }

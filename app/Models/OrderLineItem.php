@@ -20,6 +20,14 @@ class OrderLineItem extends Model
         'options',
         'options_total',
         'instructions',
+
+        'menu_item_name',
+        'variation_group_id',
+        'variation_group_name',
+        'variation_name',
+        'variation_price',
+        'variation_discount_price',
+        'final_unit_price',
     ];
 
     protected $casts = [
@@ -30,6 +38,11 @@ class OrderLineItem extends Model
         'menu_item_variation_id' => 'int',
         'menu_item_id' => 'int',
         'options_total' => 'int',
+
+        'variation_group_id' => 'int',
+        'variation_price' => 'decimal:2',
+        'variation_discount_price' => 'decimal:2',
+        'final_unit_price' => 'decimal:2',
     ];
 
     public function restaurant()
