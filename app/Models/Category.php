@@ -17,11 +17,12 @@ class Category extends BaseModel implements HasMedia
 
     protected $table = 'categories';
     protected $auditColumn = true;
-    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id', 'module_id', 'category_group_id'];
+    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id', 'module_id', 'display_module_id', 'category_group_id'];
     protected $casts = [
         'status' => 'int',
         'requested' => 'int',
         'module_id' => 'int',
+        'display_module_id' => 'array',
         'category_group_id' => 'int',
     ];
 
@@ -138,5 +139,12 @@ class Category extends BaseModel implements HasMedia
     return MenuItem::whereHas('categories', function ($q) use ($categoryIds) {
         $q->whereIn('categories.id', $categoryIds);
     });
+}
+public function displayModule()
+{
+    return $this->belongsTo(
+        Module::class,
+        'display_module_id'
+    );
 }
 }
