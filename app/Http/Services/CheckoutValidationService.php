@@ -779,65 +779,110 @@ class CheckoutValidationService
         int $index
     ): void {
 
-        $frontendUnitPrice =
-            (float) $frontendItem['unit_price'];
+        $frontendUnitPrice = (float) (
+            $frontendItem['unit_price'] ?? 0
+        );
 
-        $frontendDiscount =
-            (float) $frontendItem['discount_price'];
+        $frontendDiscount = (float) (
+            $frontendItem['discount_price'] ?? 0
+        );
 
-        $frontendBaseFinalPrice =
-            (float) $frontendItem['final_price'];
+        $frontendFinalPrice = (float) (
+            $frontendItem['final_price'] ?? 0
+        );
+        $backendBaseUnitPrice = (float) (
+            $livePrice['unit_price'] ?? 0
+        );
+        $backendDiscountPrice = (float) (
+            $livePrice['discount_price'] ?? 0
+        );
+
+        $backendBaseFinalPrice = (float) (
+            $livePrice['base_final_price'] ?? 0
+        );
+        $backendVariationPrice = (float) (
+            $livePrice['variation_price'] ?? 0
+        );
+
+        $backendEffectiveUnitPrice = round(
+            $backendBaseUnitPrice +
+                $backendVariationPrice,
+            2
+        );
+
+        $backendEffectiveFinalPrice = round(
+            $backendBaseFinalPrice +
+                $backendVariationPrice,
+            2
+        );
 
         $changes = [];
+
 
         if (
             abs(
                 $frontendUnitPrice -
-                    $livePrice['unit_price']
+                    $backendEffectiveUnitPrice
             ) > 0.01
         ) {
-            $changes['unit_price'] = [
-                'old' =>
-                $frontendUnitPrice,
 
-                'new' =>
-                $livePrice['unit_price'],
+            $changes['unit_price'] = [
+                'old' => round(
+                    $frontendUnitPrice,
+                    2
+                ),
+
+                'new' => round(
+                    $backendEffectiveUnitPrice,
+                    2
+                ),
             ];
         }
 
         if (
             abs(
                 $frontendDiscount -
-                    $livePrice['discount_price']
+                    $backendDiscountPrice
             ) > 0.01
         ) {
-            $changes['discount_price'] = [
-                'old' =>
-                $frontendDiscount,
 
-                'new' =>
-                $livePrice['discount_price'],
+            $changes['discount_price'] = [
+                'old' => round(
+                    $frontendDiscount,
+                    2
+                ),
+
+                'new' => round(
+                    $backendDiscountPrice,
+                    2
+                ),
             ];
         }
 
         if (
             abs(
-                $frontendBaseFinalPrice -
-                    $livePrice['base_final_price']
+                $frontendFinalPrice -
+                    $backendEffectiveFinalPrice
             ) > 0.01
         ) {
-            $changes['final_price'] = [
-                'old' =>
-                $frontendBaseFinalPrice,
 
-                'new' =>
-                $livePrice['base_final_price'],
+            $changes['final_price'] = [
+                'old' => round(
+                    $frontendFinalPrice,
+                    2
+                ),
+
+                'new' => round(
+                    $backendEffectiveFinalPrice,
+                    2
+                ),
             ];
         }
 
         if (!empty($changes)) {
 
             if (!isset($cartUpdates[$index])) {
+
                 $this->initCartUpdate(
                     $cartUpdates,
                     $index,
@@ -846,25 +891,56 @@ class CheckoutValidationService
             }
 
             $cartUpdates[$index]['item_changes'] = $changes;
+        }
+
+
+        if (isset($cartUpdates[$index])) {
 
             $cartUpdates[$index]['current_live_prices'] = [
-                'unit_price' =>
-                $livePrice['unit_price'],
 
-                'discount_price' =>
-                $livePrice['discount_price'],
+                'unit_price' => round(
+                    $backendBaseUnitPrice,
+                    2
+                ),
 
-                'base_final_price' =>
-                $livePrice['base_final_price'],
+                'discount_price' => round(
+                    $backendDiscountPrice,
+                    2
+                ),
 
-                'variation_price' =>
-                $livePrice['variation_price'],
+                'base_final_price' => round(
+                    $backendBaseFinalPrice,
+                    2
+                ),
 
-                'options_total' =>
-                $livePrice['options_total'],
+                'variation_price' => round(
+                    $backendVariationPrice,
+                    2
+                ),
 
-                'final_price' =>
-                $livePrice['final_price'],
+                'effective_unit_price' => round(
+                    $backendEffectiveUnitPrice,
+                    2
+                ),
+
+                'effective_final_price' => round(
+                    $backendEffectiveFinalPrice,
+                    2
+                ),
+
+                'options_total' => round(
+                    (float) (
+                        $livePrice['options_total'] ?? 0
+                    ),
+                    2
+                ),
+
+                'final_price' => round(
+                    (float) (
+                        $livePrice['final_price'] ?? 0
+                    ),
+                    2
+                ),
             ];
         }
     }

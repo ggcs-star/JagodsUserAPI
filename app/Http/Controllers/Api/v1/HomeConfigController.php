@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\BackendController;
 use App\Traits\ApiResponse;
+
 class HomeConfigController extends BackendController
 {
     use ApiResponse;
@@ -32,7 +33,7 @@ class HomeConfigController extends BackendController
                         ],
                     ],
 
-                    'icon_url' => 'https://images.jagods.in/landing/Tab%201.svg',
+                    'icon_url' => 'https://images.jagods.in/landing/Near%20You.svg',
 
                     'promo_banner' => [
                         'type' => 'gif',
@@ -176,7 +177,7 @@ class HomeConfigController extends BackendController
                         ],
                     ],
 
-                    'icon_url' => 'https://images.jagods.in/landing/Tab%202.svg',
+                    'icon_url' => 'https://images.jagods.in/landing/PAN%20India.svg',
 
                     'promo_banner' => [
                         'type' => 'gif',
@@ -209,7 +210,7 @@ class HomeConfigController extends BackendController
                             'id' => 4,
                             'image_url' => 'https://images.jagods.in/landing/images%20(8).jpg',
                         ],
-                       
+
                     ],
                     'color_detail' => [
                         'gradient' => [
