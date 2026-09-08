@@ -17,7 +17,7 @@ class Category extends BaseModel implements HasMedia
 
     protected $table = 'categories';
     protected $auditColumn = true;
-    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id', 'module_id', 'display_module_id', 'category_group_id'];
+    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id', 'module_id', 'display_module_id', 'category_group_id', 'sort_order'];
     protected $casts = [
         'status' => 'int',
         'requested' => 'int',
@@ -53,7 +53,6 @@ class Category extends BaseModel implements HasMedia
         }
 
         return asset('frontend/images/default/category.png');
-
     }
 
     public function creator()
@@ -131,20 +130,20 @@ class Category extends BaseModel implements HasMedia
     }
 
     public function allMenuItems()
-{
-    $categoryIds = Category::where('id', $this->id)
-        ->orWhere('parent_id', $this->id)
-        ->pluck('id');
+    {
+        $categoryIds = Category::where('id', $this->id)
+            ->orWhere('parent_id', $this->id)
+            ->pluck('id');
 
-    return MenuItem::whereHas('categories', function ($q) use ($categoryIds) {
-        $q->whereIn('categories.id', $categoryIds);
-    });
-}
-public function displayModule()
-{
-    return $this->belongsTo(
-        Module::class,
-        'display_module_id'
-    );
-}
+        return MenuItem::whereHas('categories', function ($q) use ($categoryIds) {
+            $q->whereIn('categories.id', $categoryIds);
+        });
+    }
+    public function displayModule()
+    {
+        return $this->belongsTo(
+            Module::class,
+            'display_module_id'
+        );
+    }
 }

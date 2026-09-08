@@ -50,11 +50,56 @@ class CheckoutValidationService
             (int) $data['module_id']
         );
 
+        $cartSummaryChanges = [];
+
+        $frontendSubtotal = round(
+            (float) ($data['subtotal'] ?? 0),
+            2
+        );
+
+        $serverSubtotal = round(
+            (float) $itemsData['subtotal'],
+            2
+        );
+
+        if ($frontendSubtotal !== $serverSubtotal) {
+            $cartSummaryChanges['subtotal'] = [
+                'old' => $frontendSubtotal,
+                'new' => $serverSubtotal,
+            ];
+        }
+
+        if (
+            !empty($itemsData['cartUpdates']) ||
+            !empty($cartSummaryChanges)
+        ) {
+
+            $updatedItems = $itemsData['cartUpdates'] ?? [];
+
+            throw new Exception(
+                json_encode([
+                    'error_type' => 'cart_needs_update',
+
+                    'message' =>
+                    'Some cart values have changed. Please review your cart.',
+
+                    'updated_items' => array_values($updatedItems),
+
+                    'summary_changes' => $cartSummaryChanges,
+
+                    'current_summary' => [
+                        'subtotal' => $serverSubtotal,
+                    ],
+                ]),
+                409
+            );
+        }
+
         return [
             'restaurant' => $restaurant,
             'address' => $address,
             'items' => $itemsData['validated_items'],
-            'subtotal' => $itemsData['subtotal'],
+            'subtotal' => $serverSubtotal,
             'product_discount' => $itemsData['product_discount'],
         ];
     }
@@ -65,15 +110,22 @@ class CheckoutValidationService
             ->map(function ($item) {
 
                 $options = collect($item['options'] ?? [])
-                    ->pluck('id')
-                    ->sort()
+                    ->map(function ($option) {
+                        return [
+                            'id' => (int) $option['id'],
+                            'quantity' => (int) ($option['quantity'] ?? 1),
+                        ];
+                    })
+                    ->sortBy(function ($option) {
+                        return $option['id'] . ':' . $option['quantity'];
+                    })
                     ->values()
                     ->all();
 
                 return
-                    $item['menu_item_id']
+                    (int) $item['menu_item_id']
                     . '|'
-                    . ($item['variation_id'] ?? 0)
+                    . (int) ($item['variation_id'] ?? 0)
                     . '|'
                     . json_encode($options);
             })
@@ -81,7 +133,7 @@ class CheckoutValidationService
 
         if ($uniqueKeys->count() !== count($items)) {
             throw new Exception(
-                'Duplicate items found. Please merge same items in your cart before checkout.',
+                'Duplicate cart items found. Please merge identical items before checkout.',
                 422
             );
         }
@@ -249,22 +301,20 @@ class CheckoutValidationService
             );
         }
 
-        if (!empty($cartUpdates)) {
-
-            throw new Exception(
-                json_encode([
-                    'error_type' => 'cart_price_updated',
-                    'message' => 'Some item prices have changed. Please review your cart.',
-                    'updated_items' => array_values($cartUpdates),
-                ]),
-                200
-            );
-        }
-
         return [
             'validated_items' => $validatedItems,
-            'subtotal' => round($subtotal, 2),
-            'product_discount' => round($totalProductDiscount, 2),
+
+            'subtotal' => round(
+                $subtotal,
+                2
+            ),
+
+            'product_discount' => round(
+                $totalProductDiscount,
+                2
+            ),
+
+            'cartUpdates' => $cartUpdates,
         ];
     }
 
@@ -516,9 +566,6 @@ class CheckoutValidationService
                     );
                 }
 
-                /*
-            | Open quantity disabled
-            */
                 if (
                     !$group->allow_open_quantity &&
                     $optionQuantity !== 1
@@ -529,9 +576,6 @@ class CheckoutValidationService
                     );
                 }
 
-                /*
-            | Maximum quantity per selected option
-            */
                 if (
                     $group->max_selection_per_item > 0 &&
                     $optionQuantity >
@@ -543,11 +587,6 @@ class CheckoutValidationService
                     );
                 }
 
-                /*
-            |--------------------------------------------------------------------------
-            | Frontend option price comparison
-            |--------------------------------------------------------------------------
-            */
                 $frontendOptionPrice =
                     $frontendOption['price'];
 
@@ -560,7 +599,6 @@ class CheckoutValidationService
                 ) {
 
                     if (!isset($cartUpdates[$index])) {
-
                         $this->initCartUpdate(
                             $cartUpdates,
                             $index,
@@ -587,46 +625,8 @@ class CheckoutValidationService
                         'new_price' =>
                         $optionPrice,
                     ];
-
-                    /*
-    |--------------------------------------------------------------------------
-    | Current live prices
-    |--------------------------------------------------------------------------
-    */
-                    $cartUpdates[$index]['current_live_prices'] = [
-                        'unit_price' =>
-                        $unitPrice,
-
-                        'discount_price' =>
-                        $discountPrice,
-
-                        'base_final_price' =>
-                        $baseFinalPrice,
-
-                        'variation_price' =>
-                        $variationFinalPrice,
-
-                        'options_total' =>
-                        round(
-                            $optionsTotal,
-                            2
-                        ),
-
-                        'final_price' =>
-                        round(
-                            $baseFinalPrice
-                                + $variationFinalPrice
-                                + $optionsTotal,
-                            2
-                        ),
-                    ];
                 }
 
-                /*
-            |--------------------------------------------------------------------------
-            | Snapshot
-            |--------------------------------------------------------------------------
-            */
                 $options[] = [
                     'id' =>
                     $option->id,
@@ -659,11 +659,6 @@ class CheckoutValidationService
             }
         }
 
-        /*
-    |--------------------------------------------------------------------------
-    | Ensure requested options belong to item
-    |--------------------------------------------------------------------------
-    */
         $validOptionIds = $optionGroups
             ->flatMap(fn($group) => $group->options)
             ->pluck('id')
@@ -686,11 +681,6 @@ class CheckoutValidationService
             }
         }
 
-        /*
-    |--------------------------------------------------------------------------
-    | Final actual backend price
-    |--------------------------------------------------------------------------
-    */
         $finalPrice = round(
             $baseFinalPrice
                 + $variationFinalPrice
@@ -701,32 +691,32 @@ class CheckoutValidationService
         if (!empty($cartUpdates[$index])) {
 
             $cartUpdates[$index]['current_live_prices'] = [
-                'unit_price' =>
-                $unitPrice,
+                'unit_price' => round($unitPrice, 2),
 
-                'discount_price' =>
-                $discountPrice,
+                'discount_price' => round(
+                    $discountPrice,
+                    2
+                ),
 
-                'base_final_price' =>
-                round(
+                'base_final_price' => round(
                     $baseFinalPrice,
                     2
                 ),
 
-                'variation_price' =>
-                round(
+                'variation_price' => round(
                     $variationFinalPrice,
                     2
                 ),
 
-                'options_total' =>
-                round(
+                'options_total' => round(
                     $optionsTotal,
                     2
                 ),
 
-                'final_price' =>
-                $finalPrice,
+                'final_price' => round(
+                    $finalPrice,
+                    2
+                ),
             ];
         }
 
@@ -795,24 +785,6 @@ class CheckoutValidationService
         $frontendDiscount =
             (float) $frontendItem['discount_price'];
 
-        /*
-        |--------------------------------------------------------------------------
-        | IMPORTANT
-        |--------------------------------------------------------------------------
-        | frontend final_price = base item final price
-        |
-        | Example:
-        | unit_price      = 190
-        | discount_price  = 10
-        | final_price     = 180
-        |
-        | Options:
-        | 30 + 70
-        |
-        | Backend:
-        | actual final = 180 + 30 + 70 = 280
-        |--------------------------------------------------------------------------
-        */
         $frontendBaseFinalPrice =
             (float) $frontendItem['final_price'];
 
@@ -848,11 +820,6 @@ class CheckoutValidationService
             ];
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Compare BASE final price only
-        |--------------------------------------------------------------------------
-        */
         if (
             abs(
                 $frontendBaseFinalPrice -
@@ -919,10 +886,10 @@ class CheckoutValidationService
             $menuItem->name,
 
             'error_type' =>
-            'price_changed',
+            'cart_needs_update',
 
             'message' =>
-            "Prices for {$menuItem->name} have changed.",
+            "Some cart values for {$menuItem->name} have changed.",
 
             'item_changes' =>
             [],
