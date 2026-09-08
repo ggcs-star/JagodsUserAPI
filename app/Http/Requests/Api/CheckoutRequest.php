@@ -100,7 +100,11 @@ class CheckoutRequest extends FormRequest
                 'integer',
                 'exists:menu_item_variations,id',
             ],
-
+            'items.*.variation_price' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
             'items.*.quantity' => [
                 'required',
                 'integer',

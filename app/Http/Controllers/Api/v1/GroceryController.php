@@ -19,6 +19,7 @@ use App\Enums\MenuItemStatus;
 use App\Http\Resources\v1\GroceryCategoryDetailResource;
 use App\Http\Resources\v1\MenuItemResource;
 use App\Http\Resources\v1\GrocerySubCategoryResource;
+use Illuminate\Validation\ValidationException;
 
 class GroceryController extends BackendController
 {
@@ -149,6 +150,13 @@ class GroceryController extends BackendController
                 data: GroceryCategoryResource::collection(
                     $categories->items()
                 )
+            );
+        } catch (ValidationException $e) {
+
+            return $this->errorResponse(
+                message: 'Validation failed.',
+                errors: $e->errors(),
+                statusCode: 422
             );
         } catch (Throwable $e) {
 
