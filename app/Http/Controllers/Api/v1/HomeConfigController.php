@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\BackendController;
 use App\Traits\ApiResponse;
-
 class HomeConfigController extends BackendController
 {
     use ApiResponse;
@@ -37,7 +36,7 @@ class HomeConfigController extends BackendController
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://images.jagods.in/landing/banner.svg',
+                        'image_url' => 'https://images.jagods.in/landing/Copy_of_Copy_of_Copy_of_Copy_of_Buy_GG_Prime_and_Turn_your_Perk.png',
 
                         'action' => [
                             'type' => 'navigation',
@@ -165,7 +164,7 @@ class HomeConfigController extends BackendController
                     'selected' => false,
 
                     'badge' => [
-                        'text' => 'All Over India',
+                        'text' => 'India Wide',
                         'icon_url' => 'https://images.jagods.in/landing/All%20Over%20India.svg',
                         'background_color' => '#D32F2F',
                         'text_color' => '#FFFFFF',
@@ -181,7 +180,7 @@ class HomeConfigController extends BackendController
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://images.jagods.com/banner/banner.svg',
+                        'image_url' => 'https://images.jagods.in/landing/Copy_of_Copy_of_Copy_of_Copy_of_Buy_GG_Prime_and_Turn_your_Perk (3).png',
 
                         'action' => [
                             'type' => 'navigation',
@@ -210,7 +209,7 @@ class HomeConfigController extends BackendController
                             'id' => 4,
                             'image_url' => 'https://images.jagods.in/landing/images%20(8).jpg',
                         ],
-
+                       
                     ],
                     'color_detail' => [
                         'gradient' => [

@@ -16,9 +16,9 @@ class SendPetpoojaOrderJob implements ShouldQueue
     protected $orderId;
 
     public $tries = 3;
-public function backoff(): array
+    public function backoff(): array
     {
-        return [10, 30, 60]; 
+        return [10, 30, 60];
     }
     public function __construct($orderId)
     {

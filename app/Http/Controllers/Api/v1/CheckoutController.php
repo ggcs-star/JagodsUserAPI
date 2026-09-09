@@ -16,6 +16,8 @@ use App\Http\Requests\Api\RepayOrderRequest;
 use App\Models\Order;
 use App\Jobs\SendOrderInvoiceJob;
 use App\Jobs\SendOrderCreatedNotificationJob;
+use App\Enums\Module;
+use App\Jobs\SendPetpoojaOrderJob;
 
 class CheckoutController extends BackendController
 {
@@ -55,11 +57,35 @@ class CheckoutController extends BackendController
                 ]);
 
                 $order->refresh();
-
+                if ((int) $order->module_id === Module::YOUR_CITY) {
+                    SendPetpoojaOrderJob::dispatch($order->id)->afterCommit();
+                }
                 return $this->successResponse(
-                    message: 'Order placed successfully.',
+                    message: 'Payment verified successfully.',
                     data: [
-                        'order' => $order,
+                        'title' => 'Congratulations!',
+
+                        'message' => 'Your order has been successfully placed.',
+
+                        'total_amount' => (float) $order->total,
+
+                        'payment_status' => [
+                            'code' => (int) $order->payment_status,
+                            'name' => 'Successful',
+                        ],
+
+                        'module_id' => (int) $order->module_id,
+
+                        'order_id' => $order->id,
+
+                        'order_code' => data_get(
+                            json_decode($order->misc, true),
+                            'order_code'
+                        ),
+
+                        'order_date' => optional(
+                            $order->created_at
+                        )->format('d M Y, h:i A'),
                     ]
                 );
             }
@@ -138,7 +164,9 @@ class CheckoutController extends BackendController
             ]);
 
             $order->refresh();
-
+            if ((int) $order->module_id === Module::YOUR_CITY) {
+                SendPetpoojaOrderJob::dispatch($order->id);
+            }
             SendOrderInvoiceJob::dispatch($order);
             SendOrderCreatedNotificationJob::dispatch(
                 orderId: $order->id,
