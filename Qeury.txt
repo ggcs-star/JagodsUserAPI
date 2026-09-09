@@ -60,16 +60,16 @@ ADD coupon_id BIGINT UNSIGNED NULL AFTER user_id,
 
 ADD gst_amount DECIMAL(10,2) DEFAULT 0 AFTER discount;
 
-
+ALTER TABLE carts
+ADD order_type TINYINT(1) NOT NULL DEFAULT 1
+AFTER coupon_id;
 
 ALTER TABLE carts
 ADD latitude VARCHAR(50) NULL AFTER order_type,
 ADD longitude VARCHAR(50) NULL AFTER latitude;
 
 
-ALTER TABLE carts
-ADD order_type TINYINT(1) NOT NULL DEFAULT 1
-AFTER coupon_id;
+
 
 ALTER TABLE addresses 
 ADD COLUMN is_default TINYINT(1) NOT NULL DEFAULT 0 

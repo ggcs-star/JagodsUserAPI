@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use App\Jobs\SendPetpoojaOrderJob;
 use App\Jobs\SendOrderNotificationsJob;
 use Exception;
+use App\Enums\Module;
 
 class WebhookController extends Controller
 {
@@ -100,8 +101,9 @@ class WebhookController extends Controller
                             }
                         });
 
-                        // C. PUSH TO POS & NOTIFY: Payment confirm ho gayi, ab Jobs trigger karo!
-                        // SendPetpoojaOrderJob::dispatch($order->id)->afterCommit();
+                        if ((int) $order->module_id === Module::YOUR_CITY) {
+                            SendPetpoojaOrderJob::dispatch($order->id)->afterCommit();
+                        }
                         // SendOrderNotificationsJob::dispatch($order->id)->afterCommit();
 
                         Log::info("Razorpay Webhook: Order ID {$order->id} successfully marked as PAID and Jobs Dispatched.");
@@ -114,7 +116,6 @@ class WebhookController extends Controller
             }
 
             return response()->json(['status' => 'success'], 200);
-
         } catch (Exception $e) {
             Log::error('Razorpay Webhook Error: ' . $e->getMessage());
 
