@@ -102,7 +102,8 @@ class GroceryController extends BackendController
                     'status',
                     CategoryStatus::ACTIVE
                 )
-                ->orderBy('name')
+                ->orderBy('sort_order', 'asc')
+                ->orderBy('name', 'asc')
                 ->paginate($perPage);
 
             foreach ($categories as $category) {
@@ -191,7 +192,8 @@ class GroceryController extends BackendController
                 ->where('module_id', Module::ALL_OVER_INDIA)
                 ->whereNull('parent_id')
                 ->where('status', CategoryStatus::ACTIVE)
-                ->orderBy('name')
+                ->orderBy('sort_order', 'asc')
+                ->orderBy('name', 'asc')
                 ->limit(3)
                 ->get();
 
