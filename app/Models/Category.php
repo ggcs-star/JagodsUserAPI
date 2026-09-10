@@ -33,7 +33,9 @@ class Category extends BaseModel implements HasMedia
 
     public function children()
     {
-        return $this->hasMany(Category::class, 'parent_id');
+        return $this->hasMany(Category::class, 'parent_id')
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('name', 'asc');
     }
     public function getParentNameAttribute()
     {

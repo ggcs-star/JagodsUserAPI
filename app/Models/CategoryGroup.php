@@ -21,7 +21,7 @@ class CategoryGroup extends Model
         'status' => 'int',
     ];
 
-  
+
 
     public function module()
     {
@@ -33,6 +33,7 @@ class CategoryGroup extends Model
     {
         return $this->hasMany(Category::class)
             ->whereNull('parent_id')
-            ->orderBy('name');
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('name', 'asc');;
     }
 }
