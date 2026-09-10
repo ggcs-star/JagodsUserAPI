@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\BackendController;
 use App\Traits\ApiResponse;
+
 class HomeConfigController extends BackendController
 {
     use ApiResponse;
@@ -36,7 +37,7 @@ class HomeConfigController extends BackendController
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://images.jagods.in/landing/Copy_of_Copy_of_Copy_of_Copy_of_Buy_GG_Prime_and_Turn_your_Perk.png',
+                        'image_url' => 'https://images.jagods.in/landing/Near%20You.gif',
 
                         'action' => [
                             'type' => 'navigation',
@@ -91,11 +92,8 @@ class HomeConfigController extends BackendController
 
                     'search_placeholder' => [
                         'Search for products, "Vadapav"',
-                        'Search for products, "Pizza"',
-                        'Search for products, "Burger"',
                         'Search for products, "Cold Coffee"',
                         'Search for products, "Sandwich"',
-                        'Search for products, "Pasta"',
                         'Search for products, "Biryani"',
                         'Search for products, "Dosa"',
                         'Search for products, "Chole Bhature"',
@@ -180,7 +178,7 @@ class HomeConfigController extends BackendController
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://images.jagods.in/landing/Copy_of_Copy_of_Copy_of_Copy_of_Buy_GG_Prime_and_Turn_your_Perk (3).png',
+                        'image_url' => 'https://images.jagods.in/landing/Pan%20India.gif',
 
                         'action' => [
                             'type' => 'navigation',
@@ -209,7 +207,7 @@ class HomeConfigController extends BackendController
                             'id' => 4,
                             'image_url' => 'https://images.jagods.in/landing/images%20(8).jpg',
                         ],
-                       
+
                     ],
                     'color_detail' => [
                         'gradient' => [
@@ -230,23 +228,23 @@ class HomeConfigController extends BackendController
                     ],
 
                     'search_placeholder' => [
-                        'Search for products, "Snacks"',
-                        'Search for products, "Atta, Rice & Dal"',
-                        'Search for products, "Cleaning"',
-                        'Search for products, "Dairy, Bread & Eggs"',
-                        'Search for products, "Hair Care"',
-                        'Search for products, "Biscuits"',
-                        'Search for products, "Chips"',
-                        'Search for products, "Namkeen"',
-                        'Search for products, "Chocolate"',
-                        'Search for products, "Cold Drinks"',
-                        'Search for products, "Juices"',
-                        'Search for products, "Tea & Coffee"',
-                        'Search for products, "Milk"',
-                        'Search for products, "Bread"',
-                        'Search for products, "Butter"',
-                        'Search for products, "Cheese"',
+                        'Search for products, "Kaju Katli"',
+                        'Search for products, "Ajwa Khajur"',
+                        'Search for products, "Sohan Papdi"',
+                        'Search for products, "Laddu"',
+                        'Search for products, "Gathiya"',
+                        'Search for products, "Chakri"',
+                        'Search for products, "Mukhwas"',
+                        'Search for products, "Juice"',
+                        'Search for products, "Sev"',
+                        'Search for products, "Bhujia"',
+                        'Search for products, "Farsan"',
+                        'Search for products, "Gulab Jamun"',
+                        'Search for products, "Mohanthal"',
+                        'Search for products, "Kaju Pista Roll"',
+                        'Search for products, "Dry Fruits"',
                     ],
+
 
 
                     'bottom_navigation' => [

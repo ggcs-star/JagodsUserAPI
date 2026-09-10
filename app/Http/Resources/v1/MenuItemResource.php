@@ -68,11 +68,12 @@ class MenuItemResource extends JsonResource
             'restroType' =>
             $this->restroType ?? null,
 
-            'tags' => [
-                'new',
-                'chef-special',
-            ],
-
+            'tags' => (int) $this->module_id === 1
+                ? [
+                    'new',
+                    'chef-special',
+                ]
+                : [],
             'category_id' =>
             $this->categories->pluck('id'),
 

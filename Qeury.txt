@@ -682,7 +682,7 @@ ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order;
 CREATE INDEX idx_option_group
 ON menu_item_options (option_group_id);
 
-=======================================================================done
+
 
 ALTER TABLE `order_line_items`
     ADD COLUMN `menu_item_name` VARCHAR(255) NULL AFTER `menu_item_id`,
@@ -708,3 +708,8 @@ ADD INDEX `categories_display_module_id_index` (`display_module_id`);
 ALTER TABLE `categories`
 DROP INDEX `categories_display_module_id_index`,
 MODIFY COLUMN `display_module_id` JSON NULL;
+
+=======================================================================done
+
+ALTER TABLE `user_devices`
+ADD COLUMN `location_updated_at` TIMESTAMP NULL AFTER `lon`;

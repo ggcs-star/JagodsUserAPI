@@ -97,7 +97,15 @@ class DeviceIdentificationService
         }
 
         if ($ipChanged && $device->id) {
-            ProcessDeviceLocationJob::dispatch($device->id, $ip);
+            $locationNeedsUpdate = true;
+            
+            if ($device->location_updated_at && Carbon::parse($device->location_updated_at)->diffInMinutes(now()) < 30) {
+                $locationNeedsUpdate = false;
+            }
+
+            if ($locationNeedsUpdate) {
+                ProcessDeviceLocationJob::dispatch($device->id);
+            }
         }
 
         return $device;
@@ -217,13 +225,11 @@ class DeviceIdentificationService
         $device->device_name = $context['device_name'];
         $device->device_type = $context['device_type'];
 
-        // FIX: Removed $context['is_bot'] cross-contamination
         $device->is_emulator = $context['is_emulator'];
         $device->fingerprint_hash = $fingerprintHash;
 
         $device->trusted_at = null;
 
-        // FIX 2: Updated Trust Level Logic (Fallback no longer causes SUSPICIOUS)
         if ($context['is_bot']) {
             $device->trust_level = self::TRUST_SUSPICIOUS;
         } elseif ($context['is_emulator']) {

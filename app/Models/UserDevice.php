@@ -15,7 +15,7 @@ class UserDevice extends Model
         'browser', 'platform', 'app_version', 'language', 'user_agent',
         
         'last_ip_address', 'last_country', 'country_code', 'last_city', 
-        'timezone', 'lat', 'lon', 
+        'timezone', 'lat', 'lon', 'location_updated_at',
         
         'trust_level', 'risk_score', 'risk_reason', 'vpn_detected', 
         'proxy_detected', 'is_emulator', 'failed_attempts', 
