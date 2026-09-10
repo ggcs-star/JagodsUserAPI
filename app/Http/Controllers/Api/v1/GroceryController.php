@@ -90,7 +90,8 @@ class GroceryController extends BackendController
                 'category_group_id',
                 'name',
                 'slug',
-                'display_module_id'
+                'display_module_id',
+                'sort_order'
             )
                 ->with('categoryGroup:id,name')
                 ->whereJsonContains(
@@ -186,7 +187,8 @@ class GroceryController extends BackendController
                 'id',
                 'category_group_id',
                 'name',
-                'slug'
+                'slug',
+                 'sort_order'
             )
                 ->with('categoryGroup:id,name')
                 ->where('module_id', Module::ALL_OVER_INDIA)
@@ -251,8 +253,18 @@ class GroceryController extends BackendController
             $perPage = $request->input('per_page', 20);
 
             $category = Category::with([
-                'children:id,parent_id,name,slug'
-            ])
+    'children' => function ($query) {
+        $query->select(
+            'id',
+            'parent_id',
+            'name',
+            'slug',
+            'sort_order'
+        )
+        ->orderBy('sort_order', 'asc')
+        ->orderBy('name', 'asc');
+    }
+])
                 ->where('id', $request->category_id)
                 ->where('module_id', Module::ALL_OVER_INDIA)
                 ->whereNull('parent_id')
