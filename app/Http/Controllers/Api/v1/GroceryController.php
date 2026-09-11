@@ -188,15 +188,15 @@ class GroceryController extends BackendController
                 'category_group_id',
                 'name',
                 'slug',
-                 'sort_order'
+                'sort_order'
             )
                 ->with('categoryGroup:id,name')
                 ->where('module_id', Module::ALL_OVER_INDIA)
                 ->whereNull('parent_id')
                 ->where('status', CategoryStatus::ACTIVE)
+                ->where('show_on_home', true)
                 ->orderBy('sort_order', 'asc')
                 ->orderBy('name', 'asc')
-                ->limit(3)
                 ->get();
 
             foreach ($categories as $category) {
@@ -253,18 +253,18 @@ class GroceryController extends BackendController
             $perPage = $request->input('per_page', 20);
 
             $category = Category::with([
-    'children' => function ($query) {
-        $query->select(
-            'id',
-            'parent_id',
-            'name',
-            'slug',
-            'sort_order'
-        )
-        ->orderBy('sort_order', 'asc')
-        ->orderBy('name', 'asc');
-    }
-])
+                'children' => function ($query) {
+                    $query->select(
+                        'id',
+                        'parent_id',
+                        'name',
+                        'slug',
+                        'sort_order'
+                    )
+                        ->orderBy('sort_order', 'asc')
+                        ->orderBy('name', 'asc');
+                }
+            ])
                 ->where('id', $request->category_id)
                 ->where('module_id', Module::ALL_OVER_INDIA)
                 ->whereNull('parent_id')

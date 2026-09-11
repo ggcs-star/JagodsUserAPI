@@ -475,6 +475,7 @@ class CheckoutServiceNew
             'surge_fee' => $pricing['surge_fee'],
             'tip_amount' => $pricing['tip_amount'],
             'total' => $pricing['total'],
+            'paid_amount' => $pricing['total'],
             'order_instructions' => $data['order_instructions'] ?? null,
         ]);
 

@@ -37,7 +37,7 @@ class HomeConfigController extends BackendController
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://images.jagods.in/landing/Near%20You.gif',
+                        'image_url' => 'https://images.jagods.in/landing/Near%20You_Jagods%20Animation.gif',
 
                         'action' => [
                             'type' => 'navigation',
@@ -178,7 +178,7 @@ class HomeConfigController extends BackendController
 
                     'promo_banner' => [
                         'type' => 'gif',
-                        'image_url' => 'https://images.jagods.in/landing/Pan%20India.gif',
+                        'image_url' => 'https://images.jagods.in/landing/PAN%20Indian%20Animation.gif',
 
                         'action' => [
                             'type' => 'navigation',
@@ -193,20 +193,21 @@ class HomeConfigController extends BackendController
                     'promo_banners' => [
                         [
                             'id' => 1,
-                            'image_url' => 'https://images.jagods.in/landing/images%20(5).jpg',
+                            'image_url' => 'https://images.jagods.in/landing/B1.jpg',
                         ],
                         [
                             'id' => 2,
-                            'image_url' => 'https://images.jagods.in/landing/images%20(6).jpg',
+                            'image_url' => 'https://images.jagods.in/landing/B2.jpg',
                         ],
                         [
                             'id' => 3,
-                            'image_url' => 'https://images.jagods.in/landing/images%20(7).jpg',
+                            'image_url' => 'https://images.jagods.in/landing/B3.jpg',
                         ],
-                        [
+                          [
                             'id' => 4,
-                            'image_url' => 'https://images.jagods.in/landing/images%20(8).jpg',
+                            'image_url' => 'https://images.jagods.in/landing/B4.jpg',
                         ],
+                        
 
                     ],
                     'color_detail' => [

@@ -713,3 +713,7 @@ MODIFY COLUMN `display_module_id` JSON NULL;
 
 ALTER TABLE `user_devices`
 ADD COLUMN `location_updated_at` TIMESTAMP NULL AFTER `lon`;
+
+ALTER TABLE `categories`
+ADD COLUMN `show_on_home` BOOLEAN NOT NULL DEFAULT FALSE
+AFTER `sort_order`;

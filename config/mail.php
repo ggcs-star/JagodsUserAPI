@@ -14,6 +14,8 @@ return [
     */
 
     'default' => env('MAIL_MAILER', 'smtp'),
+    'order_to' => env('ORDER_EMAIL_TO'),
+    'order_cc' => env('ORDER_EMAIL_CC'),
 
     /*
     |--------------------------------------------------------------------------
