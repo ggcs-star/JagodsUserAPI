@@ -204,9 +204,9 @@ class ShiprocketService
             'courier' => [
                 'courier_id' => 1,
                 'courier_name' => 'Blue Dart Air demo',
-                'delivery_charge' => 879.90,
+                'delivery_charge' => 240.00,
                 'cod_charge' => 55.65,
-                'total_charge' => 935.55,
+                'total_charge' => 240.00,
                 'estimated_delivery_days' => 'Aug 23, 2026',
                 'rating' => 3,
             ],

@@ -66,13 +66,15 @@ class OneTimePasswordSend extends Notification
      * @param  mixed  $notifiable
      * @return \Illuminate\Notifications\Messages\MailMessage
      */
-    public function toMail($notifiable)
-    {
-        return (new MailMessage)
-            ->subject("One Time Password")
-            ->greeting('Hello '.$notifiable->name.',')
-            ->line("This is your otp ".$this->otp);
-    }
+public function toMail($notifiable)
+{
+    return (new MailMessage)
+        ->subject('One Time Password')
+        ->view('emails.otp', [
+            'name' => $notifiable->name,
+            'otp' => $this->otp,
+        ]);
+}
     /**
      * @param $notifiable
      * @return \NotificationChannels\Twilio\TwilioMessage|TwilioSmsMessage

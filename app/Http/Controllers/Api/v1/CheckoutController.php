@@ -18,6 +18,7 @@ use App\Jobs\SendOrderInvoiceJob;
 use App\Jobs\SendOrderCreatedNotificationJob;
 use App\Enums\Module;
 use App\Jobs\SendPetpoojaOrderJob;
+use App\Jobs\SendOrderEmailJob;
 
 class CheckoutController extends BackendController
 {
@@ -36,6 +37,7 @@ class CheckoutController extends BackendController
 
     public function checkout(CheckoutRequest $request)
     {
+
         $order = null;
 
         try {
@@ -47,7 +49,6 @@ class CheckoutController extends BackendController
                 $currentDevice
             );
 
-
             if ((float) $order->total < 1.00) {
 
                 $order->update([
@@ -58,8 +59,17 @@ class CheckoutController extends BackendController
 
                 $order->refresh();
                 if ((int) $order->module_id === Module::YOUR_CITY) {
-                    SendPetpoojaOrderJob::dispatch($order->id)->afterCommit();
+                    SendPetpoojaOrderJob::dispatch($order->id);
                 }
+                if ((int) $order->module_id === Module::ALL_OVER_INDIA) {
+                    SendOrderEmailJob::dispatch($order->id);
+                }
+                SendOrderInvoiceJob::dispatch($order);
+                SendOrderCreatedNotificationJob::dispatch(
+                    orderId: $order->id,
+                    userId: auth()->id()
+                );
+
                 return $this->successResponse(
                     message: 'Payment verified successfully.',
                     data: [
@@ -166,6 +176,9 @@ class CheckoutController extends BackendController
             $order->refresh();
             if ((int) $order->module_id === Module::YOUR_CITY) {
                 SendPetpoojaOrderJob::dispatch($order->id);
+            }
+            if ((int) $order->module_id === Module::ALL_OVER_INDIA) {
+                SendOrderEmailJob::dispatch($order->id);
             }
             SendOrderInvoiceJob::dispatch($order);
             SendOrderCreatedNotificationJob::dispatch(
