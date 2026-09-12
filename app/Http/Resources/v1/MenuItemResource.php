@@ -52,8 +52,11 @@ class MenuItemResource extends JsonResource
             'image' =>
             $this->image,
 
-            'description' =>
-            strip_tags($this->description ?? ''),
+            'description' => $this->description ?? '',
+            'description_type' => $this->description && $this->description !== strip_tags($this->description)
+                ? 'html'
+                : 'text',
+
 
             'variation_groups' =>
             MenuItemVariationGroupResource::collection(
@@ -68,12 +71,7 @@ class MenuItemResource extends JsonResource
             'restroType' =>
             $this->restroType ?? null,
 
-            'tags' => (int) $this->module_id === 1
-                ? [
-                    'new',
-                    'chef-special',
-                ]
-                : [],
+            'tags' => $this->tags ?? [],
             'category_id' =>
             $this->categories->pluck('id'),
 
