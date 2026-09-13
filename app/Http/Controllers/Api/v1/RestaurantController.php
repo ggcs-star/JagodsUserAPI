@@ -25,6 +25,7 @@ use App\Models\MenuItem;
 use App\Http\Resources\v1\RestaurantBannerResource;
 use App\Enums\Module;
 use App\Http\Services\RestaurantTypeService;
+use App\Enums\CategoryStatus;
 
 class RestaurantController extends BackendController
 {
@@ -142,11 +143,14 @@ class RestaurantController extends BackendController
             $rating = new RatingsService();
             $ratingArray = $rating->avgRating($restaurant->id);
 
-            $categoriesData = \App\Models\Category::whereHas('menuItems', function ($query) use ($id) {
-                $query->where('restaurant_id', $id)
-                    ->where('status', MenuItemStatus::ACTIVE);
-            })
-                ->select('id', 'name')
+            $categoriesData = \App\Models\Category::where('status', CategoryStatus::ACTIVE)
+                ->whereHas('menuItems', function ($query) use ($id) {
+                    $query->where('restaurant_id', $id)
+                        ->where('status', MenuItemStatus::ACTIVE);
+                })
+                ->select('id', 'name', 'sort_order')
+                ->orderBy('sort_order', 'asc')
+                ->orderBy('name', 'asc')
                 ->get()
                 ->map(function ($category) {
                     return [
@@ -275,7 +279,7 @@ class RestaurantController extends BackendController
                     break;
 
                 case 'new_arrivals':
-                    $query->latest();
+                    $query->orderByDesc('created_at');
                     break;
 
                 case 'price_low_high':
@@ -288,19 +292,19 @@ class RestaurantController extends BackendController
 
                 case 'discount_high_low':
                     $query->orderByRaw("
-                    CASE
-                        WHEN unit_price > 0
-                        THEN (
-                            (unit_price - discount_price)
-                            / unit_price
-                        ) * 100
-                        ELSE 0
-                    END DESC
-                ");
+            CASE
+                WHEN unit_price > 0
+                THEN (
+                    (unit_price - discount_price)
+                    / unit_price
+                ) * 100
+                ELSE 0
+            END DESC
+              ");
                     break;
 
                 default:
-                    $query->latest();
+                    $query->orderByDesc('updated_at');
                     break;
             }
 
