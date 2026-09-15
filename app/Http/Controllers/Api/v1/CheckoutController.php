@@ -27,10 +27,19 @@ class CheckoutController extends BackendController
     protected $checkoutService;
     protected $paymentService;
 
-    public function __construct(CheckoutServiceNew $checkoutService, PaymentServiceNew $paymentService)
-    {
+    public function __construct(
+        CheckoutServiceNew $checkoutService,
+        PaymentServiceNew $paymentService
+    ) {
         parent::__construct();
+
         $this->middleware('auth:api');
+
+        $this->middleware([
+            \App\Http\Middleware\DeviceIdentificationMiddleware::class,
+            \App\Http\Middleware\RequireActiveSessionMiddleware::class,
+        ])->only('checkout');
+
         $this->checkoutService = $checkoutService;
         $this->paymentService = $paymentService;
     }

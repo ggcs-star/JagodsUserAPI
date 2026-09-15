@@ -123,7 +123,7 @@ trait ApiResponse
 
 
     public function rateLimitResponse(
-        string $message = 'Too many attempts. Please try again later.',
+        string $message = 'Too Many Requests For your security, please wait 60 seconds before trying again.Try Again in 00:59',
         int $retryAfterSeconds = 60
     ): JsonResponse {
         return response()->json([
@@ -242,7 +242,7 @@ trait ApiResponse
     }
 
     public function serverErrorResponse(
-        string $message = 'Internal Server Error',
+        string $message = 'Just a moment! We’ve received several requests in a short time. Please wait 60 seconds before continuing. Continue in 00:59',
         array $errors = [],
         mixed $data = []
     ): JsonResponse {
