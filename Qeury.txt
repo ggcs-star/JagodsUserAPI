@@ -709,7 +709,6 @@ ALTER TABLE `categories`
 DROP INDEX `categories_display_module_id_index`,
 MODIFY COLUMN `display_module_id` JSON NULL;
 
-=======================================================================done
 
 ALTER TABLE `user_devices`
 ADD COLUMN `location_updated_at` TIMESTAMP NULL AFTER `lon`;
@@ -717,3 +716,404 @@ ADD COLUMN `location_updated_at` TIMESTAMP NULL AFTER `lon`;
 ALTER TABLE `categories`
 ADD COLUMN `show_on_home` BOOLEAN NOT NULL DEFAULT FALSE
 AFTER `sort_order`;
+
+=======================================================================done
+ALTER TABLE `orders`
+ADD COLUMN `order_source` VARCHAR(50)
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci
+NULL DEFAULT NULL
+AFTER `order_type`;
+
+ALTER TABLE `menu_item_options`
+ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`;
+
+
+===================================NEW NEW NEW NEW=================
+
+CREATE TABLE variation_groups (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    restaurant_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    online_display_name VARCHAR(255) NULL,
+    selection_type VARCHAR(50) NOT NULL DEFAULT 'single',
+    is_required TINYINT(1) NOT NULL DEFAULT 1,
+    min_selection INT NOT NULL DEFAULT 1,
+    max_selection INT NOT NULL DEFAULT 1,
+    show_online TINYINT(1) NOT NULL DEFAULT 1,
+    show_dinein_qr TINYINT(1) NOT NULL DEFAULT 0,
+    allow_open_quantity TINYINT(1) NOT NULL DEFAULT 0,
+    max_selection_per_item INT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_variation_groups_restaurant_name (restaurant_id, name),
+    KEY idx_variation_groups_restaurant_id (restaurant_id)
+);
+
+
+INSERT INTO variation_groups (
+    id,
+    restaurant_id,
+    name,
+    online_display_name,
+    selection_type,
+    is_required,
+    min_selection,
+    max_selection,
+    show_online,
+    show_dinein_qr,
+    allow_open_quantity,
+    max_selection_per_item,
+    sort_order,
+    status,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    restaurant_id,
+    name,
+    online_display_name,
+    selection_type,
+    is_required,
+    min_selection,
+    max_selection,
+    show_online,
+    show_dinein_qr,
+    allow_open_quantity,
+    max_selection_per_item,
+    sort_order,
+    status,
+    created_at,
+    updated_at
+FROM menu_item_variation_groups;
+
+
+CREATE TABLE menu_item_variation_group_mappings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    menu_item_id BIGINT UNSIGNED NOT NULL,
+    variation_group_id BIGINT UNSIGNED NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_item_variation_group (
+        menu_item_id,
+        variation_group_id
+    ),
+
+    KEY idx_mivgm_menu_item_id (menu_item_id),
+    KEY idx_mivgm_variation_group_id (variation_group_id)
+);
+
+INSERT IGNORE INTO menu_item_variation_group_mappings (
+    menu_item_id,
+    variation_group_id,
+    sort_order,
+    status
+)
+SELECT
+    menu_item_id,
+    id,
+    sort_order,
+    status
+FROM menu_item_variation_groups
+WHERE menu_item_id IS NOT NULL;
+
+ALTER TABLE menu_item_variation_groups
+DROP COLUMN menu_item_id;
+
+DROP TABLE menu_item_variation_groups;
+
+
+CREATE TABLE variations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    variation_group_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_variation_group_name (
+        variation_group_id,
+        name
+    ),
+
+    KEY idx_variations_group_id (variation_group_id)
+);
+
+CREATE TABLE menu_item_variation_mappings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    menu_item_id BIGINT UNSIGNED NOT NULL,
+    variation_id BIGINT UNSIGNED NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    discount_price DECIMAL(10,2) NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_item_variation (
+        menu_item_id,
+        variation_id
+    ),
+
+    KEY idx_mivm_menu_item_id (menu_item_id),
+    KEY idx_mivm_variation_id (variation_id)
+);
+
+
+CREATE TABLE option_groups (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    restaurant_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    online_display_name VARCHAR(255) NULL,
+    selection_type VARCHAR(50) NOT NULL DEFAULT 'multiple',
+    pricing_type VARCHAR(50) NOT NULL DEFAULT 'individual',
+    is_required TINYINT(1) NOT NULL DEFAULT 0,
+    min_selection INT NOT NULL DEFAULT 0,
+    max_selection INT NULL,
+    max_selection_per_item INT NULL,
+    show_online TINYINT(1) NOT NULL DEFAULT 1,
+    show_dinein_qr TINYINT(1) NOT NULL DEFAULT 0,
+    allow_open_quantity TINYINT(1) NOT NULL DEFAULT 0,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_option_groups_restaurant_name (
+        restaurant_id,
+        name
+    ),
+
+    KEY idx_option_groups_restaurant_id (restaurant_id)
+);
+
+
+INSERT INTO option_groups (
+    id,
+    restaurant_id,
+    name,
+    online_display_name,
+    selection_type,
+    pricing_type,
+    is_required,
+    min_selection,
+    max_selection,
+    max_selection_per_item,
+    show_online,
+    show_dinein_qr,
+    allow_open_quantity,
+    sort_order,
+    status,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    restaurant_id,
+    name,
+    online_display_name,
+    selection_type,
+    'individual',
+    is_required,
+    min_selection,
+    max_selection,
+    max_selection_per_item,
+    show_online,
+    show_dinein_qr,
+    allow_open_quantity,
+    sort_order,
+    status,
+    created_at,
+    updated_at
+FROM menu_item_option_groups;
+
+
+CREATE TABLE menu_item_option_group_mappings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    menu_item_id BIGINT UNSIGNED NOT NULL,
+    option_group_id BIGINT UNSIGNED NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_item_option_group (
+        menu_item_id,
+        option_group_id
+    ),
+
+    KEY idx_miopgm_menu_item_id (menu_item_id),
+    KEY idx_miopgm_option_group_id (option_group_id)
+);
+
+INSERT IGNORE INTO menu_item_option_group_mappings (
+    menu_item_id,
+    option_group_id,
+    sort_order,
+    status
+)
+SELECT
+    menu_item_id,
+    id,
+    sort_order,
+    status
+FROM menu_item_option_groups
+WHERE menu_item_id IS NOT NULL;
+
+CREATE TABLE options (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    option_group_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    default_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    default_discount_price DECIMAL(10,2) NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_option_group_name (
+        option_group_id,
+        name
+    ),
+
+    KEY idx_options_group_id (option_group_id)
+);
+
+CREATE TABLE menu_item_option_mappings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    menu_item_id BIGINT UNSIGNED NOT NULL,
+    option_id BIGINT UNSIGNED NOT NULL,
+    price DECIMAL(10,2) NULL,
+    discount_price DECIMAL(10,2) NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_item_option (
+        menu_item_id,
+        option_id
+    ),
+
+    KEY idx_miom_menu_item_id (menu_item_id),
+    KEY idx_miom_option_id (option_id)
+);
+
+CREATE TABLE variation_option_prices (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    menu_item_variation_mapping_id BIGINT UNSIGNED NOT NULL,
+    option_id BIGINT UNSIGNED NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    discount_price DECIMAL(10,2) NULL,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+
+    UNIQUE KEY uq_variation_option_price (
+        menu_item_variation_mapping_id,
+        option_id
+    ),
+
+    KEY idx_vop_variation_mapping_id (
+        menu_item_variation_mapping_id
+    ),
+    KEY idx_vop_option_id (
+        option_id
+    )
+);
+
+ALTER TABLE menu_items
+ADD CONSTRAINT fk_menu_items_restaurant
+FOREIGN KEY (restaurant_id)
+REFERENCES restaurants(id);
+
+ALTER TABLE variation_groups
+ADD CONSTRAINT fk_variation_groups_restaurant
+FOREIGN KEY (restaurant_id)
+REFERENCES restaurants(id);
+
+ALTER TABLE variations
+ADD CONSTRAINT fk_variations_group
+FOREIGN KEY (variation_group_id)
+REFERENCES variation_groups(id);
+
+ALTER TABLE option_groups
+ADD CONSTRAINT fk_option_groups_restaurant
+FOREIGN KEY (restaurant_id)
+REFERENCES restaurants(id);
+
+ALTER TABLE options
+ADD CONSTRAINT fk_options_group
+FOREIGN KEY (option_group_id)
+REFERENCES option_groups(id);
+
+ALTER TABLE menu_item_variation_group_mappings
+ADD CONSTRAINT fk_mivgm_menu_item
+FOREIGN KEY (menu_item_id)
+REFERENCES menu_items(id);
+
+ALTER TABLE menu_item_variation_group_mappings
+ADD CONSTRAINT fk_mivgm_group
+FOREIGN KEY (variation_group_id)
+REFERENCES variation_groups(id);
+
+ALTER TABLE menu_item_variation_mappings
+ADD CONSTRAINT fk_mivm_menu_item
+FOREIGN KEY (menu_item_id)
+REFERENCES menu_items(id);
+
+ALTER TABLE menu_item_variation_mappings
+ADD CONSTRAINT fk_mivm_variation
+FOREIGN KEY (variation_id)
+REFERENCES variations(id);
+
+ALTER TABLE menu_item_option_group_mappings
+ADD CONSTRAINT fk_miogm_menu_item
+FOREIGN KEY (menu_item_id)
+REFERENCES menu_items(id);
+
+ALTER TABLE menu_item_option_group_mappings
+ADD CONSTRAINT fk_miogm_option_group
+FOREIGN KEY (option_group_id)
+REFERENCES option_groups(id);
+
+ALTER TABLE menu_item_option_mappings
+ADD CONSTRAINT fk_miom_menu_item
+FOREIGN KEY (menu_item_id)
+REFERENCES menu_items(id);
+
+ALTER TABLE menu_item_option_mappings
+ADD CONSTRAINT fk_miom_option
+FOREIGN KEY (option_id)
+REFERENCES options(id);
+
+ALTER TABLE variation_option_prices
+ADD CONSTRAINT fk_vop_variation_mapping
+FOREIGN KEY (menu_item_variation_mapping_id)
+REFERENCES menu_item_variation_mappings(id);
+
+ALTER TABLE variation_option_prices
+ADD CONSTRAINT fk_vop_option
+FOREIGN KEY (option_id)
+REFERENCES options(id);
+
+DROP TABLE IF EXISTS menu_item_variation_groups;
+DROP TABLE IF EXISTS menu_item_variations;
+DROP TABLE IF EXISTS menu_item_option_groups;
+DROP TABLE IF EXISTS menu_item_options;
+
+
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS menu_item_variation_groups;
+DROP TABLE IF EXISTS menu_item_variations;
+DROP TABLE IF EXISTS menu_item_option_groups;
+DROP TABLE IF EXISTS menu_item_options;
+SET FOREIGN_KEY_CHECKS = 1;

@@ -442,6 +442,14 @@ class CheckoutServiceNew
         $latitude = $address ? $address->latitude : 0.0;
         $longitude = $address ? $address->longitude : 0.0;
 
+        $orderSource = 'jagods';
+        if (!empty($pricing['coupon_id'])) {
+            $coupon = Coupon::find($pricing['coupon_id']);
+
+            if ($coupon && !blank($coupon->coupon_for)) {
+                $orderSource = $coupon->coupon_for;
+            }
+        }
         $order = Order::create([
             'user_id' => $userId,
             'user_device_id' => $device ? $device->id : null,
@@ -449,6 +457,7 @@ class CheckoutServiceNew
             'module_id' => $data['module_id'],
             'address_id' => $data['address_id'] ?? null,
             'coupon_id' => $pricing['coupon_id'],
+            'order_source' => $orderSource,
             'order_type' => $data['order_type'],
             'payment_method' => $data['payment_method'],
             'payment_status' => PaymentStatus::UNPAID,

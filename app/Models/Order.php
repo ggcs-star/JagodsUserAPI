@@ -55,6 +55,7 @@ class Order extends Model implements HasMedia
         'user_device_id',
         'module_id',
         'address_id',
+        'order_source'
     ];
     protected $casts = [
         'status' => 'int',
