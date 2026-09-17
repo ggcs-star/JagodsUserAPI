@@ -98,11 +98,13 @@ class DeviceIdentificationService
 
         if ($ipChanged && $device->id) {
             $locationNeedsUpdate = true;
-            
-            if ($device->location_updated_at && Carbon::parse($device->location_updated_at)->diffInMinutes(now()) < 30) {
+
+            if (
+                $device->location_updated_at &&
+                Carbon::parse($device->location_updated_at)->diffInHours(now()) < 12
+            ) {
                 $locationNeedsUpdate = false;
             }
-
             if ($locationNeedsUpdate) {
                 ProcessDeviceLocationJob::dispatch($device->id);
             }
@@ -182,7 +184,6 @@ class DeviceIdentificationService
             } else {
                 $device->trust_level = self::TRUST_NEW;
             }
-
         } else {
             $riskScore = 0;
             if ($device->platform !== $context['platform'])

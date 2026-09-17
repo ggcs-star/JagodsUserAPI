@@ -18,20 +18,23 @@ class MenuItemOptionResource extends JsonResource
                 : null,
 
             'external_option_id' =>
-                $this->external_option_id,
+            $this->external_option_id,
 
             'name' => $this->name,
 
             'price' => (float) $this->price,
 
             'attribute' =>
-                $this->attribute,
+            $this->attribute,
 
             'sort_order' =>
-                (int) ($this->sort_order ?? 0),
+            (int) ($this->sort_order ?? 0),
 
             'status' =>
-                (int) ($this->status ?? 1),
+            (int) ($this->status ?? 1),
+            'is_default' => (bool) (
+                $this->is_default ?? false
+            ),
         ];
     }
 }

@@ -18,6 +18,7 @@ class MenuItemOption extends Model
         'attribute',
         'sort_order',
         'status',
+        'is_default',
     ];
 
     protected $casts = [
@@ -27,6 +28,7 @@ class MenuItemOption extends Model
         'price' => 'float',
         'sort_order' => 'integer',
         'status' => 'integer',
+        'is_default' => 'boolean',
     ];
 
     public function menuItem()

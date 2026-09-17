@@ -35,10 +35,10 @@ class CheckoutController extends BackendController
 
         $this->middleware('auth:api');
 
-        $this->middleware([
-            \App\Http\Middleware\DeviceIdentificationMiddleware::class,
-            \App\Http\Middleware\RequireActiveSessionMiddleware::class,
-        ])->only('checkout');
+        // $this->middleware([
+        //     \App\Http\Middleware\DeviceIdentificationMiddleware::class,
+        //     \App\Http\Middleware\RequireActiveSessionMiddleware::class,
+        // ])->only('checkout');
 
         $this->checkoutService = $checkoutService;
         $this->paymentService = $paymentService;
