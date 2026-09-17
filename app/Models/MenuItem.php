@@ -32,6 +32,7 @@ class MenuItem extends BaseModel implements HasMedia
         'module_id' => 'int',
         'ingredients' => 'array',
         'tags' => 'array',
+        'sort_order' => 'integer',
     ];
     protected $fakeColumns = [];
 

@@ -728,7 +728,9 @@ AFTER `order_type`;
 ALTER TABLE `menu_item_options`
 ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`;
 
-
+ALTER TABLE `menu_items`
+ADD COLUMN `sort_order` INT NULL DEFAULT NULL
+AFTER `order`;
 ===================================NEW NEW NEW NEW=================
 
 CREATE TABLE variation_groups (
