@@ -142,6 +142,9 @@ class GroceryController extends BackendController
                         'status',
                         MenuItemStatus::ACTIVE
                     )
+                    ->orderByRaw('CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END')
+                    ->orderBy('sort_order', 'asc')
+                    ->orderBy('name', 'asc')
                     ->limit(10)
                     ->get();
             }
