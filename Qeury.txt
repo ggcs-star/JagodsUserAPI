@@ -717,7 +717,7 @@ ALTER TABLE `categories`
 ADD COLUMN `show_on_home` BOOLEAN NOT NULL DEFAULT FALSE
 AFTER `sort_order`;
 
-=======================================================================done
+
 ALTER TABLE `orders`
 ADD COLUMN `order_source` VARCHAR(50)
 CHARACTER SET utf8mb4
@@ -731,6 +731,25 @@ ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`;
 ALTER TABLE `menu_items`
 ADD COLUMN `sort_order` INT NULL DEFAULT NULL
 AFTER `order`;
+
+=======================================================================done
+
+CREATE TABLE `admin_order_notifications` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `order_id` BIGINT UNSIGNED NOT NULL,
+    `restaurant_id` BIGINT UNSIGNED NULL,
+    `order_code` VARCHAR(255) NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `message` TEXT NOT NULL,
+    `data` JSON NULL,
+    `created_at` TIMESTAMP NULL DEFAULT NULL,
+    `updated_at` TIMESTAMP NULL DEFAULT NULL,
+
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `admin_order_notifications_order_id_unique` (`order_id`),
+    KEY `admin_order_notifications_created_at_index` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ===================================NEW NEW NEW NEW=================
 
 CREATE TABLE variation_groups (

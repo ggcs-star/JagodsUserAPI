@@ -19,6 +19,7 @@ use App\Models\Address;
 use App\Enums\Module;
 use Illuminate\Support\Facades\DB;
 use App\Enums\MenuItemStatus;
+use App\Enums\DiscountType;
 
 class CartService
 {
@@ -296,7 +297,6 @@ class CartService
             throw new Exception("Maximum allowed quantity is {$menuItem->max_cart_quantity}");
         }
 
-        // ✅ Step 3: changed to final_price
         $cartItem->update([
             'quantity' => $quantity,
             'total_price' => $cartItem->final_price * $quantity,
@@ -352,8 +352,6 @@ class CartService
         return $cart;
     }
 
-    // ✅ Step 1: Updated logic
-
 
     public function updateCartTotals(Cart $cart)
     {
@@ -364,7 +362,6 @@ class CartService
             ->where('is_available', true)
             ->sum('total_price');
 
-        // ✅ Step 5: Product Discount Calculation (Only for available items)
         $productDiscount = CartItem::where('cart_id', $cart->id)
             ->where('is_available', true)
             ->sum(DB::raw('discount_price * quantity'));
@@ -419,7 +416,6 @@ class CartService
             $total = max(0, $taxableAmount + $gstAmount + $deliveryCharge + $packagingCharge + $platformFee + $surgeFee + $largeOrderFee + $tipAmount);
         }
 
-        // ✅ Step 5: Update Cart values
         $cart->update([
             'subtotal' => $subtotal,
             'product_discount' => $productDiscount,
@@ -599,6 +595,8 @@ class CartService
         return true;
     }
 
+
+
     public function applyCoupon(array $data, $userId)
     {
         $today = now();
@@ -644,10 +642,19 @@ class CartService
 
             $menuItem = MenuItem::query()
                 ->where('id', $itemData['menu_item_id'])
-                
                 ->first();
-// dd($menuItem);
-            if ((int) $menuItem->status !== MenuItemStatus::ACTIVE) {
+
+            if (!$menuItem) {
+                throw new Exception(
+                    'Menu item not found.',
+                    422
+                );
+            }
+
+            if (
+                (int) $menuItem->status !==
+                MenuItemStatus::ACTIVE
+            ) {
                 throw new Exception(
                     "{$menuItem->name} is currently unavailable.",
                     422
@@ -673,13 +680,21 @@ class CartService
             );
 
             $subtotal +=
-                $priceDetails['final_price'] * $quantity;
+                (float) $priceDetails['final_price']
+                * $quantity;
         }
 
         $subtotal = round($subtotal, 2);
 
+        $gstRate = 5;
+
+        $gst = round(
+            ($subtotal * $gstRate) / 100,
+            2
+        );
+
         $total = round(
-            (float) ($data['total'] ?? 0),
+            $subtotal + $gst,
             2
         );
 
@@ -693,7 +708,6 @@ class CartService
                 422
             );
         }
-
         $totalUsed = Discount::where(
             'coupon_id',
             $coupon->id
@@ -736,12 +750,22 @@ class CartService
             );
         }
 
-        if ($coupon->discount_type === 'percent') {
+        $discount = 0;
 
+        if (
+            (int) $coupon->discount_type ===
+            DiscountType::PERCENTAGE
+        ) {
+
+            // Percentage discount
             $discount = (
-                $total * (float) $coupon->amount
+                $total *
+                (float) $coupon->amount
             ) / 100;
-        } else {
+        } elseif (
+            (int) $coupon->discount_type ===
+            DiscountType::FIXED
+        ) {
 
             $discount = (float) $coupon->amount;
         }
@@ -751,28 +775,55 @@ class CartService
             $total
         );
 
+        $discount = round(
+            $discount,
+            2
+        );
+
         $afterCoupon = round(
             $total - $discount,
             2
         );
 
         return [
+
             'coupon' => [
-                'id' => $coupon->id,
-                'code' => $coupon->slug,
-                'discount_type' => $coupon->discount_type,
-                'amount' => (float) $coupon->amount,
-                'minimum_order_amount' => (float) $coupon->minimum_order_amount,
+
+                'id' =>
+                $coupon->id,
+
+                'code' =>
+                $coupon->slug,
+
+                'discount_type' =>
+                (int) $coupon->discount_type,
+
+                'amount' =>
+                (float) $coupon->amount,
+
+                'minimum_order_amount' =>
+                (float) $coupon->minimum_order_amount,
             ],
 
             'pricing' => [
-                'subtotal' => $subtotal,
-                'total' => $total,
-                'coupon_discount' => round(
-                    $discount,
-                    2
-                ),
-                'after_coupon' => $afterCoupon,
+
+                'subtotal' =>
+                $subtotal,
+
+                'gst_rate' =>
+                $gstRate,
+
+                'gst' =>
+                $gst,
+
+                'total' =>
+                $total,
+
+                'coupon_discount' =>
+                $discount,
+
+                'after_coupon' =>
+                $afterCoupon,
             ],
         ];
     }

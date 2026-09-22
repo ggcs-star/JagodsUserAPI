@@ -70,4 +70,9 @@ return [
         'password' => env('SHIPROCKET_PASSWORD'),
         'pickup_postcode' => env('SHIPROCKET_PICKUP_POSTCODE'),
     ],
+
+    'admin_api' => [
+        'url' => env('ADMIN_API_URL'),
+        'token' => env('ADMIN_API_TOKEN'),
+    ],
 ];

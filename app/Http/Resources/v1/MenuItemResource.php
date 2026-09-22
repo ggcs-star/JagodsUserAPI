@@ -49,9 +49,13 @@ class MenuItemResource extends JsonResource
             'currency_code' =>
             setting('currency_code'),
 
-            'image' =>
-            $this->image,
-
+            'image' => $this->getMedia('menu-items')->map(function ($media) {
+                return [
+                    'id' => $media->id,
+                    'url' => $media->getUrl(),
+                    'file_name' => $media->file_name,
+                ];
+            })->values()->toArray(),
             'description' => $this->description ?? '',
             'description_type' => $this->description && $this->description !== strip_tags($this->description)
                 ? 'html'

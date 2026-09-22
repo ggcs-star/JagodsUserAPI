@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -25,12 +26,12 @@ class SendOrderCreatedNotificationJob implements ShouldQueue
     public function __construct(
         public int $orderId,
         public int $userId
-    ) {
-    }
+    ) {}
 
     public function handle(
         PushNotificationService $pushNotificationService
     ): void {
+
         $order = Order::find($this->orderId);
 
         if (!$order) {
@@ -58,8 +59,10 @@ class SendOrderCreatedNotificationJob implements ShouldQueue
             return;
         }
 
-        if ((int) $order->payment_status !== \App\Enums\PaymentStatus::PAID) {
-
+        if (
+            (int) $order->payment_status !==
+            \App\Enums\PaymentStatus::PAID
+        ) {
             Log::warning(
                 'Order created notification skipped: payment not completed.',
                 [
@@ -78,12 +81,81 @@ class SendOrderCreatedNotificationJob implements ShouldQueue
         );
 
         Log::info(
-            'Order created notification sent.',
+            'Customer order created notification sent.',
             [
                 'order_id' => $order->id,
                 'user_id' => $user->id,
             ]
         );
+
+
+        try {
+
+            $adminApiUrl = config('services.admin_api.url');
+            $adminApiToken = config('services.admin_api.token');
+
+            if (
+                empty($adminApiUrl) ||
+                empty($adminApiToken)
+            ) {
+                Log::warning(
+                    'Admin order notification skipped: admin API configuration missing.',
+                    [
+                        'order_id' => $order->id,
+                    ]
+                );
+            } else {
+
+                $adminResponse = Http::timeout(10)
+                    ->acceptJson()
+                    ->withToken($adminApiToken)
+                    ->post(
+                        rtrim($adminApiUrl, '/') .
+                            '/api/internal/order-created',
+                        [
+                            'order_id' => $order->id,
+
+                            'restaurant_id' => $order->restaurant_id,
+
+                            'user_id' => $order->user_id,
+
+                            'order_code' => $order->order_code ?? null,
+
+                            'amount' => $order->total,
+                        ]
+                    );
+
+                if (!$adminResponse->successful()) {
+
+                    Log::error(
+                        'Admin order notification API failed.',
+                        [
+                            'order_id' => $order->id,
+                            'status' => $adminResponse->status(),
+                            'response' => $adminResponse->body(),
+                        ]
+                    );
+                } else {
+
+                    Log::info(
+                        'Admin order notification sent successfully.',
+                        [
+                            'order_id' => $order->id,
+                            'admin_response' => $adminResponse->json(),
+                        ]
+                    );
+                }
+            }
+        } catch (Throwable $exception) {
+
+            Log::error(
+                'Admin order notification API exception.',
+                [
+                    'order_id' => $order->id,
+                    'error' => $exception->getMessage(),
+                ]
+            );
+        }
     }
 
     public function failed(Throwable $exception): void

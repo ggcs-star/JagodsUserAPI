@@ -26,12 +26,6 @@ class ApplyCouponRequest extends FormRequest
                 'integer'
             ],
 
-            'total' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
             'items' => [
                 'required',
                 'array',
@@ -81,9 +75,6 @@ class ApplyCouponRequest extends FormRequest
 
             'restaurant_id.exists' =>
             'Restaurant not found.',
-
-            'total.required' =>
-            'Total amount is required.',
 
             'items.required' =>
             'Cart items are required.',
