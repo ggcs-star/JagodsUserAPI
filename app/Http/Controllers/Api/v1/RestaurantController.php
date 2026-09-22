@@ -167,7 +167,13 @@ class RestaurantController extends BackendController
             ])->get();
 
             $timeSlots = TimeSlot::where('restaurant_id', $restaurant->id)->get();
-
+            $sortByOptions = [
+                ['value' => 'popularity', 'label' => 'Popularity'],
+                ['value' => 'new_arrivals', 'label' => 'New Arrivals'],
+                ['value' => 'price_low_high', 'label' => 'Price: Low to High'],
+                ['value' => 'price_high_low', 'label' => 'Price: High to Low'],
+                ['value' => 'discount_high_low', 'label' => 'Discount: High to Low'],
+            ];
             $this->data['restaurant'] = new RestaurantResource($restaurant);
             $this->data['banners'] = RestaurantBannerResource::collection($restaurant->banners);
             $this->data['categories'] = $categoriesData;
@@ -181,7 +187,7 @@ class RestaurantController extends BackendController
             $this->data['avgRating'] = $ratingArray['avgRating'];
             $this->data['vouchers'] = [];
             $this->data['order_status'] = true;
-
+            $this->data['sort_options'] = $sortByOptions;
             return $this->successResponse(
                 message: 'Restaurant details fetched successfully.',
                 data: $this->data

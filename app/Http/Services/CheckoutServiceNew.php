@@ -18,6 +18,7 @@ use App\Enums\OrderStatus;
 use App\Models\UserDevice;
 use App\Libraries\MyString;
 use App\Models\OrderHistory;
+use App\Enums\DiscountType;
 
 class CheckoutServiceNew
 {
@@ -99,26 +100,65 @@ class CheckoutServiceNew
 
         $subtotal = (float) $validated['subtotal'];
 
+
         $settings = Setting::pluck('value', 'key');
 
+
+        /*
+    |--------------------------------------------------------------------------
+    | Coupon
+    |--------------------------------------------------------------------------
+    */
+
         $couponId = null;
+
         $couponDiscount = 0.0;
+
         $coupon = null;
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Charges
+    |--------------------------------------------------------------------------
+    */
 
         $packagingCharge = (float) (
             $settings['packaging_charge'] ?? 0
         );
 
+
         $platformFee = $subtotal > 0
             ? (float) ($settings['platform_fee'] ?? 0)
             : 0;
 
+
+        /*
+    |--------------------------------------------------------------------------
+    | Module
+    |--------------------------------------------------------------------------
+    */
+
         $moduleId = (int) $data['module_id'];
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Pickup
+    |--------------------------------------------------------------------------
+    */
 
         $isPickup = (
             (int) $data['order_type']
             === OrderTypeStatus::PICKUP
         );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Surge Fee
+    |--------------------------------------------------------------------------
+    */
 
         $surgeFee = 0;
 
@@ -126,10 +166,18 @@ class CheckoutServiceNew
             !$isPickup &&
             $moduleId === Module::YOUR_CITY
         ) {
+
             $surgeFee = $subtotal > 0
                 ? (float) ($settings['surge_fee'] ?? 0)
                 : 0;
         }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Delivery Charge
+    |--------------------------------------------------------------------------
+    */
 
         $deliveryCharge = $this->calculateDeliveryCharge(
             $data,
@@ -139,18 +187,76 @@ class CheckoutServiceNew
             $validated['items']
         );
 
+
+        /*
+    |--------------------------------------------------------------------------
+    | Tip
+    |--------------------------------------------------------------------------
+    */
+
         $tipAmount = (float) (
             $data['tip_amount'] ?? 0
         );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Product Discount
+    |--------------------------------------------------------------------------
+    */
 
         $productDiscount = (float) (
             $validated['product_discount'] ?? 0
         );
 
+
+        /*
+    |--------------------------------------------------------------------------
+    | GST 5%
+    |--------------------------------------------------------------------------
+    */
+
         $gstAmount = round(
             $subtotal * 5 / 100,
             2
         );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Coupon Base Amount
+    |--------------------------------------------------------------------------
+    |
+    | Coupon sirf:
+    |
+    | Item Subtotal + GST
+    |
+    | par calculate hoga.
+    |
+    | Example:
+    |
+    | Subtotal = 1000
+    | GST      = 50
+    | Base     = 1050
+    |
+    */
+
+        $couponBaseAmount = round(
+            $subtotal + $gstAmount,
+            2
+        );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Total Before Coupon
+    |--------------------------------------------------------------------------
+    |
+    | Ye actual order ka total hai.
+    |
+    | Isme saare charges included hain.
+    |
+    */
 
         $totalBeforeCoupon = round(
             $subtotal
@@ -163,6 +269,13 @@ class CheckoutServiceNew
             2
         );
 
+
+        /*
+    |--------------------------------------------------------------------------
+    | Apply Coupon
+    |--------------------------------------------------------------------------
+    */
+
         if (!empty($data['coupon_code'])) {
 
             $coupon = Coupon::whereRaw(
@@ -173,26 +286,31 @@ class CheckoutServiceNew
                 ->where('to_date', '>=', now())
                 ->where('limit', '>', 0)
                 ->where(function ($query) use ($data) {
+
                     $query
                         ->where(
                             'restaurant_id',
                             $data['restaurant_id']
                         )
-                        ->orWhere('restaurant_id', 0);
+                        ->orWhere(
+                            'restaurant_id',
+                            0
+                        );
                 })
                 ->first();
 
             if (!$coupon) {
+
                 throw new Exception(
                     'This coupon is invalid or expired.',
                     422
                 );
             }
-
             if (
                 $coupon->minimum_order_amount > 0 &&
-                $totalBeforeCoupon < $coupon->minimum_order_amount
+                $couponBaseAmount < $coupon->minimum_order_amount
             ) {
+
                 throw new Exception(
                     'This coupon requires a minimum order amount of ₹' .
                         $coupon->minimum_order_amount,
@@ -201,34 +319,60 @@ class CheckoutServiceNew
             }
 
             if (
-                Discount::where('coupon_id', $coupon->id)
-                ->where('status', DiscountStatus::ACTIVE)
+                Discount::where(
+                    'coupon_id',
+                    $coupon->id
+                )
+                ->where(
+                    'status',
+                    DiscountStatus::ACTIVE
+                )
                 ->count() >= $coupon->limit
             ) {
+
                 throw new Exception(
                     'This coupon is fully redeemed and no longer available.',
                     422
                 );
             }
-
-            $couponId = $coupon->id;
-
-            if ($coupon->discount_type === 'percent') {
+            $couponId =
+                $coupon->id;
+            if (
+                (int) $coupon->discount_type ===
+                DiscountType::PERCENTAGE
+            ) {
 
                 $couponDiscount = (
-                    $totalBeforeCoupon * (float) $coupon->amount
+                    $couponBaseAmount *
+                    (float) $coupon->amount
                 ) / 100;
+            } elseif (
+                (int) $coupon->discount_type ===
+                DiscountType::FIXED
+            ) {
+
+                // Fixed Discount
+                $couponDiscount = (float) $coupon->amount;
             } else {
 
-                $couponDiscount = (float) $coupon->amount;
+                throw new Exception(
+                    'Invalid coupon discount type.',
+                    422
+                );
             }
-
             $couponDiscount = min(
-                max(0, $couponDiscount),
-                $totalBeforeCoupon
+                max(
+                    0,
+                    $couponDiscount
+                ),
+                $couponBaseAmount
+            );
+
+            $couponDiscount = round(
+                $couponDiscount,
+                2
             );
         }
-
         $total = round(
             max(
                 0,
@@ -238,34 +382,53 @@ class CheckoutServiceNew
         );
 
         return [
-            'subtotal' => $subtotal,
 
-            'product_discount' => $productDiscount,
+            'subtotal' =>
+            $subtotal,
 
-            'coupon_id' => $couponId,
+            'product_discount' =>
+            $productDiscount,
 
-            'discount' => round(
+            'coupon_id' =>
+            $couponId,
+
+            'discount' =>
+            round(
                 $couponDiscount,
                 2
             ),
 
-            'gst_amount' => $gstAmount,
+            'gst_amount' =>
+            $gstAmount,
 
-            'delivery_charge' => $deliveryCharge,
 
-            'packaging_charge' => $packagingCharge,
+            'delivery_charge' =>
+            $deliveryCharge,
 
-            'platform_fee' => $platformFee,
 
-            'surge_fee' => $surgeFee,
+            'packaging_charge' =>
+            $packagingCharge,
 
-            'large_order_fee' => 0,
 
-            'tip_amount' => $tipAmount,
+            'platform_fee' =>
+            $platformFee,
 
-            'total_before_coupon' => $totalBeforeCoupon,
 
-            'total' => $total,
+            'surge_fee' =>
+            $surgeFee,
+
+
+            'large_order_fee' =>
+            0,
+
+            'tip_amount' =>
+            $tipAmount,
+
+            'total_before_coupon' =>
+            $totalBeforeCoupon,
+
+            'total' =>
+            $total,
         ];
     }
 
