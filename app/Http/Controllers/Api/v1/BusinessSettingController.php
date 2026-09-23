@@ -25,7 +25,7 @@ class BusinessSettingController extends Controller
         try {
 
             $request->validate([
-            
+
                 'pincode' => [
                     'nullable',
                     'string',
@@ -60,7 +60,7 @@ class BusinessSettingController extends Controller
                 ? $totalQty * 1
                 : null;
 
-          
+
             $settings = Setting::whereNotIn('key', [
                 'purchase_code',
                 'purchase_username',
@@ -117,7 +117,6 @@ class BusinessSettingController extends Controller
                     'all_india_delivery' => $delivery,
                 ],
             ], 200);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
 
             return response()->json([
@@ -128,7 +127,6 @@ class BusinessSettingController extends Controller
                 'message' => 'Validation Error',
                 'data' => [],
             ], 422);
-
         } catch (\Throwable $e) {
 
             Log::error('Business Settings API Error', [

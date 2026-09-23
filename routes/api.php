@@ -59,7 +59,7 @@ use App\Http\Controllers\Api\v1\VersionController;
 
 Route::group(['prefix' => 'v1'], function () {
     Route::get('home/config', [HomeConfigController::class, 'index']);
-    Route::post('version-show',[VersionController::class, 'versionShow']);
+    Route::post('version-show', [VersionController::class, 'versionShow']);
     Route::post('login', [LoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('refresh-token', [RefreshTokenController::class, 'refresh']);
     // Route::post('reg', [RegisterController::class, 'action']);
@@ -135,7 +135,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('settings', [SettingController::class, 'index']);
 
     Route::middleware('business.api')->group(function () {
-    Route::post('business-settings', [BusinessSettingController::class, 'index']);
+        Route::post('business-settings', [BusinessSettingController::class, 'index']);
     });
     Route::post('banners', [BannerController::class, 'index']);
     Route::post('sort-banner', [BannerController::class, 'sortBanner'])->name('sort.banner');

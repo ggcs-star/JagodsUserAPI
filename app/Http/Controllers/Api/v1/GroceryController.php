@@ -6,37 +6,37 @@ use Throwable;
 use App\Enums\Module;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Http\Controllers\Controller;
-use App\Http\Resources\v1\GroceryCategoryGroupResource;
-use App\Models\CategoryGroup;
 use App\Http\Controllers\BackendController;
 use App\Traits\ApiResponse;
-use App\Http\Resources\v1\GroceryCategoryResource;
-use App\Enums\CategoryStatus;
 use App\Models\Category;
-use App\Models\MenuItem;
-use App\Enums\MenuItemStatus;
+use Illuminate\Validation\ValidationException;
+use App\Http\Services\GroceryService;
+
+// Resources
+use App\Http\Resources\v1\GroceryCategoryGroupResource;
+use App\Http\Resources\v1\GroceryCategoryResource;
 use App\Http\Resources\v1\GroceryCategoryDetailResource;
 use App\Http\Resources\v1\MenuItemResource;
 use App\Http\Resources\v1\GrocerySubCategoryResource;
-use Illuminate\Validation\ValidationException;
 
 class GroceryController extends BackendController
 {
     use ApiResponse;
+
+    protected $groceryService;
+
+    // Dependency Injection
+    public function __construct(GroceryService $groceryService)
+    {
+        $this->groceryService = $groceryService;
+    }
+
     public function categoryGroups(Request $request)
     {
         try {
-
             $perPage = (int) $request->get('per_page', 10);
 
-            $groups = CategoryGroup::with([
-                'categories'
-            ])
-                ->where('module_id', Module::ALL_OVER_INDIA)
-                ->where('status', 1)
-                ->orderBy('sort_order')
-                ->paginate($perPage);
+            $groups = $this->groceryService->getCategoryGroups($perPage);
 
             return $this->successPaginationResponse(
                 message: 'Category groups fetched successfully.',
@@ -44,226 +44,67 @@ class GroceryController extends BackendController
                 data: GroceryCategoryGroupResource::collection($groups->items())
             );
         } catch (Throwable $e) {
-
-            Log::error('Grocery Category API', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            return $this->serverErrorResponse(
-                message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Something went wrong while fetching category groups.'
-            );
+            return $this->handleException($e, 'Grocery Category API', 'Something went wrong while fetching category groups.');
         }
     }
 
     public function mainCategories(Request $request)
     {
         try {
-
             $request->validate([
-                'module_id' => [
-                    'required',
-                    'integer',
-                    'exists:modules,id',
-                ],
-
-                'per_page' => [
-                    'nullable',
-                    'integer',
-                    'min:1',
-                    'max:50',
-                ],
+                'module_id' => 'required|integer|exists:modules,id',
+                'per_page' => 'nullable|integer|min:1|max:50',
             ]);
 
             $moduleId = (int) $request->input('module_id');
+            $perPage = (int) $request->get('per_page', 10);
 
-            $perPage = (int) $request->get(
-                'per_page',
-                10
-            );
-
-            $categories = Category::select(
-                'id',
-                'category_group_id',
-                'name',
-                'slug',
-                'display_module_id',
-                'sort_order'
-            )
-                ->with('categoryGroup:id,name')
-                ->whereJsonContains(
-                    'display_module_id',
-                    $moduleId
-                )
-                ->whereNull('parent_id')
-                ->where(
-                    'status',
-                    CategoryStatus::ACTIVE
-                )
-                ->orderBy('sort_order', 'asc')
-                ->orderBy('name', 'asc')
-                ->paginate($perPage);
-
-            foreach ($categories as $category) {
-
-                $categoryIds = Category::where(
-                    'id',
-                    $category->id
-                )
-                    ->orWhere(
-                        'parent_id',
-                        $category->id
-                    )
-                    ->pluck('id');
-
-                $category->items = MenuItem::with([
-                    'media',
-                    'categories',
-                    'variations',
-                    'options',
-                ])
-                    ->whereHas(
-                        'categories',
-                        function ($q) use ($categoryIds) {
-                            $q->whereIn(
-                                'categories.id',
-                                $categoryIds
-                            );
-                        }
-                    )
-                    ->where(
-                        'module_id',
-                        Module::ALL_OVER_INDIA
-                    )
-                    ->where(
-                        'status',
-                        MenuItemStatus::ACTIVE
-                    )
-                    ->orderByRaw('CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END')
-                    ->orderBy('sort_order', 'asc')
-                    ->orderBy('name', 'asc')
-                    ->limit(10)
-                    ->get();
-            }
+            $categories = $this->groceryService->getMainCategories($moduleId, $perPage);
 
             return $this->successPaginationResponse(
                 message: 'Main categories fetched successfully.',
                 paginator: $categories,
-                data: GroceryCategoryResource::collection(
-                    $categories->items()
-                )
+                data: GroceryCategoryResource::collection($categories->items())
             );
         } catch (ValidationException $e) {
-
-            return $this->errorResponse(
-                message: 'Validation failed.',
-                errors: $e->errors(),
-                statusCode: 422
-            );
+            return $this->errorResponse('Validation failed.', $e->errors(), 422);
         } catch (Throwable $e) {
-
-            Log::error('Main Category API', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            return $this->serverErrorResponse(
-                message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Something went wrong while fetching categories.'
-            );
+            return $this->handleException($e, 'Main Category API', 'Something went wrong while fetching categories.');
         }
     }
+
     public function mainCategoriesItem(Request $request)
     {
         try {
-
             $request->validate([
                 'per_page' => 'nullable|integer|min:1|max:50',
             ]);
 
-            $categories = Category::select(
-                'id',
-                'category_group_id',
-                'name',
-                'slug',
-                'sort_order'
-            )
-                ->with('categoryGroup:id,name')
-                ->where('module_id', Module::ALL_OVER_INDIA)
-                ->whereNull('parent_id')
-                ->where('status', CategoryStatus::ACTIVE)
-                ->where('show_on_home', true)
-                ->orderBy('sort_order', 'asc')
-                ->orderBy('name', 'asc')
-                ->get();
-
-            foreach ($categories as $category) {
-
-                $categoryIds = Category::where('id', $category->id)
-                    ->orWhere('parent_id', $category->id)
-                    ->pluck('id');
-
-                $category->items = MenuItem::with([
-                    'media',
-                    'categories',
-                    'variations',
-                    'options',
-                ])
-                    ->whereHas('categories', function ($q) use ($categoryIds) {
-                        $q->whereIn('categories.id', $categoryIds);
-                    })
-                    ->where('module_id', Module::ALL_OVER_INDIA)
-                    ->where('status', MenuItemStatus::ACTIVE)
-                    ->limit(10)
-                    ->get();
-            }
+            $categories = $this->groceryService->getHomeCategories();
 
             return $this->successResponse(
                 message: 'Main categories fetched successfully.',
                 data: GroceryCategoryResource::collection($categories)
             );
         } catch (Throwable $e) {
-
-            Log::error('Main Category API', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            return $this->serverErrorResponse(
-                message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Something went wrong while fetching categories.'
-            );
+            return $this->handleException($e, 'Main Category API', 'Something went wrong while fetching categories.');
         }
     }
+
     public function categoryDetails(Request $request)
     {
         try {
-
             $request->validate([
                 'category_id' => 'required|integer',
                 'page' => 'nullable|integer|min:1',
                 'per_page' => 'nullable|integer|min:1|max:100',
+                'search' => 'nullable|string|max:100',
                 'sort_by' => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
             ]);
 
-            $perPage = $request->input('per_page', 20);
-
             $category = Category::with([
                 'children' => function ($query) {
-                    $query->select(
-                        'id',
-                        'parent_id',
-                        'name',
-                        'slug',
-                        'sort_order'
-                    )
+                    $query->select('id', 'parent_id', 'name', 'slug', 'sort_order')
                         ->orderBy('sort_order', 'asc')
                         ->orderBy('name', 'asc');
                 }
@@ -277,106 +118,36 @@ class GroceryController extends BackendController
                 return $this->notFoundResponse('Category not found.');
             }
 
-
             $categoryIds = Category::where('id', $category->id)
                 ->orWhere('parent_id', $category->id)
-                ->pluck('id');
+                ->pluck('id')->map(fn($id) => (int) $id)->toArray();
 
-
-            $query = MenuItem::with([
-                'media',
-                'categories',
-                'variations',
-                'options',
-            ])
-                ->whereHas('categories', function ($q) use ($categoryIds) {
-                    $q->whereIn('categories.id', $categoryIds);
-                })
-                ->where('module_id', Module::ALL_OVER_INDIA)
-                ->where('status', MenuItemStatus::ACTIVE);
-
-
-            switch ($request->sort_by) {
-
-                case 'popularity':
-                    $query->orderByDesc('counter');
-                    break;
-
-                case 'new_arrivals':
-                    $query->latest();
-                    break;
-
-                case 'price_low_high':
-                    $query->orderBy('unit_price', 'asc');
-                    break;
-
-                case 'price_high_low':
-                    $query->orderBy('unit_price', 'desc');
-                    break;
-
-                case 'discount_high_low':
-                    $query->orderByRaw("
-                    CASE
-                        WHEN unit_price > 0
-                        THEN ((unit_price - discount_price) / unit_price) * 100
-                        ELSE 0
-                    END DESC
-                ");
-                    break;
-
-                default:
-                    $query->latest();
-                    break;
-            }
-            $items = $query->paginate($perPage);
-
-            return $this->successPaginationResponse(
-                message: 'Category details fetched successfully.',
-                paginator: $items,
-                data: [
-                    'category' => new GroceryCategoryDetailResource($category),
-                    'items' => MenuItemResource::collection($items->items()),
-                ]
+            return $this->getMenuResponse(
+                $category,
+                $categoryIds,
+                $request,
+                GroceryCategoryDetailResource::class,
+                'Category details fetched successfully.'
             );
-        } catch (\Illuminate\Validation\ValidationException $e) {
-
+        } catch (ValidationException $e) {
             return $this->validationResponse($e->errors());
-        } catch (\Throwable $e) {
-
-            Log::error('Category Details API', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            return $this->serverErrorResponse(
-                message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Something went wrong.'
-            );
+        } catch (Throwable $e) {
+            return $this->handleException($e, 'Category Details API', 'Something went wrong.');
         }
     }
 
     public function subCategoryDetails(Request $request)
     {
         try {
-
             $request->validate([
                 'category_id' => 'required|integer',
                 'page' => 'nullable|integer|min:1',
                 'per_page' => 'nullable|integer|min:1|max:100',
+                'search' => 'nullable|string|max:100',
                 'sort_by' => 'nullable|in:popularity,new_arrivals,price_low_high,price_high_low,discount_high_low',
             ]);
 
-            $perPage = $request->input('per_page', 20);
-
-
-            $category = Category::select(
-                'id',
-                'name',
-                'slug',
-                'parent_id'
-            )
+            $category = Category::select('id', 'name', 'slug', 'parent_id')
                 ->where('module_id', Module::ALL_OVER_INDIA)
                 ->whereNotNull('parent_id')
                 ->where('id', $request->category_id)
@@ -386,80 +157,65 @@ class GroceryController extends BackendController
                 return $this->notFoundResponse('Sub category not found.');
             }
 
+            $categoryIds = [(int) $category->id];
 
-            $query = MenuItem::with([
-                'media',
-                'categories',
-                'variations',
-                'options',
-            ])
-                ->whereHas('categories', function ($q) use ($category) {
-                    $q->where('categories.id', $category->id);
-                })
-                ->where('module_id', Module::ALL_OVER_INDIA)
-                ->where('status', MenuItemStatus::ACTIVE);
-
-
-            switch ($request->sort_by) {
-
-                case 'popularity':
-                    $query->orderByDesc('counter');
-                    break;
-
-                case 'new_arrivals':
-                    $query->latest();
-                    break;
-
-                case 'price_low_high':
-                    $query->orderBy('unit_price', 'asc');
-                    break;
-
-                case 'price_high_low':
-                    $query->orderBy('unit_price', 'desc');
-                    break;
-
-                case 'discount_high_low':
-                    $query->orderByRaw("
-                    CASE
-                        WHEN unit_price > 0
-                        THEN ((unit_price - discount_price) / unit_price) * 100
-                        ELSE 0
-                    END DESC
-                ");
-                    break;
-
-                default:
-                    $query->latest();
-                    break;
-            }
-
-            $items = $query->paginate($perPage);
-
-
-            return $this->successPaginationResponse(
-                message: 'Sub category details fetched successfully.',
-                paginator: $items,
-                data: [
-                    'category' => new GrocerySubCategoryResource($category),
-                    'items' => MenuItemResource::collection($items->items()),
-                ]
+            return $this->getMenuResponse(
+                $category,
+                $categoryIds,
+                $request,
+                GrocerySubCategoryResource::class,
+                'Sub category details fetched successfully.'
             );
-        } catch (\Illuminate\Validation\ValidationException $e) {
-
+        } catch (ValidationException $e) {
             return $this->validationResponse($e->errors());
         } catch (Throwable $e) {
-
-            Log::error('Sub Category API', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            return $this->serverErrorResponse(
-                message: config('app.debug')
-                    ? $e->getMessage()
-                    : 'Something went wrong.'
-            );
+            return $this->handleException($e, 'Sub Category API', 'Something went wrong.');
         }
+    }
+
+    private function getMenuResponse($category, array $categoryIds, Request $request, $resourceClass, $message)
+    {
+        $perPage = (int) $request->input('per_page', 20);
+        $search = trim($request->input('search', ''));
+        $sortBy = $request->input('sort_by');
+
+        $items = $this->groceryService->getFilteredMenuItems($categoryIds, $search, $sortBy, $perPage);
+
+        $suggestions = $this->groceryService->getCategoryMenuItemSuggestions($categoryIds, $search);
+
+        return $this->successPaginationResponse(
+            message: $message,
+            paginator: $items,
+            data: [
+                'category' => new $resourceClass($category),
+                'suggestions' => $suggestions,
+                'sort_by' => $this->getSortOptions(),
+                'items' => MenuItemResource::collection($items->items()),
+            ]
+        );
+    }
+
+    private function getSortOptions(): array
+    {
+        return [
+            ['key' => 'popularity', 'label' => 'Popularity'],
+            ['key' => 'new_arrivals', 'label' => 'New Arrivals'],
+            ['key' => 'price_low_high', 'label' => 'Price: Low to High'],
+            ['key' => 'price_high_low', 'label' => 'Price: High to Low'],
+            ['key' => 'discount_high_low', 'label' => 'Discount: High to Low'],
+        ];
+    }
+
+    private function handleException(Throwable $e, string $logContext, string $defaultMessage)
+    {
+        Log::error($logContext, [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+
+        return $this->serverErrorResponse(
+            message: config('app.debug') ? $e->getMessage() : $defaultMessage
+        );
     }
 }

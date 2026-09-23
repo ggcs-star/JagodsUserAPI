@@ -203,7 +203,7 @@ class ShiprocketService
             'message' => 'Delivery is available for this pincode.',
             'courier' => [
                 'courier_id' => 1,
-                'courier_name' => 'Blue Dart Air demo',
+                'courier_name' => 'Jagods',
                 'delivery_charge' => 240.00,
                 'cod_charge' => 55.65,
                 'total_charge' => 240.00,
