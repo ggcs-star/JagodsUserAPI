@@ -103,25 +103,11 @@ class CheckoutServiceNew
 
         $settings = Setting::pluck('value', 'key');
 
-
-        /*
-    |--------------------------------------------------------------------------
-    | Coupon
-    |--------------------------------------------------------------------------
-    */
-
         $couponId = null;
 
         $couponDiscount = 0.0;
 
         $coupon = null;
-
-
-        /*
-    |--------------------------------------------------------------------------
-    | Charges
-    |--------------------------------------------------------------------------
-    */
 
         $packagingCharge = (float) (
             $settings['packaging_charge'] ?? 0
@@ -132,33 +118,12 @@ class CheckoutServiceNew
             ? (float) ($settings['platform_fee'] ?? 0)
             : 0;
 
-
-        /*
-    |--------------------------------------------------------------------------
-    | Module
-    |--------------------------------------------------------------------------
-    */
-
         $moduleId = (int) $data['module_id'];
-
-
-        /*
-    |--------------------------------------------------------------------------
-    | Pickup
-    |--------------------------------------------------------------------------
-    */
 
         $isPickup = (
             (int) $data['order_type']
             === OrderTypeStatus::PICKUP
         );
-
-
-        /*
-    |--------------------------------------------------------------------------
-    | Surge Fee
-    |--------------------------------------------------------------------------
-    */
 
         $surgeFee = 0;
 
@@ -172,13 +137,6 @@ class CheckoutServiceNew
                 : 0;
         }
 
-
-        /*
-    |--------------------------------------------------------------------------
-    | Delivery Charge
-    |--------------------------------------------------------------------------
-    */
-
         $deliveryCharge = $this->calculateDeliveryCharge(
             $data,
             $settings,
@@ -187,76 +145,22 @@ class CheckoutServiceNew
             $validated['items']
         );
 
-
-        /*
-    |--------------------------------------------------------------------------
-    | Tip
-    |--------------------------------------------------------------------------
-    */
-
         $tipAmount = (float) (
             $data['tip_amount'] ?? 0
         );
-
-
-        /*
-    |--------------------------------------------------------------------------
-    | Product Discount
-    |--------------------------------------------------------------------------
-    */
-
         $productDiscount = (float) (
             $validated['product_discount'] ?? 0
         );
-
-
-        /*
-    |--------------------------------------------------------------------------
-    | GST 5%
-    |--------------------------------------------------------------------------
-    */
 
         $gstAmount = round(
             $subtotal * 5 / 100,
             2
         );
 
-
-        /*
-    |--------------------------------------------------------------------------
-    | Coupon Base Amount
-    |--------------------------------------------------------------------------
-    |
-    | Coupon sirf:
-    |
-    | Item Subtotal + GST
-    |
-    | par calculate hoga.
-    |
-    | Example:
-    |
-    | Subtotal = 1000
-    | GST      = 50
-    | Base     = 1050
-    |
-    */
-
         $couponBaseAmount = round(
             $subtotal + $gstAmount,
             2
         );
-
-
-        /*
-    |--------------------------------------------------------------------------
-    | Total Before Coupon
-    |--------------------------------------------------------------------------
-    |
-    | Ye actual order ka total hai.
-    |
-    | Isme saare charges included hain.
-    |
-    */
 
         $totalBeforeCoupon = round(
             $subtotal
@@ -268,13 +172,6 @@ class CheckoutServiceNew
                 + $tipAmount,
             2
         );
-
-
-        /*
-    |--------------------------------------------------------------------------
-    | Apply Coupon
-    |--------------------------------------------------------------------------
-    */
 
         if (!empty($data['coupon_code'])) {
 
@@ -567,26 +464,48 @@ class CheckoutServiceNew
                 $settings['free_delivery_radius'] ?? 0
             );
 
-            $chargePerKm = (float) (
-                $settings['charge_per_kilo'] ?? 0
-            );
-
             $chargeableDistance = max(
                 0,
                 $distance - $freeDeliveryRadius
             );
 
+            $chargeSlabs = config(
+                'delivery.charge_per_kilo',
+                []
+            );
 
+            $chargePerKm = 0;
+
+            foreach ($chargeSlabs as $slab) {
+
+                $maxKm = (float) ($slab['max_km'] ?? 0);
+                $charge = (float) ($slab['charge'] ?? 0);
+
+                if (
+                    $chargeableDistance <= $maxKm
+                ) {
+                    $chargePerKm = $charge;
+                    break;
+                }
+            }
+
+            if (
+                $chargeableDistance > 0 &&
+                $chargePerKm <= 0
+            ) {
+                throw new Exception(
+                    'Delivery charge is not available for this distance.',
+                    422
+                );
+            }
             $distanceCharge =
                 $chargeableDistance * $chargePerKm;
-
 
             return round(
                 $basicDeliveryCharge + $distanceCharge,
                 2
             );
         }
-
         return 0;
     }
 

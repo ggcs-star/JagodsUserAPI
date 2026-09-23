@@ -203,11 +203,11 @@ class HomeConfigController extends BackendController
                             'id' => 3,
                             'image_url' => 'https://images.jagods.in/landing/B3.jpg',
                         ],
-                          [
+                        [
                             'id' => 4,
                             'image_url' => 'https://images.jagods.in/landing/B4.jpg',
                         ],
-                        
+
 
                     ],
                     'color_detail' => [

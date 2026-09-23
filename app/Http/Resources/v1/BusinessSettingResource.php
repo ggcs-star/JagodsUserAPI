@@ -11,7 +11,7 @@ class BusinessSettingResource extends JsonResource
         return [
 
             'free_delivery_radius' => (float) ($this['free_delivery_radius'] ?? 0),
-            'charge_per_kilo' => (float) ($this['charge_per_kilo'] ?? 0),
+            // 'charge_per_kilo' => (float) ($this['charge_per_kilo'] ?? 0),
             'basic_delivery_charge' => (float) ($this['basic_delivery_charge'] ?? 0),
 
             'max_delivery_radius' => (float) ($this['max_delivery_radius'] ?? 0),
@@ -25,6 +25,8 @@ class BusinessSettingResource extends JsonResource
             'your_city_support_phone' => $this['support_phone'] ?? '',
             'your_city_delivery_time' => "Delivery in 25–30 Minutes",
             'all_over_india_delivery_time' => "Delivery in 7 Days",
+
+            'charge_per_kilo' => config('delivery.charge_per_kilo', []),
         ];
     }
 }
