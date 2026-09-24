@@ -537,19 +537,25 @@
             @foreach ($order->orderLines as $item)
                 @php
                     $baseUnitPrice = (float) ($item->unit_price ?? 0);
+
                     $discountedPrice = (float) ($item->discounted_price ?? 0);
 
                     $variationPrice = (float) ($item->variation_price ?? 0);
+
                     $optionTotal = (float) ($item->options_total ?? 0);
 
-                    $finalUnitPrice =
-                        (float) ($item->final_unit_price ?? $discountedPrice + $variationPrice + $optionTotal);
+                    // Product discount ke baad price
+                    $productPrice = $discountedPrice > 0 ? $discountedPrice : $baseUnitPrice;
+
+                    // Product discount amount
+                    $itemDiscount = max(0, $baseUnitPrice - $productPrice);
+
+                    // Variation + options
+                    $finalUnitPrice = $productPrice + $variationPrice + $optionTotal;
 
                     $quantity = (int) ($item->quantity ?? 1);
 
-                    $itemTotal = (float) ($item->item_total ?? $finalUnitPrice * $quantity);
-
-                    $itemDiscount = max(0, $baseUnitPrice - $discountedPrice);
+                    $itemTotal = $finalUnitPrice * $quantity;
                 @endphp
 
                 <tr>
@@ -627,7 +633,6 @@
                         ₹{{ number_format($baseUnitPrice, 2) }}
                     </td>
 
-
                     <td class="text-right">
                         @if ($itemDiscount > 0)
                             <span class="discount">
@@ -638,11 +643,9 @@
                         @endif
                     </td>
 
-
                     <td class="text-right">
                         ₹{{ number_format($itemTotal, 2) }}
                     </td>
-
                 </tr>
             @endforeach
 
