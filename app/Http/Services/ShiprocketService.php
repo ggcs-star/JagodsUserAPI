@@ -55,12 +55,14 @@ class ShiprocketService
     public function getDeliveryRate(
         string $deliveryPincode,
         float $weight,
+        int $quantity = 1,
         int $cod = 0
     ): array {
 
+        $quantity = max(1, $quantity);
 
         if (!config('services.shiprocket.enabled')) {
-            return $this->getStaticDeliveryRate();
+            return $this->getStaticDeliveryRate($quantity);
         }
 
         $pickupPincode = config(
@@ -107,13 +109,13 @@ class ShiprocketService
                 );
         }
 
-
         if (!$response->successful()) {
 
             Log::error('Shiprocket Serviceability Failed', [
                 'pickup_postcode' => $pickupPincode,
                 'delivery_postcode' => $deliveryPincode,
                 'weight' => $weight,
+                'quantity' => $quantity,
                 'cod' => $cod,
                 'status' => $response->status(),
                 'response' => $response->body(),
@@ -139,7 +141,6 @@ class ShiprocketService
             ];
         }
 
-
         usort($couriers, function ($a, $b) {
 
             return (float) data_get($a, 'freight_charge', 0)
@@ -160,12 +161,29 @@ class ShiprocketService
             0
         );
 
-        $totalCharge = $deliveryCharge + $codCharge;
+        $baseDeliveryFee = $deliveryCharge;
+
+        $perQuantityCharge = (float) config(
+            'services.shiprocket.per_quantity_charge',
+            50
+        );
+
+        $quantityCharge = $quantity * $perQuantityCharge;
+
+        $totalDeliveryCharge =
+            $baseDeliveryFee +
+            $quantityCharge;
+
+
+        $totalCharge = $totalDeliveryCharge + $codCharge;
 
         return [
             'available' => true,
+
             'message' => 'Delivery is available for this pincode.',
+
             'courier' => [
+
                 'courier_id' => data_get(
                     $courier,
                     'courier_company_id'
@@ -176,11 +194,37 @@ class ShiprocketService
                     'courier_name'
                 ),
 
-                'delivery_charge' => round($deliveryCharge, 2),
+                'base_delivery_fee' => round(
+                    $baseDeliveryFee,
+                    2
+                ),
 
-                'cod_charge' => round($codCharge, 2),
+                'per_quantity_charge' => round(
+                    $perQuantityCharge,
+                    2
+                ),
 
-                'total_charge' => round($totalCharge, 2),
+                'quantity' => $quantity,
+
+                'quantity_charge' => round(
+                    $quantityCharge,
+                    2
+                ),
+
+                'delivery_charge' => round(
+                    $totalDeliveryCharge,
+                    2
+                ),
+
+                'cod_charge' => round(
+                    $codCharge,
+                    2
+                ),
+
+                'total_charge' => round(
+                    $totalCharge,
+                    2
+                ),
 
                 'estimated_delivery_days' => data_get(
                     $courier,
@@ -196,18 +240,67 @@ class ShiprocketService
     }
 
 
-    private function getStaticDeliveryRate(): array
-    {
+    private function getStaticDeliveryRate(
+        int $quantity = 1
+    ): array {
+
+        $quantity = max(1, $quantity);
+
+
+        $baseDeliveryFee = 200;
+
+        $perQuantityCharge = 50;
+
+        $quantityCharge =
+            $quantity * $perQuantityCharge;
+
+        $deliveryCharge =
+            $baseDeliveryFee +
+            $quantityCharge;
+
         return [
             'available' => true,
+
             'message' => 'Delivery is available for this pincode.',
+
             'courier' => [
+
                 'courier_id' => 1,
+
                 'courier_name' => 'Jagods',
-                'delivery_charge' => 240.00,
+
+                'base_delivery_fee' => round(
+                    $baseDeliveryFee,
+                    2
+                ),
+
+                'per_quantity_charge' => round(
+                    $perQuantityCharge,
+                    2
+                ),
+
+                'quantity' => $quantity,
+
+                'quantity_charge' => round(
+                    $quantityCharge,
+                    2
+                ),
+
+
+                'delivery_charge' => round(
+                    $deliveryCharge,
+                    2
+                ),
+
                 'cod_charge' => 55.65,
-                'total_charge' => 240.00,
+
+                'total_charge' => round(
+                    $deliveryCharge + 55.65,
+                    2
+                ),
+
                 'estimated_delivery_days' => 'Aug 23, 2026',
+
                 'rating' => 3,
             ],
         ];
