@@ -285,7 +285,7 @@
         $deliveryCharge = (float) ($order->delivery_charge ?? 200);
         $searchFee = (float) ($order->search_fee ?? 0);
         $handlingFee = (float) ($order->handling_fee ?? 0);
-        $packagingFee = (float) ($order->packaging_fee ?? 0);
+        $packagingFee = (float) ($order->packing_charge ?? 0);
         $gstAmount = (float) ($order->gst_amount ?? 0);
         $total = (float) ($order->total ?? 0);
 
