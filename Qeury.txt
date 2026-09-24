@@ -733,6 +733,12 @@ ADD COLUMN `sort_order` INT NULL DEFAULT NULL
 AFTER `order`;
 
 =======================================================================done
+ALTER TABLE `orders`
+DROP COLUMN `handling_fee`,
+DROP COLUMN `search_fee`,
+DROP COLUMN `handling_charge`,
+DROP COLUMN `packaging_fee`;
+
 
 CREATE TABLE `admin_order_notifications` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
