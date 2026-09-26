@@ -18,6 +18,9 @@ use App\Http\Resources\v1\GroceryCategoryResource;
 use App\Http\Resources\v1\GroceryCategoryDetailResource;
 use App\Http\Resources\v1\MenuItemResource;
 use App\Http\Resources\v1\GrocerySubCategoryResource;
+use App\Http\Resources\v1\BannerResource;
+use App\Enums\BannerStatus;
+use App\Models\Banner;
 
 class GroceryController extends BackendController
 {
@@ -104,7 +107,13 @@ class GroceryController extends BackendController
 
             $category = Category::with([
                 'children' => function ($query) {
-                    $query->select('id', 'parent_id', 'name', 'slug', 'sort_order')
+                    $query->select(
+                        'id',
+                        'parent_id',
+                        'name',
+                        'slug',
+                        'sort_order'
+                    )
                         ->orderBy('sort_order', 'asc')
                         ->orderBy('name', 'asc');
                 }
@@ -120,19 +129,36 @@ class GroceryController extends BackendController
 
             $categoryIds = Category::where('id', $category->id)
                 ->orWhere('parent_id', $category->id)
-                ->pluck('id')->map(fn($id) => (int) $id)->toArray();
-
-            return $this->getMenuResponse(
+                ->pluck('id')
+                ->map(fn($id) => (int) $id)
+                ->toArray();
+            $banners = Banner::query()
+                ->where('status', BannerStatus::ACTIVE)
+                ->where('target_type', 'category')
+                ->where('target_id', $category->id)
+                ->where('show_on_landing', 0)
+                ->orderBy('sort', 'asc')
+                ->get();
+            // dd($banners);
+            $response = $this->getMenuResponse(
                 $category,
                 $categoryIds,
                 $request,
                 GroceryCategoryDetailResource::class,
                 'Category details fetched successfully.'
             );
+            $responseData = $response->getData(true);
+            $responseData['data']['data']['banners'] = BannerResource::collection($banners);
+            // dd($responseData);
+            return response()->json($responseData);
         } catch (ValidationException $e) {
             return $this->validationResponse($e->errors());
         } catch (Throwable $e) {
-            return $this->handleException($e, 'Category Details API', 'Something went wrong.');
+            return $this->handleException(
+                $e,
+                'Category Details API',
+                'Something went wrong.'
+            );
         }
     }
 
