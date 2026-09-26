@@ -295,7 +295,7 @@ class ShiprocketService
                 'cod_charge' => 55.65,
 
                 'total_charge' => round(
-                    $deliveryCharge + 55.65,
+                    $deliveryCharge + 00.00,
                     2
                 ),
 

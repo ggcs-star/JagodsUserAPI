@@ -38,50 +38,69 @@ class BannerController extends BackendController
 
     public function index(Request $request)
     {
+        $request->validate([
+            'module_id' => [
+                'required',
+                'integer',
+                'in:1,2',
+            ],
+        ]);
         try {
 
+            $moduleId = (int) $request->module_id;
 
             $restroType = $this->restaurantTypeService
                 ->getHeaderType($request);
-
 
             $allowedTypes = $this->restaurantTypeService
                 ->getAllowedTypes($restroType);
 
 
             $banners = Banner::query()
-                ->where(
-                    'status',
-                    BannerStatus::ACTIVE
-                )
-                ->with('restaurant')
+                ->where('status', BannerStatus::ACTIVE)
+                ->where('show_on_landing', 1)
+
                 ->when(
-                    $allowedTypes !== null,
+                    $moduleId === 1,
                     function ($query) use ($allowedTypes) {
 
-                        $query->whereHas(
-                            'restaurant',
-                            function ($restaurantQuery) use ($allowedTypes) {
+                        // Restaurant banners
+                        $query->where('target_type', 'restaurant')
 
-                                $restaurantQuery->whereIn(
-                                    'restroType',
-                                    $allowedTypes
-                                );
-                            }
-                        );
+                            ->when(
+                                $allowedTypes !== null,
+                                function ($query) use ($allowedTypes) {
+
+                                    $query->whereHasMorph(
+                                        'target',
+                                        [Restaurant::class],
+                                        function ($restaurantQuery) use ($allowedTypes) {
+
+                                            $restaurantQuery->whereIn(
+                                                'restroType',
+                                                $allowedTypes
+                                            );
+                                        }
+                                    );
+                                }
+                            );
                     }
                 )
 
+                ->when(
+                    $moduleId === 2,
+                    function ($query) {
+
+                        // Category banners
+                        $query->where('target_type', 'category');
+                    }
+                )
                 ->orderBy('sort', 'asc')
                 ->get();
-
-            $imageUrl =
-                'https://images.jagods.com/banner/banner.svg';
-
             return $this->successResponse(
                 message: 'Banner list fetched successfully.',
                 data: [
-                    'image_url' => $imageUrl,
+
                     'banners' => BannerResource::collection($banners),
                 ]
             );
@@ -90,6 +109,7 @@ class BannerController extends BackendController
             Log::error(
                 'Banner API Error',
                 [
+                    'module_id' => $request->module_id,
                     'restro_type' => $request->header('restro_type'),
                     'message' => $e->getMessage(),
                     'file' => $e->getFile(),
