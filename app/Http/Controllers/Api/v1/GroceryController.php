@@ -21,6 +21,7 @@ use App\Http\Resources\v1\GrocerySubCategoryResource;
 use App\Http\Resources\v1\BannerResource;
 use App\Enums\BannerStatus;
 use App\Models\Banner;
+use App\Enums\Status;
 
 class GroceryController extends BackendController
 {
@@ -114,6 +115,7 @@ class GroceryController extends BackendController
                         'slug',
                         'sort_order'
                     )
+                        ->where('status', Status::ACTIVE)
                         ->orderBy('sort_order', 'asc')
                         ->orderBy('name', 'asc');
                 }

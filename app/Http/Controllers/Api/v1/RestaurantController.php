@@ -26,6 +26,9 @@ use App\Http\Resources\v1\RestaurantBannerResource;
 use App\Enums\Module;
 use App\Http\Services\RestaurantTypeService;
 use App\Enums\CategoryStatus;
+use App\Models\Banner;
+use App\Enums\BannerStatus;
+use App\Http\Resources\v1\BannerResource;
 
 class RestaurantController extends BackendController
 {
@@ -136,9 +139,7 @@ class RestaurantController extends BackendController
 
             $id = $request->input('id');
 
-            $restaurant = Restaurant::with([
-                'banners'
-            ])->findOrFail($id);
+            $restaurant = Restaurant::findOrFail($id);
 
             $rating = new RatingsService();
             $ratingArray = $rating->avgRating($restaurant->id);
@@ -174,8 +175,15 @@ class RestaurantController extends BackendController
                 ['value' => 'price_high_low', 'label' => 'Price: High to Low'],
                 ['value' => 'discount_high_low', 'label' => 'Discount: High to Low'],
             ];
+            $banners = Banner::query()
+                ->where('status', BannerStatus::ACTIVE)
+                ->where('target_type', 'restaurant')
+                ->where('target_id', $restaurant->id)
+                ->where('show_on_landing', 0)
+                ->orderBy('sort', 'asc')
+                ->get();
             $this->data['restaurant'] = new RestaurantResource($restaurant);
-            $this->data['banners'] = RestaurantBannerResource::collection($restaurant->banners);
+            $this->data['banners'] = BannerResource::collection($banners);
             $this->data['categories'] = $categoriesData;
 
             // Menu Items removed (Separate API)
