@@ -8,30 +8,38 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Banner extends BaseModel implements HasMedia
 {
-
     use InteractsWithMedia;
 
-    protected $table       = 'banners';
-    protected $fillable    = ['title', 'short_description', 'link', 'sort', 'status'];
-    protected $casts = [
-        'status' => 'int',
+    protected $fillable = [
+        'title',
+        'short_description',
+        'link',
+        'sort',
+        'status',
+        'target_type',
+        'target_id',
+        'show_on_landing',
     ];
-    protected $auditColumn       = true;
+
+    protected $casts = [
+        'status' => 'integer',
+        'target_id' => 'integer',
+        'show_on_landing' => 'integer',
+    ];
+
+    protected $auditColumn = true;
 
     public function getImageAttribute()
     {
         if (!empty($this->getFirstMediaUrl('banner'))) {
             return asset($this->getFirstMediaUrl('banner'));
         }
+
         return asset('backend/images/default/banner.jpg');
     }
 
-
-    public function restaurant()
+    public function target()
     {
-        return $this->belongsTo(
-            Restaurant::class,
-            'restaurant_id'
-        );
+        return $this->morphTo();
     }
 }

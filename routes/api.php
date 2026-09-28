@@ -138,6 +138,7 @@ Route::group(['prefix' => 'v1'], function () {
         Route::post('business-settings', [BusinessSettingController::class, 'index']);
     });
     Route::post('banners', [BannerController::class, 'index']);
+    Route::post('ads/home', [BannerController::class, 'getHomeAds']);
     Route::post('sort-banner', [BannerController::class, 'sortBanner'])->name('sort.banner');
 
     Route::get('category', [CategoryController::class, 'index']);
