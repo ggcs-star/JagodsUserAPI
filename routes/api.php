@@ -46,6 +46,8 @@ use App\Http\Controllers\Api\v1\GroceryController;
 use App\Http\Controllers\Api\v1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\v1\BusinessSettingController;
 use App\Http\Controllers\Api\v1\VersionController;
+use App\Http\Controllers\Api\v1\CateringConfigController;
+use App\Http\Controllers\Api\v1\CateringPackageController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -59,6 +61,7 @@ use App\Http\Controllers\Api\v1\VersionController;
 
 Route::group(['prefix' => 'v1'], function () {
     Route::get('home/config', [HomeConfigController::class, 'index']);
+    Route::get('catering/config',[CateringConfigController::class, 'index']);
     Route::post('version-show', [VersionController::class, 'versionShow']);
     Route::post('login', [LoginController::class, 'action'])->middleware('throttle:login_attempts');
     Route::post('refresh-token', [RefreshTokenController::class, 'refresh']);
@@ -203,6 +206,11 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('grocery/main-categories-item', [GroceryController::class, 'mainCategoriesItem']);
     Route::post('grocery/category/details', [GroceryController::class, 'categoryDetails']);
     Route::post('grocery/sub-category/details', [GroceryController::class, 'subCategoryDetails']);
+
+    Route::post('catering/packages',[CateringPackageController::class, 'index']);
+    Route::post('catering/package/details',[CateringPackageController::class, 'show']);
+    Route::post('catering/package/sections',[CateringPackageController::class, 'sections']);
+    Route::post('catering/package/section/details',[CateringPackageController::class, 'sectionDetails']);
 });
 
 Route::get('/geo-test', function () {

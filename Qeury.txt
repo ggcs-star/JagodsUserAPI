@@ -749,8 +749,105 @@ DROP COLUMN `restaurant_id`;
 
 ALTER TABLE `banners`
 ADD COLUMN `show_on_landing` TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER `target_id`;
+========================================================================
+-- 1. Main Catering Packages Table
+CREATE TABLE `catering_packages` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `module_id` BIGINT UNSIGNED NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `slug` VARCHAR(255) NOT NULL,
+    `description` TEXT NULL,
+    `price` DECIMAL(10,2) NOT NULL,
+    `price_type` VARCHAR(50) NOT NULL DEFAULT 'per_person'
+        COMMENT 'per_person, fixed, per_tray',
+    `min_guests` INT UNSIGNED NOT NULL DEFAULT 1,
+    `max_guests` INT UNSIGNED NULL,
+    `lead_time_hours` INT UNSIGNED NOT NULL DEFAULT 24,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `status` TINYINT UNSIGNED NOT NULL DEFAULT 1
+        COMMENT '1 = Active, 0 = Inactive',
+    `created_at` TIMESTAMP NULL DEFAULT NULL,
+    `updated_at` TIMESTAMP NULL DEFAULT NULL,
+    `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `catering_packages_slug_unique` (`slug`),
+    KEY `catering_packages_module_id_index` (`module_id`),
+    KEY `catering_packages_status_index` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- 2. Catering Package Sections Table
+CREATE TABLE `catering_package_sections` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `catering_package_id` BIGINT UNSIGNED NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `description` TEXT NULL,
+    `min_selections` INT UNSIGNED NOT NULL DEFAULT 1,
+    `max_selections` INT UNSIGNED NOT NULL DEFAULT 1,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `status` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    `created_at` TIMESTAMP NULL DEFAULT NULL,
+    `updated_at` TIMESTAMP NULL DEFAULT NULL,
+    `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+
+    PRIMARY KEY (`id`),
+
+    KEY `catering_package_sections_package_id_index`
+        (`catering_package_id`),
+
+    KEY `catering_package_sections_package_status_index`
+        (`catering_package_id`, `status`),
+
+    CONSTRAINT `catering_package_sections_package_id_foreign`
+        FOREIGN KEY (`catering_package_id`)
+        REFERENCES `catering_packages` (`id`)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- 3. Catering Package Items Table
+CREATE TABLE `catering_package_items` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `catering_package_section_id` BIGINT UNSIGNED NOT NULL,
+    `menu_item_id` BIGINT UNSIGNED NOT NULL,
+    `extra_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00
+        COMMENT 'Additional price for premium items',
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `status` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    `created_at` TIMESTAMP NULL DEFAULT NULL,
+    `updated_at` TIMESTAMP NULL DEFAULT NULL,
+
+    PRIMARY KEY (`id`),
+
+    UNIQUE KEY `pkg_sec_item_unique`
+        (`catering_package_section_id`, `menu_item_id`),
+
+    KEY `catering_package_items_menu_item_status_index`
+        (`menu_item_id`, `status`),
+
+    CONSTRAINT `catering_package_items_section_id_foreign`
+        FOREIGN KEY (`catering_package_section_id`)
+        REFERENCES `catering_package_sections` (`id`)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT `catering_package_items_menu_item_id_foreign`
+        FOREIGN KEY (`menu_item_id`)
+        REFERENCES `menu_items` (`id`)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE catering_package_sections
+ADD COLUMN selection_type VARCHAR(20) NOT NULL DEFAULT 'fixed'
+AFTER description;
+
+ALTER TABLE catering_package_items
+ADD COLUMN is_default TINYINT(1) NOT NULL DEFAULT 0
+AFTER extra_price;
+===============================================================================
 CREATE TABLE `admin_order_notifications` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `order_id` BIGINT UNSIGNED NOT NULL,
