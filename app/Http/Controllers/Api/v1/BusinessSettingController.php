@@ -11,6 +11,7 @@ use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Http\Resources\v1\HomeAdResource;
 
 class BusinessSettingController extends Controller
 {
@@ -88,7 +89,56 @@ class BusinessSettingController extends Controller
                     cod: $cod
                 );
             }
+            $home_popup = [
+                [
+                    'id' => 1,
 
+                    'title' => 'Summer Sale',
+
+                    'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
+
+                    'media_type' => 'banner',
+
+                    'media_url' => 'https://images.jagods.in/landing/Rectangle%2060023%402x.png',
+
+                    'redirect_url' => 'https://jagods.com',
+
+                    'theme_color' => null,
+
+                    'placement' => 'home_popup',
+
+                    'priority' => 1,
+                ],
+               
+
+            ];
+            $restaurant_middle = [
+             
+                [
+                    'id' => 1,
+
+                    'title' => 'App Promo',
+
+                    'subtitle' => null,
+
+                    'media_type' => 'banner',
+
+                    'cta' => [],
+
+                    'offers' => [],
+
+                    'media_url' => 'https://images.jagods.in/landing/Group%20191222.svg',
+
+                    'redirect_url' => 'https://jagods.com',
+
+                    'theme_color' => null,
+
+                    'placement' => 'restaurant_middle',
+
+                    'priority' => 2,
+                ],
+
+            ];
             $businessSettings = (new BusinessSettingResource($settings))
                 ->toArray($request);
 
@@ -115,6 +165,8 @@ class BusinessSettingController extends Controller
                     ],
 
                     'all_india_delivery' => $delivery,
+                    'home_popup' => HomeAdResource::collection($home_popup),
+                    'restaurant_middle' => HomeAdResource::collection($restaurant_middle),
                 ],
             ], 200);
         } catch (\Illuminate\Validation\ValidationException $e) {

@@ -24,7 +24,9 @@ class DatabaseSeeder extends Seeder
         // CategoryGroupSeeder::class,
         // CategorySeeder::class,
         // AppVersionSeeder::class,
-          MenuItemCustomizationSeeder::class,
-    ]);
+        //   MenuItemCustomizationSeeder::class,
+         CateringPackageSeeder::class,
+         CateringPackageSeederCustom::class
+        ]);
     }
 }

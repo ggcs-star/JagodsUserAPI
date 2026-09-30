@@ -271,4 +271,11 @@ class MenuItem extends BaseModel implements HasMedia
                 );
         });
     }
+    public function cateringPackageItems()
+    {
+        return $this->hasMany(
+            CateringPackageItem::class,
+            'menu_item_id'
+        );
+    }
 }

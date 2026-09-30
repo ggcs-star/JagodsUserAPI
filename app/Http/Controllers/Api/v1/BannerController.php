@@ -127,97 +127,59 @@ class BannerController extends BackendController
     }
 
     public function getHomeAds()
-{
-    $ads = [
-        [
-            'id' => 1,
-            'title' => 'Summer Sale Banner',
-            'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
-            'media_type' => 'banner',
+    {
+        $ads = [
+            [
+                'id' => 1,
 
-            'cta' => [
-                'label' => 'Install & Save Now',
-                'action_url' => 'https://your-app-link.com/install',
-                'cta_color' => '#FF5C1B',
+                'title' => 'Summer Sale',
+
+                'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
+
+                'media_type' => 'banner',
+
+                'media_url' => 'https://images.jagods.in/landing/Rectangle%2060023%402x.png',
+
+                'redirect_url' => 'https://jagods.com',
+
+                'theme_color' => null,
+
+                'placement' => 'home_popup',
+
+                'priority' => 1,
             ],
 
-            'offers' => [
-                [
-                    'icon' => 'discount',
-                    'title' => 'Flat ₹50–₹200 OFF',
-                    'description' => 'on your first food order',
-                ],
-                [
-                    'icon' => 'combo',
-                    'title' => 'Daily Combo Offers',
-                    'description' => 'on top restaurants',
-                ],
-                [
-                    'icon' => 'store',
-                    'title' => 'Use Online & In-Store',
-                    'description' => 'at selected food courts',
-                ],
+            [
+                'id' => 2,
+
+                'title' => 'App Promo',
+
+                'subtitle' => null,
+
+                'media_type' => 'banner',
+
+                'cta' => [],
+
+                'offers' => [],
+
+                'media_url' => 'https://images.jagods.in/landing/Group%20191222.svg',
+
+                'redirect_url' => 'https://jagods.com',
+
+                'theme_color' => null,
+
+                'placement' => 'restaurant_middle',
+
+                'priority' => 2,
             ],
 
-            'media_url' => 'https://video-previews.elements.envatousercontent.com/ebf1f81d-9491-404e-a1ef-13fded979afd/watermarked_preview/watermarked_preview.mp4',
+        ];
 
-            'theme_color' => '#002F87',
-
-            'placement' => 'home_popup',
-
-            'priority' => 1,
-        ],
-
-        [
-            'id' => 2,
-            'title' => 'App Promo Video',
-            'subtitle' => null,
-            'media_type' => 'video',
-
-            'cta' => [],
-
-            'offers' => [],
-
-            'media_url' => 'https://reels.jagods.com/assets/Comp3.mp4',
-
-            'redirect_url' => 'https://example.com/app',
-
-            'theme_color' => null,
-
-            'placement' => 'home_top',
-
-            'priority' => 2,
-        ],
-
-        [
-            'id' => 3,
-            'title' => 'Restaurant Special Offer',
-            'subtitle' => 'Get special offers from restaurants',
-            'media_type' => 'banner',
-
-            'cta' => [
-                'label' => 'Order Now',
-                'action_url' => 'https://your-app-link.com/order',
-                'cta_color' => '#FF5C1B',
-            ],
-
-            'offers' => [],
-
-            'media_url' => 'https://example.com/restaurant-banner.jpg',
-
-            'theme_color' => '#002F87',
-
-            'placement' => 'restaurant_middle',
-
-            'priority' => 3,
-        ],
-    ];
-
-    return $this->successResponse(
-        message: 'Home ads fetched successfully.',
-        data: [
-            'ads' => HomeAdResource::collection($ads),
-        ]
-    );
-}
+        return $this->successResponse(
+            message: 'Home ads fetched successfully.',
+            data: [
+                'ads' => HomeAdResource::collection($ads),
+            ]
+        );
+    }
 }
