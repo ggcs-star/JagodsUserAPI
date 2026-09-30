@@ -26,6 +26,18 @@ class CateringPackageSectionDetailResource extends JsonResource
 
             'status' => (int) $this->status,
 
+            'images' => $this->getMedia('catering_package_images')
+                ->map(function ($media) {
+                    return [
+                        'id' => $media->id,
+                        'url' => $media->getUrl(),
+                        'is_cover' => (bool) $media->getCustomProperty(
+                            'is_cover',
+                            false
+                        ),
+                    ];
+                })
+                ->values(),
             'items' => CateringPackageItemDetailResource::collection(
                 $this->whenLoaded('activeItems')
             ),
