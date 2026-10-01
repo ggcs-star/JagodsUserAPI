@@ -28,6 +28,18 @@ class CateringPackageSectionResource extends JsonResource
             'sort_order' =>
             (int) $this->sort_order,
 
+            'images' => $this->getMedia('catering_package_images')
+                ->map(function ($media) {
+                    return [
+                        'id' => $media->id,
+                        'url' => $media->getUrl(),
+                        'is_cover' => (bool) $media->getCustomProperty(
+                            'is_cover',
+                            false
+                        ),
+                    ];
+                })
+                ->values(),
             'status' =>
             (int) $this->status,
 

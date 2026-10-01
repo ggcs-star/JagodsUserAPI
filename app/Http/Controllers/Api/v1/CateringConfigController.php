@@ -18,7 +18,7 @@ class CateringConfigController extends BackendController
 
                 'subtitle' => 'With Our Catering Packages',
 
-                'image_url' => 'https://images.jagods.in/catering/catering-hero.jpg',
+                'image_url' => 'https://images.jagods.in/landing/ChatGPT%20Image%20Sep%2030,%202026,%2011_37_56%20AM.png',
 
                 'action' => [
                     'type' => 'navigation',
