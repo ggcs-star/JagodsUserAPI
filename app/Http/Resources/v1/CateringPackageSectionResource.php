@@ -28,7 +28,7 @@ class CateringPackageSectionResource extends JsonResource
             'sort_order' =>
             (int) $this->sort_order,
 
-            'images' => $this->getMedia('catering_package_images')
+            'images' => $this->getMedia('catering_section_images')
                 ->map(function ($media) {
                     return [
                         'id' => $media->id,

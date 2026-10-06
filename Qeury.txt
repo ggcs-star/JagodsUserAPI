@@ -847,6 +847,16 @@ AFTER description;
 ALTER TABLE catering_package_items
 ADD COLUMN is_default TINYINT(1) NOT NULL DEFAULT 0
 AFTER extra_price;
+
+
+ALTER TABLE `catering_packages`
+ADD COLUMN `category_id` BIGINT UNSIGNED NULL AFTER `module_id`,
+ADD INDEX `catering_packages_category_id_index` (`category_id`),
+ADD CONSTRAINT `catering_packages_category_id_foreign`
+    FOREIGN KEY (`category_id`)
+    REFERENCES `categories` (`id`)
+    ON DELETE SET NULL;
+
 ===============================================================================
 CREATE TABLE `admin_order_notifications` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

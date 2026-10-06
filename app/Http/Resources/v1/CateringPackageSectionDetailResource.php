@@ -26,7 +26,7 @@ class CateringPackageSectionDetailResource extends JsonResource
 
             'status' => (int) $this->status,
 
-            'images' => $this->getMedia('catering_package_images')
+            'images' => $this->getMedia('catering_section_images')
                 ->map(function ($media) {
                     return [
                         'id' => $media->id,

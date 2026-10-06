@@ -56,6 +56,18 @@ class MenuItemResource extends JsonResource
                     'file_name' => $media->file_name,
                 ];
             })->values()->toArray(),
+
+            'cover_image' => $this->getMedia('menu-item-covers')
+                ->map(function ($media) {
+                    return [
+                        'id' => $media->id,
+                        'url' => $media->getUrl(),
+                        'file_name' => $media->file_name,
+                    ];
+                })
+                ->values()
+                ->toArray(),
+
             'description' => $this->description ?? '',
             'description_type' => $this->description && $this->description !== strip_tags($this->description)
                 ? 'html'

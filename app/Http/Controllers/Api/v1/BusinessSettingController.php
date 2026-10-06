@@ -122,121 +122,60 @@ class BusinessSettingController extends Controller
 
                     'media_type' => 'banner',
 
-                    'banner' => [
-                        'image_url' =>
-                        'https://images.jagods.in/landing/Group%20191222.svg',
+                    'card' => [
+
+                        'background_image' => 'https://images.jagods.in/landing/Group%20191222.svg',
+
+                        'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
 
                         'title' => 'Save More on Every Meal!',
 
                         'button' => [
                             'text' => 'Install & Save Now',
-                            'action' => 'install_app',
-                            'redirect_url' => 'https://jagods.com',
+                            'link' => 'https://jagods.com',
                         ],
 
-                        'secondary_action' => [
+                        'know_more' => [
                             'text' => 'Know More',
-                            'action' => 'open_details',
-                        ],
-                    ],
-
-                    'popup' => [
-
-                        'enabled' => true,
-
-                        'image_url' =>
-                        'https://images.jagods.in/landing/Group%20191222.svg',
-
-                        'title' => 'Save More on Every Meal!',
-
-                        'description' =>
-                        'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
-
-                        'close_button' => [
-                            'enabled' => true,
-                            'icon' => 'close',
-                            'action' => 'close',
                         ],
 
-                        'button' => [
-                            'text' => 'Install & Save Now',
-                            'action' => 'install_app',
-                            'redirect_url' => 'https://jagods.com',
-                        ],
+                        'details' => [
 
-                        'offers' => [
+                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1%20(1).svg',
 
-                            [
-                                'id' => 1,
+                            'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
 
-                                'icon' => 'offer',
+                            'title' => 'Save More on Every Meal!',
 
-                                'title' => 'Flat ₹50–₹200 OFF',
+                            'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
 
-                                'subtitle' =>
-                                'on your first food order',
-
-                                'action' => 'open_offer',
-
-                                'redirect_url' => null,
+                            'button' => [
+                                'text' => 'Install & Save Now',
+                                'link' => 'https://jagods.com',
                             ],
 
-                            [
-                                'id' => 2,
+                            'offers' => [
 
-                                'icon' => 'tag',
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
 
-                                'title' => 'Daily Combo Offers',
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
 
-                                'subtitle' =>
-                                'on top restaurants',
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
 
-                                'action' => 'open_offers',
-
-                                'redirect_url' => null,
                             ],
-
-                            [
-                                'id' => 3,
-
-                                'icon' => 'food',
-
-                                'title' => 'Use Online & In-Store',
-
-                                'subtitle' =>
-                                'at selected food courts',
-
-                                'action' => 'open_food_courts',
-
-                                'redirect_url' => null,
-                            ],
-
                         ],
-                    ],
-
-                    'cta' => [
-                        'text' => 'Install & Save Now',
-                        'action' => 'install_app',
-                        'redirect_url' => 'https://jagods.com',
-                    ],
-
-                    'placement' => 'restaurant_middle',
-
-                    'priority' => 2,
-
-                    'theme' => [
-                        'background_color' => '#0D3B82',
-                        'button_color' => '#FF512B',
-                        'button_text_color' => '#FFFFFF',
-                        'title_color' => '#FFFFFF',
-                        'description_color' => '#FFFFFF',
-                    ],
-
-                    'display' => [
-                        'show_banner' => true,
-                        'show_popup' => true,
-                        'popup_on_click' => true,
-                        'dismissible' => true,
                     ],
                 ],
 
@@ -252,123 +191,63 @@ class BusinessSettingController extends Controller
 
                     'media_type' => 'banner',
 
-                    'banner' => [
-                        'image_url' =>
-                        'https://images.jagods.in/landing/Group%20191222.svg',
+                    'card' => [
+
+                        'background_image' => 'https://images.jagods.in/landing/Group%20191222.svg',
+
+                        'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
 
                         'title' => 'Save More on Every Meal!',
 
                         'button' => [
                             'text' => 'Install & Save Now',
-                            'action' => 'install_app',
-                            'redirect_url' => 'https://jagods.com',
+                            'link' => 'https://jagods.com',
                         ],
 
-                        'secondary_action' => [
+                        'know_more' => [
                             'text' => 'Know More',
-                            'action' => 'open_details',
-                        ],
-                    ],
-
-                    'popup' => [
-
-                        'enabled' => true,
-
-                        'image_url' =>
-                        'https://images.jagods.in/landing/Group%20191222.svg',
-
-                        'title' => 'Save More on Every Meal!',
-
-                        'description' =>
-                        'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
-
-                        'close_button' => [
-                            'enabled' => true,
-                            'icon' => 'close',
-                            'action' => 'close',
                         ],
 
-                        'button' => [
-                            'text' => 'Install & Save Now',
-                            'action' => 'install_app',
-                            'redirect_url' => 'https://jagods.com',
-                        ],
+                        'details' => [
 
-                        'offers' => [
+                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1%20(1).svg',
 
-                            [
-                                'id' => 1,
+                            'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
 
-                                'icon' => 'offer',
+                            'title' => 'Save More on Every Meal!',
 
-                                'title' => 'Flat ₹50–₹200 OFF',
+                            'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
 
-                                'subtitle' =>
-                                'on your first food order',
-
-                                'action' => 'open_offer',
-
-                                'redirect_url' => null,
+                            'button' => [
+                                'text' => 'Install & Save Now',
+                                'link' => 'https://jagods.com',
                             ],
 
-                            [
-                                'id' => 2,
+                            'offers' => [
 
-                                'icon' => 'tag',
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
 
-                                'title' => 'Daily Combo Offers',
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
 
-                                'subtitle' =>
-                                'on top restaurants',
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
 
-                                'action' => 'open_offers',
-
-                                'redirect_url' => null,
                             ],
-
-                            [
-                                'id' => 3,
-
-                                'icon' => 'food',
-
-                                'title' => 'Use Online & In-Store',
-
-                                'subtitle' =>
-                                'at selected food courts',
-
-                                'action' => 'open_food_courts',
-
-                                'redirect_url' => null,
-                            ],
-
                         ],
-                    ],
-
-                    'cta' => [
-                        'text' => 'Install & Save Now',
-                        'action' => 'install_app',
-                        'redirect_url' => 'https://jagods.com',
-                    ],
-
-                    'placement' => 'restaurant_middle',
-
-                    'priority' => 2,
-
-                    'theme' => [
-                        'background_color' => '#0D3B82',
-                        'button_color' => '#FF512B',
-                        'button_text_color' => '#FFFFFF',
-                        'title_color' => '#FFFFFF',
-                        'description_color' => '#FFFFFF',
-                    ],
-
-                    'display' => [
-                        'show_banner' => true,
-                        'show_popup' => true,
-                        'popup_on_click' => true,
-                        'dismissible' => true,
                     ],
                 ],
+
 
             ];
             $businessSettings = (new BusinessSettingResource($settings))

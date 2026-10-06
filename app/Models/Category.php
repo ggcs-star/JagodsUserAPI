@@ -17,7 +17,7 @@ class Category extends BaseModel implements HasMedia
 
     protected $table = 'categories';
     protected $auditColumn = true;
-    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id', 'module_id', 'display_module_id', 'category_group_id', 'sort_order','show_on_home'];
+    protected $fillable = ['name', 'slug', 'description', 'status', 'requested', 'parent_id', 'module_id', 'display_module_id', 'category_group_id', 'sort_order', 'show_on_home'];
     protected $casts = [
         'status' => 'int',
         'requested' => 'int',
@@ -147,6 +147,14 @@ class Category extends BaseModel implements HasMedia
         return $this->belongsTo(
             Module::class,
             'display_module_id'
+        );
+    }
+
+    public function cateringPackages()
+    {
+        return $this->hasMany(
+            CateringPackage::class,
+            'category_id'
         );
     }
 }

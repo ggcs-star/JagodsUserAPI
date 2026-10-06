@@ -9,7 +9,7 @@ use App\Http\Services\CateringPackageService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use App\Http\Resources\v1\CateringPackageSectionDetailResource;
-
+use App\Http\Resources\v1\CategoryResource;
 class CateringPackageController extends BackendController
 {
     use ApiResponse;
@@ -19,31 +19,43 @@ class CateringPackageController extends BackendController
     ) {}
 
     public function index(Request $request)
-    {
-        $validated = $request->validate([
-            'page' => [
-                'nullable',
-                'integer',
-                'min:1',
-            ],
+{
+    $validated = $request->validate([
+        'category_id' => [
+            'nullable',
+            'integer',
+            'exists:categories,id',
+        ],
 
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:100',
-            ],
-        ]);
+        'page' => [
+            'nullable',
+            'integer',
+            'min:1',
+        ],
 
-        $packages = $this->cateringPackageService->getPackages(
-            perPage: (int) ($validated['per_page'] ?? 20)
-        );
+        'per_page' => [
+            'nullable',
+            'integer',
+            'min:1',
+            'max:100',
+        ],
+    ]);
 
-        return $this->successResponse(
-            message: 'Catering packages retrieved successfully.',
-            data: CateringPackageResource::collection($packages)
-        );
-    }
+    $packages = $this->cateringPackageService->getPackages(
+        perPage: (int) ($validated['per_page'] ?? 20),
+        categoryId: $validated['category_id'] ?? null
+    );
+
+    $categories = $this->cateringPackageService->getCateringCategories();
+
+    return $this->successResponse(
+        message: 'Catering packages retrieved successfully.',
+        data: [
+            'categories' => CategoryResource::collection($categories),
+            'packages' => CateringPackageResource::collection($packages),
+        ]
+    );
+}
 
     public function show(Request $request)
     {

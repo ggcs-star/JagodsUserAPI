@@ -10,23 +10,61 @@ class HomeAdResource extends JsonResource
     {
         return [
             'id' => $this['id'] ?? null,
+
             'title' => $this['title'] ?? null,
+
             'subtitle' => $this['subtitle'] ?? null,
+
             'media_type' => $this['media_type'] ?? null,
 
-            'cta' => $this['cta'] ?? [],
+            'card' => [
+                'background_image' => $this['card']['background_image'] ?? null,
 
-            'offers' => $this['offers'] ?? [],
+                'icon' => $this['card']['icon'] ?? null,
 
-            'media_url' => $this['media_url'] ?? null,
+                'title' => $this['card']['title'] ?? null,
 
-            'redirect_url' => $this['redirect_url'] ?? null,
+                'button' => [
+                    'text' => $this['card']['button']['text'] ?? null,
+                    'link' => $this['card']['button']['link'] ?? null,
+                ],
 
-            'theme_color' => $this['theme_color'] ?? null,
+                'know_more' => [
+                    'text' => $this['card']['know_more']['text'] ?? null,
+                ],
 
-            'placement' => $this['placement'] ?? null,
+                'details' => [
+                    'background_image' =>
+                        $this['card']['details']['background_image'] ?? null,
 
-            'priority' => $this['priority'] ?? null,
+                    'icon' =>
+                        $this['card']['details']['icon'] ?? null,
+
+                    'title' =>
+                        $this['card']['details']['title'] ?? null,
+
+                    'subtitle' =>
+                        $this['card']['details']['subtitle'] ?? null,
+
+                    'button' => [
+                        'text' =>
+                            $this['card']['details']['button']['text'] ?? null,
+
+                        'link' =>
+                            $this['card']['details']['button']['link'] ?? null,
+                    ],
+
+                    'offers' => collect(
+                        $this['card']['details']['offers'] ?? []
+                    )->map(function ($offer) {
+                        return [
+                            'icon' => $offer['icon'] ?? null,
+                            'title' => $offer['title'] ?? null,
+                            'subtitle' => $offer['subtitle'] ?? null,
+                        ];
+                    })->values(),
+                ],
+            ],
         ];
     }
 }
