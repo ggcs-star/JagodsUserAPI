@@ -5,21 +5,40 @@ namespace App\Http\Services;
 use App\Models\CateringPackage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use App\Models\CateringPackageSection;
-
+use App\Models\Category;
+use App\Enums\Module;
+use App\Enums\CategoryStatus;
 class CateringPackageService
 {
     public function getPackages(
-        int $perPage = 20
+        int $perPage = 20,
+        ?int $categoryId = null
     ): LengthAwarePaginator {
         return CateringPackage::query()
             ->where('status', 1)
+
+            ->when($categoryId, function ($query) use ($categoryId) {
+                $query->where('category_id', $categoryId);
+            })
+
             ->with([
+                'category',
                 'activeSections.activeItems.menuItem',
             ])
+
             ->orderBy('sort_order', 'asc')
             ->orderBy('id', 'desc')
             ->paginate($perPage);
     }
+    public function getCateringCategories()
+{
+    return Category::query()
+        ->where('module_id', Module::JAGDAI_CATERING)
+        ->where('status', CategoryStatus::ACTIVE)
+        ->orderBy('sort_order', 'asc')
+        ->orderBy('name', 'asc')
+        ->get();
+}
 
     public function getPackageDetails(int $id): CateringPackage
     {

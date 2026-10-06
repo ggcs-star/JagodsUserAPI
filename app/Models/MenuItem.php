@@ -100,6 +100,15 @@ class MenuItem extends BaseModel implements HasMedia
         return asset('frontend/images/default/menuitem.png');
     }
 
+    public function getCoverImagesAttribute()
+    {
+        return $this->getMedia('menu-items')
+            ->filter(function (Media $media) {
+                return (bool) $media->getCustomProperty('is_cover', false);
+            })
+            ->values();
+    }
+
     public function registerMediaConversions(Media $media = null): void
     {
         $this->addMediaConversion('image')->performOnCollections('menu-items')->keepOriginalImageFormat();
