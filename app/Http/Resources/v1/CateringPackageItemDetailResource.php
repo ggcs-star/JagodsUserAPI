@@ -73,7 +73,16 @@ class CateringPackageItemDetailResource extends JsonResource
                         })
                         ->values()
                         ->toArray(),
-
+                    'cover_image' => $this->getMedia('menu-item-covers')
+                        ->map(function ($media) {
+                            return [
+                                'id' => $media->id,
+                                'url' => $media->getUrl(),
+                                'file_name' => $media->file_name,
+                            ];
+                        })
+                        ->values()
+                        ->toArray(),
                     'description' =>
                     $menuItem->description ?? '',
 
