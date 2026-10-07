@@ -141,7 +141,7 @@ class BusinessSettingController extends Controller
 
                         'details' => [
 
-                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1%20(1).svg',
+                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1_(1).svg',
 
                             'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
 
@@ -156,6 +156,58 @@ class BusinessSettingController extends Controller
 
                             'offers' => [
 
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
                                 [
                                     'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
                                     'title' => 'Flat ₹50–₹200 OFF',
@@ -210,7 +262,7 @@ class BusinessSettingController extends Controller
 
                         'details' => [
 
-                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1%20(1).svg',
+                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1_(1).svg',
 
                             'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
 
@@ -225,6 +277,57 @@ class BusinessSettingController extends Controller
 
                             'offers' => [
 
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Flat ₹50–₹200 OFF',
+                                    'subtitle' => 'on your first food order',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Daily Combo Offers',
+                                    'subtitle' => 'on top restaurants',
+                                ],
+
+                                [
+                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
+                                    'title' => 'Use Online & In-Store',
+                                    'subtitle' => 'at selected food courts',
+                                ],
                                 [
                                     'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
                                     'title' => 'Flat ₹50–₹200 OFF',
@@ -276,7 +379,7 @@ class BusinessSettingController extends Controller
                     ],
 
                     'all_india_delivery' => $delivery,
-                    'home_popup' => HomeAdResource::collection($home_popup),
+                    'home_popup' => $home_popup,
                     'restaurant_middle' => HomeAdResource::collection($restaurant_middle),
                     'all_india_middle' => HomeAdResource::collection($all_india_middle),
                 ],
