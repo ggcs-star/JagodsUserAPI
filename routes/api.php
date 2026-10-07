@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\v1\BusinessSettingController;
 use App\Http\Controllers\Api\v1\VersionController;
 use App\Http\Controllers\Api\v1\CateringConfigController;
 use App\Http\Controllers\Api\v1\CateringPackageController;
+use App\Http\Controllers\Api\v1\CateringBookingController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -211,6 +212,10 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('catering/package/details', [CateringPackageController::class, 'show']);
     Route::post('catering/package/sections', [CateringPackageController::class, 'sections']);
     Route::post('catering/package/section/details', [CateringPackageController::class, 'sectionDetails']);
+
+    Route::post('catering/bookings',[CateringBookingController::class, 'store']);
+    Route::get('catering/bookings',[CateringBookingController::class, 'index'] );
+    Route::get('catering/bookings/{id}',[CateringBookingController::class, 'show']);
 });
 
 Route::get('/geo-test', function () {
