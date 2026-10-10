@@ -249,7 +249,7 @@ class ShiprocketService
 
         $baseDeliveryFee = 200;
 
-        $perQuantityCharge = 50;
+        $perQuantityCharge = 70;
 
         $quantityCharge =
             $quantity * $perQuantityCharge;

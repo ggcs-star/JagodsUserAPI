@@ -24,7 +24,7 @@ class CateringBookingSection extends BaseModel
         'sort_order' => 'integer',
     ];
 
-  
+
 
     public function booking(): BelongsTo
     {
