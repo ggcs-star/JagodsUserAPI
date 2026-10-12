@@ -13,50 +13,73 @@ class CateringBookingItemResource extends JsonResource
             'id' => (int) $this->id,
 
             'catering_booking_section_id' =>
-                (int) $this->catering_booking_section_id,
+            (int) $this->catering_booking_section_id,
 
             'catering_package_item_id' =>
-                $this->catering_package_item_id
-                    ? (int) $this->catering_package_item_id
-                    : null,
+            $this->catering_package_item_id
+                ? (int) $this->catering_package_item_id
+                : null,
 
             'menu_item_id' =>
-                $this->menu_item_id
-                    ? (int) $this->menu_item_id
-                    : null,
+            $this->menu_item_id
+                ? (int) $this->menu_item_id
+                : null,
 
             'menu_item_name' =>
-                $this->menu_item_name,
+            $this->menu_item_name,
 
             'menu_item_description' =>
-                $this->menu_item_description,
+            $this->menu_item_description,
 
             'unit_price' =>
-                (float) $this->unit_price,
+            (float) $this->unit_price,
 
             'discount_price' =>
-                (float) $this->discount_price,
+            (float) $this->discount_price,
 
             'extra_price' =>
-                (float) $this->extra_price,
+            (float) $this->extra_price,
 
             'final_unit_price' =>
-                (float) $this->final_unit_price,
+            (float) $this->final_unit_price,
 
             'is_default' =>
-                (bool) $this->is_default,
+            (bool) $this->is_default,
 
             'is_selected' =>
-                (bool) $this->is_selected,
+            (bool) $this->is_selected,
 
             'quantity' =>
-                (int) $this->quantity,
+            (int) $this->quantity,
 
             'item_total' =>
-                (float) $this->item_total,
+            (float) $this->item_total,
 
             'sort_order' =>
-                (int) $this->sort_order,
+            (int) $this->sort_order,
+            'image' => $this->whenLoaded('menuItem', function () {
+                return $this->menuItem->getMedia('menu-items')
+                    ->map(function ($media) {
+                        return [
+                            'id' => $media->id,
+                            'url' => $media->getUrl(),
+                            'file_name' => $media->file_name,
+                        ];
+                    })
+                    ->values();
+            }),
+
+            'cover_image' => $this->whenLoaded('menuItem', function () {
+                return $this->menuItem->getMedia('menu-item-covers')
+                    ->map(function ($media) {
+                        return [
+                            'id' => $media->id,
+                            'url' => $media->getUrl(),
+                            'file_name' => $media->file_name,
+                        ];
+                    })
+                    ->values();
+            }),
         ];
     }
 }

@@ -75,4 +75,19 @@ return [
         'url' => env('ADMIN_API_URL'),
         'token' => env('ADMIN_API_TOKEN'),
     ],
+
+    'whatsapp' => [
+        'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'admin_number' => env('WHATSAPP_ADMIN_NUMBER'),
+        'graph_version' => env('WHATSAPP_GRAPH_VERSION'),
+        'booking_template' => env(
+            'WHATSAPP_BOOKING_TEMPLATE',
+            'new_catering_booking'
+        ),
+        'template_language' => env(
+            'WHATSAPP_TEMPLATE_LANGUAGE',
+            'en_US'
+        ),
+    ],
 ];

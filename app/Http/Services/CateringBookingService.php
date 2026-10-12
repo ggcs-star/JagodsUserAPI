@@ -167,46 +167,28 @@ class CateringBookingService
                     $package->id,
                     'address_id' =>
                     $address->id,
-
                     'package_name' =>
                     $package->name,
-
                     'package_price' =>
                     $package->price,
-
                     'package_price_type' =>
                     $package->price_type,
-
                     'guest_count' =>
                     $guestCount,
-
                     'event_date' =>
                     $data['event_date'],
-
                     'event_time' =>
                     $data['event_time'] ?? null,
-
                     'event_type' =>
                     $data['event_type'] ?? null,
-
-                    'customer_name' =>
-                    $address->receiver_name,
-
-                    'customer_mobile' =>
-                    $address->receiver_phone,
-
-                    'customer_email' =>
-                    $user->email,
+                    'customer_name' => $address->receiver_name,
+                    'customer_mobile' => $address->receiver_phone,
+                    'customer_email' => $user->email,
 
                     'event_address' => json_encode([
-                        'address' =>
-                        $address->address,
-
-                        'apartment' =>
-                        $address->apartment,
-
-                        'pincode' =>
-                        $address->pincode,
+                        'address' => $address->address,
+                        'apartment' => $address->apartment,
+                        'pincode' => $address->pincode,
                     ]),
 
 
@@ -333,51 +315,38 @@ class CateringBookingService
                             'sort_order' =>
                             $packageSection->sort_order,
                         ]);
-                    foreach ($availableItems as $packageItem) {
+                    // Sirf selected items ko booking table mein save karo.
+                    $selectedItems = $availableItems
+                        ->filter(
+                            fn($item) => $selectedItemIds->contains(
+                                (int) $item->id
+                            )
+                        );
 
-                        $menuItem =
-                            $packageItem->menuItem;
+                    foreach ($selectedItems as $packageItem) {
+                        $menuItem = $packageItem->menuItem;
 
                         if (!$menuItem) {
                             continue;
                         }
 
-                        $isSelected =
-                            $selectedItemIds->contains(
-                                (int) $packageItem->id
-                            );
+                        $unitPrice = (float) ($menuItem->unit_price ?? 0);
 
-                        $unitPrice =
-                            (float) (
-                                $menuItem->unit_price ?? 0
-                            );
+                        $discountPrice = (float) (
+                            $menuItem->discount_price ?? 0
+                        );
 
-                        $discountPrice =
-                            (float) (
-                                $menuItem->discount_price ?? 0
-                            );
-
-                        $extraPrice =
-                            (float) $packageItem->extra_price;
+                        $extraPrice = (float) $packageItem->extra_price;
 
                         $finalUnitPrice = max(
                             0,
-                            $unitPrice
-                                - $discountPrice
-                                + $extraPrice
+                            $unitPrice - $discountPrice + $extraPrice
                         );
 
-                        $quantity = $isSelected
-                            ? $guestCount
-                            : 0;
+                        $quantity = $guestCount;
+                        $itemTotal = $extraPrice * $guestCount;
 
-                        $itemTotal = $isSelected
-                            ? $extraPrice * $guestCount
-                            : 0;
-
-                        if ($isSelected) {
-                            $additionalAmount += $itemTotal;
-                        }
+                        $additionalAmount += $itemTotal;
 
                         CateringBookingItem::create([
                             'catering_booking_section_id' =>
@@ -406,11 +375,11 @@ class CateringBookingService
 
                             'final_unit_price' =>
                             $finalUnitPrice,
+
                             'is_default' =>
                             (bool) $packageItem->is_default,
 
-                            'is_selected' =>
-                            $isSelected,
+                            'is_selected' => true,
 
                             'quantity' =>
                             $quantity,
@@ -473,12 +442,10 @@ class CateringBookingService
         $user,
         int $perPage = 20
     ): LengthAwarePaginator {
-
         return CateringBooking::query()
             ->where('user_id', $user->id)
             ->with([
-                'package',
-                'sections.items',
+                'package.media',
             ])
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -487,13 +454,16 @@ class CateringBookingService
         int $bookingId,
         $user
     ): CateringBooking {
-
         return CateringBooking::query()
             ->where('id', $bookingId)
             ->where('user_id', $user->id)
             ->with([
-                'package',
-                'sections.items',
+                'package.media',
+                'sections.packageSection.media',
+                'sections.items' => function ($query) {
+                    $query->orderBy('sort_order');
+                },
+                'sections.items.menuItem.media',
             ])
             ->firstOrFail();
     }
