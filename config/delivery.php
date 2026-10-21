@@ -5,15 +5,15 @@ return [
     'charge_per_kilo' => [
         [
             'max_km' => 1,
-            'charge' => 10,
+            'charge' => 18,
         ],
         [
             'max_km' => 7,
-            'charge' => 20,
+            'charge' => 14,
         ],
         [
             'max_km' => 15,
-            'charge' => 30,
+            'charge' => 10,
         ],
     ],
 
