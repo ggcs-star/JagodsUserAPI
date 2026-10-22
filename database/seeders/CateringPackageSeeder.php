@@ -16,11 +16,7 @@ class CateringPackageSeeder extends Seeder
     {
         DB::transaction(function () {
 
-            /*
-            |--------------------------------------------------------------------------
-            | Get Existing Menu Items
-            |--------------------------------------------------------------------------
-            */
+          
 
             $menuItems = MenuItem::query()
                 ->where('status', 5)
