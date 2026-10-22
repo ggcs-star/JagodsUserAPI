@@ -20,13 +20,18 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call([
-        // ModuleSeeder::class,
-        // CategoryGroupSeeder::class,
-        // CategorySeeder::class,
-        // AppVersionSeeder::class,
-        //   MenuItemCustomizationSeeder::class,
-         CateringPackageSeeder::class,
-         CateringPackageSeederCustom::class
+            // ModuleSeeder::class,
+            // CategoryGroupSeeder::class,
+            // CategorySeeder::class,
+            // AppVersionSeeder::class,
+            //   MenuItemCustomizationSeeder::class,
+            //  CateringPackageSeeder::class,
+            //  CateringPackageSeederCustom::class,
+            CateringPackage1Seeder::class,
+            CateringPackage2Seeder::class,
+            CateringPackage3Seeder::class,
+            CateringPackage4Seeder::class,
+            CateringPackage5Seeder::class,
         ]);
     }
 }
