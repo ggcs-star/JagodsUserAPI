@@ -49,6 +49,26 @@ class MenuItemResource extends JsonResource
             'currency_code' =>
             setting('currency_code'),
 
+            // 'image' => $this->getMedia('menu-items')->map(function ($media) {
+            //     return [
+            //         'id' => $media->id,
+            //         'url' => $media->getUrl(),
+            //         'file_name' => $media->file_name,
+            //     ];
+            // })->values()->toArray(),
+
+            // 'cover_image' => $this->getMedia('menu-item-covers')
+            //     ->map(function ($media) {
+            //         return [
+            //             'id' => $media->id,
+            //             'url' => $media->getUrl(),
+            //             'file_name' => $media->file_name,
+            //         ];
+            //     })
+            //     ->values()
+            //     ->toArray(),
+
+
             'image' => $this->getMedia('menu-items')->map(function ($media) {
                 return [
                     'id' => $media->id,
@@ -57,16 +77,25 @@ class MenuItemResource extends JsonResource
                 ];
             })->values()->toArray(),
 
-            'cover_image' => $this->getMedia('menu-item-covers')
-                ->map(function ($media) {
+            'cover_image' => $this->getMedia('menu-item-covers')->isNotEmpty()
+                ? $this->getMedia('menu-item-covers')->map(function ($media) {
                     return [
                         'id' => $media->id,
                         'url' => $media->getUrl(),
                         'file_name' => $media->file_name,
                     ];
-                })
-                ->values()
-                ->toArray(),
+                })->values()->toArray()
+                : $this->getMedia('menu-items')->map(function ($media) {
+                    return [
+                        'id' => $media->id,
+                        'url' => $media->getUrl(),
+                        'file_name' => $media->file_name,
+                    ];
+                })->values()->toArray(),
+
+
+
+
 
             'description' => $this->description ?? '',
             'description_type' => $this->description && $this->description !== strip_tags($this->description)

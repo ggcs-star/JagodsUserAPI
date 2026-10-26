@@ -51,16 +51,22 @@ class CateringPackageService
     }
 
     public function getPackageSections(int $packageId)
-    {
-        return CateringPackageSection::query()
-            ->where('catering_package_id', $packageId)
-            ->where('status', 1)
-            ->withCount([
-                'activeItems as items_count',
-            ])
-            ->orderBy('sort_order', 'asc')
-            ->get();
-    }
+{
+    return CateringPackageSection::query()
+        ->where('catering_package_id', $packageId)
+        ->where('status', 1)
+        ->withCount([
+            'activeItems as items_count',
+        ])
+        ->with([
+            'activeItems.menuItem',
+            'activeItems.menuItem.variationGroups',
+            'activeItems.menuItem.optionGroups',
+            'activeItems.menuItem.categories',
+        ])
+        ->orderBy('sort_order', 'asc')
+        ->get();
+}
     public function getSectionDetails(int $sectionId): CateringPackageSection
     {
         return CateringPackageSection::query()
