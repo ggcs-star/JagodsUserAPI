@@ -45,6 +45,10 @@ class CateringPackageSectionResource extends JsonResource
 
             'items_count' =>
             (int) $this->items_count,
+
+            'items' => CateringPackageItemDetailResource::collection(
+                $this->whenLoaded('activeItems')
+            ),
         ];
     }
 }

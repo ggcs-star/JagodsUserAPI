@@ -20,9 +20,12 @@ class CateringConfigController extends BackendController
                 'subtitle' => 'With Our Catering Packages',
 
                 'images' => [
-                    'https://images.jagods.in/landing/ChatGPT%20Image%20Sep%2030,%202026,%2011_37_56%20AM.png',
-                    'https://images.jagods.in/landing/ChatGPT%20Image%20Sep%2030,%202026,%2011_37_56%20AM.png',
-                    'https://images.jagods.in/landing/ChatGPT%20Image%20Sep%2030,%202026,%2011_37_56%20AM.png',
+                    'https://images.jagods.in/landing/Engagement%20party%20catering%20with%20portrait%20screen.png',
+                    'https://images.jagods.in/landing/Elegant%20Indian%20birthday%20grazing%20buffet-2.png',
+                    'https://images.jagods.in/landing/Elegant%20Vegetarian%20Birthday%20Grazing%20Table.png',
+                    'https://images.jagods.in/landing/Elegant%20Indian%20Wedding%20Grazing%20Table%20(1).png',
+                    'https://images.jagods.in/landing/Indian%20Corporate%20Vegetarian%20Grazing%20Table%20(1).png',
+                    
                 ],
 
                 'action' => [
