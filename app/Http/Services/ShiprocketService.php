@@ -161,11 +161,14 @@ class ShiprocketService
             0
         );
 
-        $baseDeliveryFee = $deliveryCharge;
+        $baseDeliveryFee = (float) config(
+            'services.shiprocket.base_delivery_fee',
+            200
+        );
 
         $perQuantityCharge = (float) config(
             'services.shiprocket.per_quantity_charge',
-            50
+            70
         );
 
         $quantityCharge = $quantity * $perQuantityCharge;
@@ -247,9 +250,15 @@ class ShiprocketService
         $quantity = max(1, $quantity);
 
 
-        $baseDeliveryFee = 200;
+        $baseDeliveryFee = (float) config(
+            'services.shiprocket.base_delivery_fee',
+            200
+        );
 
-        $perQuantityCharge = 70;
+        $perQuantityCharge = (float) config(
+            'services.shiprocket.per_quantity_charge',
+            70
+        );
 
         $quantityCharge =
             $quantity * $perQuantityCharge;
