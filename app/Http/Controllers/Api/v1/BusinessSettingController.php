@@ -85,7 +85,8 @@ class BusinessSettingController extends Controller
 
                 $delivery = $this->shiprocketService->getDeliveryRate(
                     deliveryPincode: $deliveryPincode,
-                    weight: $weight,
+                    weight: (float) $weight,
+                    quantity: $totalQty,
                     cod: $cod
                 );
             }

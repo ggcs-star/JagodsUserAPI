@@ -329,13 +329,8 @@ class CheckoutServiceNew
         ];
     }
 
-    private function calculateDeliveryCharge(
-        array $data,
-        $settings,
-        $restaurant,
-        $address,
-        array $items
-    ): float {
+    private function calculateDeliveryCharge(array $data, $settings, $restaurant, $address, array $items): float
+    {
 
         $isPickup = (
             (int) $data['order_type'] === OrderTypeStatus::PICKUP
@@ -374,29 +369,21 @@ class CheckoutServiceNew
                 );
             }
 
-
             $weight = $totalQuantity * 1;
 
             $cod = (
                 (int) $data['payment_method']
                 === PaymentMethod::CASH_ON_DELIVERY
-            )
-                ? 1
-                : 0;
+            ) ? 1 : 0;
 
             $delivery = $this->shiprocketService->getDeliveryRate(
                 deliveryPincode: (string) $address->pincode,
                 weight: (float) $weight,
+                quantity: (int) $totalQuantity,
                 cod: $cod
             );
 
-            if (
-                !data_get(
-                    $delivery,
-                    'available',
-                    false
-                )
-            ) {
+            if (!data_get($delivery, 'available', false)) {
                 throw new Exception(
                     data_get(
                         $delivery,

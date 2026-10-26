@@ -69,6 +69,8 @@ return [
         'email' => env('SHIPROCKET_EMAIL'),
         'password' => env('SHIPROCKET_PASSWORD'),
         'pickup_postcode' => env('SHIPROCKET_PICKUP_POSTCODE'),
+        'base_delivery_fee' => (float) env('SHIPROCKET_BASE_DELIVERY_FEE', 200),
+        'per_quantity_charge' => (float) env('SHIPROCKET_PER_QUANTITY_CHARGE', 70),
     ],
 
     'admin_api' => [
