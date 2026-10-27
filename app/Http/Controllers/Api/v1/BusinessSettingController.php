@@ -100,9 +100,9 @@ class BusinessSettingController extends Controller
 
                     'media_type' => 'banner',
 
-                    'media_url' => 'https://images.jagods.in/landing/Rectangle%2060023%402x.png',
+                    'media_url' => 'https://images.jagods.in/landing/6271638582809600800.mp4',
 
-                    'redirect_url' => 'https://jagods.com',
+                    'redirect_url' => 'https://www.instagram.com/golumal_official',
 
                     'theme_color' => null,
 
@@ -112,28 +112,34 @@ class BusinessSettingController extends Controller
                 ],
 
             ];
+            $appInfo = app(\App\Http\Services\DeviceAppInfoService::class)
+                ->parse($request);
+
+            $installLink = match ((string) ($appInfo['device_type'] ?? '')) {
+                '0' => 'https://apps.apple.com/in/app/gg-perks/id1200716855',
+                '1' => 'https://play.google.com/store/apps/details?id=com.globalgarner&hl=en_IN',
+                default => 'https://play.google.com/store/apps/details?id=com.globalgarner&hl=en_IN',
+            };
             $restaurant_middle = [
 
                 [
                     'id' => 1,
 
-                    'title' => 'Save More on Every Meal!',
-
-                    'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
-
+                    'title' => 'Download & Save More!',
+                    'subtitle' => 'Get additional cashback and discounts on every purchase — on 20 Cr+ products and on Jagods too!',
                     'media_type' => 'banner',
 
                     'card' => [
 
                         'background_image' => 'https://images.jagods.in/landing/Group%20191222.svg',
 
-                        'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
+                        'icon' => 'https://images.jagods.in/landing/6269485383020123481_121.jpg',
 
-                        'title' => 'Save More on Every Meal!',
-
+                        'title' => 'Download & Save More!',
+                        'subtitle' => 'Get additional cashback and discounts on every purchase — on 20 Cr+ products and on Jagods too!',
                         'button' => [
                             'text' => 'Install & Save Now',
-                            'link' => 'https://jagods.com',
+                            'link' => $installLink,
                         ],
 
                         'know_more' => [
@@ -142,89 +148,25 @@ class BusinessSettingController extends Controller
 
                         'details' => [
 
-                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1_(1).svg',
+                            'background_image' => 'https://images.jagods.in/landing/Group%20191222.svg',
 
-                            'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
+                            'icon' => 'https://images.jagods.in/landing/6269485383020123481_121.jpg',
 
-                            'title' => 'Save More on Every Meal!',
+                            'title' => 'Download & Save More!',
 
-                            'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
+                            'subtitle' => 'Get additional cashback and discounts on every purchase — on 20 Cr+ products and on Jagods too!',
 
                             'button' => [
                                 'text' => 'Install & Save Now',
-                                'link' => 'https://jagods.com',
+                                'link' => $installLink,
                             ],
 
                             'offers' => [
 
                                 [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
-                                ],
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
-                                ],
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
+                                    'icon' => '',
+                                    'title' => '',
+                                    'subtitle' => '',
                                 ],
 
                             ],
@@ -238,9 +180,9 @@ class BusinessSettingController extends Controller
                 [
                     'id' => 1,
 
-                    'title' => 'Save More on Every Meal!',
+                    'title' => 'Download & Save More!',
 
-                    'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
+                    'subtitle' => 'Get additional cashback and discounts on every purchase — on 20 Cr+ products and on Jagods too!',
 
                     'media_type' => 'banner',
 
@@ -248,13 +190,14 @@ class BusinessSettingController extends Controller
 
                         'background_image' => 'https://images.jagods.in/landing/Group%20191222.svg',
 
-                        'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
+                        'icon' => 'https://images.jagods.in/landing/6269485383020123480_121.jpg',
 
-                        'title' => 'Save More on Every Meal!',
+                        'title' => 'Download & Save More!',
+                        'subtitle' => 'Get additional cashback and discounts on every purchase — on 20 Cr+ products and on Jagods too!',
 
                         'button' => [
                             'text' => 'Install & Save Now',
-                            'link' => 'https://jagods.com',
+                            'link' => $installLink,
                         ],
 
                         'know_more' => [
@@ -263,88 +206,25 @@ class BusinessSettingController extends Controller
 
                         'details' => [
 
-                            'background_image' => 'https://images.jagods.in/landing/1030404_OKA5BX1_(1).svg',
+                            'background_image' => 'https://images.jagods.in/landing/Group%20191222.svg',
 
-                            'icon' => 'https://images.jagods.in/landing/Group%20191149@2x.png',
+                            'icon' => 'https://images.jagods.in/landing/6269485383020123480_121.jpg',
 
-                            'title' => 'Save More on Every Meal!',
+                            'title' => 'Download & Save More!',
 
-                            'subtitle' => 'Unlock exclusive food vouchers on Cloud Food Court and use them while ordering on Jagods',
+                            'subtitle' => 'Get additional cashback and discounts on every purchase — on 20 Cr+ products and on Jagods too!',
 
                             'button' => [
                                 'text' => 'Install & Save Now',
-                                'link' => 'https://jagods.com',
+                                'link' => $installLink,
                             ],
 
                             'offers' => [
 
                                 [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
-                                ],
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
-                                ],
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
-                                ],
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Flat ₹50–₹200 OFF',
-                                    'subtitle' => 'on your first food order',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Daily Combo Offers',
-                                    'subtitle' => 'on top restaurants',
-                                ],
-
-                                [
-                                    'icon' => 'https://images.jagods.in/landing/easy-to-use.svg',
-                                    'title' => 'Use Online & In-Store',
-                                    'subtitle' => 'at selected food courts',
+                                    'icon' => '',
+                                    'title' => '',
+                                    'subtitle' => '',
                                 ],
 
                             ],
