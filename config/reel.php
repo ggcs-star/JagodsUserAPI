@@ -9,7 +9,7 @@ return [
 
         'linkId' => 'egg-and-cheeze-roll',
         'title' => 'Jagods',
-        'videoUrl' => 'videos/eggandcheezeroll.mp4',
+        'videoUrl' => 'https://images.jagods.in/reels/aloo-tikki-chaat.mp4',
 
         'description' => 'Convert your business into a successful franchise model with expert guidance from Franchise Builder 360. From planning and legal setup to branding, marketing, and expansion, we provide complete support every step of the way.',
 
