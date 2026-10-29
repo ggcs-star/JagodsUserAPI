@@ -1029,6 +1029,36 @@ CREATE TABLE `catering_booking_items` (
 ALTER TABLE `catering_bookings`
 DROP FOREIGN KEY `catering_bookings_restaurant_id_foreign`,
 DROP COLUMN `restaurant_id`;
+
+++++++++++++++++++++++++++++=======================================++++++++++++++++++++++++
+CREATE TABLE `menu_item_recommendations` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `menu_item_id` BIGINT UNSIGNED NOT NULL,
+    `recommended_menu_item_id` BIGINT UNSIGNED NOT NULL,
+    `sort_order` INT UNSIGNED NOT NULL DEFAULT 0,
+    `status` TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at` TIMESTAMP NULL DEFAULT NULL,
+    `updated_at` TIMESTAMP NULL DEFAULT NULL,
+
+    PRIMARY KEY (`id`),
+
+    CONSTRAINT `menu_item_recommendations_menu_item_id_foreign`
+        FOREIGN KEY (`menu_item_id`)
+        REFERENCES `menu_items` (`id`)
+        ON DELETE CASCADE,
+
+    CONSTRAINT `menu_item_recommendations_recommended_menu_item_id_foreign`
+        FOREIGN KEY (`recommended_menu_item_id`)
+        REFERENCES `menu_items` (`id`)
+        ON DELETE CASCADE,
+
+    CONSTRAINT `menu_item_recommendations_unique`
+        UNIQUE (`menu_item_id`, `recommended_menu_item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
++++++++++++++++++++++++++++++++++++++++++++++++====================+++++++++++++++++
 ===============================================================================
 CREATE TABLE `admin_order_notifications` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

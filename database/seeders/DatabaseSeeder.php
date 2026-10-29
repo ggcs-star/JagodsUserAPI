@@ -27,11 +27,12 @@ class DatabaseSeeder extends Seeder
             //   MenuItemCustomizationSeeder::class,
             //  CateringPackageSeeder::class,
             //  CateringPackageSeederCustom::class,
-            CateringPackage1Seeder::class,
-            CateringPackage2Seeder::class,
-            CateringPackage3Seeder::class,
-            CateringPackage4Seeder::class,
-            CateringPackage5Seeder::class,
+            // CateringPackage1Seeder::class,
+            // CateringPackage2Seeder::class,
+            // CateringPackage3Seeder::class,
+            // CateringPackage4Seeder::class,
+            // CateringPackage5Seeder::class,
+            MenuItemRecommendationSeeder::class,
         ]);
     }
 }
