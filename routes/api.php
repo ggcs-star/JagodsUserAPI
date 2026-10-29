@@ -49,6 +49,8 @@ use App\Http\Controllers\Api\v1\VersionController;
 use App\Http\Controllers\Api\v1\CateringConfigController;
 use App\Http\Controllers\Api\v1\CateringPackageController;
 use App\Http\Controllers\Api\v1\CateringBookingController;
+use App\Http\Controllers\Api\v1\MenuRecommendationController;
+use App\Http\Controllers\Api\v1\ReelController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -213,9 +215,14 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('catering/package/sections', [CateringPackageController::class, 'sections']);
     Route::post('catering/package/section/details', [CateringPackageController::class, 'sectionDetails']);
 
-    Route::post('catering/bookings',[CateringBookingController::class, 'store']);
-    Route::get('catering/bookings',[CateringBookingController::class, 'index'] );
-    Route::get('catering/bookings/{id}',[CateringBookingController::class, 'show']);
+    Route::post('catering/bookings', [CateringBookingController::class, 'store']);
+    Route::get('catering/bookings', [CateringBookingController::class, 'index']);
+    Route::get('catering/bookings/{id}', [CateringBookingController::class, 'show']);
+
+
+    Route::post('menu-items/recommendations', [MenuRecommendationController::class, 'index']);
+
+    Route::get('/reels', [ReelController::class, 'index']);
 });
 
 Route::get('/geo-test', function () {

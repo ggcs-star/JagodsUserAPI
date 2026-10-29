@@ -287,4 +287,16 @@ class MenuItem extends BaseModel implements HasMedia
             'menu_item_id'
         );
     }
+
+    public function recommendations()
+    {
+        return $this->hasMany(MenuItemRecommendation::class, 'menu_item_id')
+            ->where('status', true)
+            ->orderBy('sort_order');
+    }
+
+    public function recommendedBy()
+    {
+        return $this->hasMany(MenuItemRecommendation::class, 'recommended_menu_item_id');
+    }
 }
