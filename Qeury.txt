@@ -1056,7 +1056,9 @@ CREATE TABLE `menu_item_recommendations` (
         UNIQUE (`menu_item_id`, `recommended_menu_item_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
+ALTER TABLE `banners`
+ADD COLUMN `module_id` BIGINT UNSIGNED NULL AFTER `target_id`,
+ADD INDEX `banners_module_id_index` (`module_id`);
 
 +++++++++++++++++++++++++++++++++++++++++++++++====================+++++++++++++++++
 ===============================================================================
@@ -1464,3 +1466,5 @@ DROP TABLE IF EXISTS menu_item_variations;
 DROP TABLE IF EXISTS menu_item_option_groups;
 DROP TABLE IF EXISTS menu_item_options;
 SET FOREIGN_KEY_CHECKS = 1;
+
+
