@@ -62,46 +62,42 @@ class BannerController extends BackendController
                 ->where('status', BannerStatus::ACTIVE)
                 ->where('show_on_landing', 1)
 
-                ->when(
-                    $moduleId === 1,
-                    function ($query) use ($allowedTypes) {
+                // Module 1: Restaurant + Category banners
+                ->when($moduleId === 1, function ($query) use ($allowedTypes) {
 
-                        $query->where(function ($targetQuery) use ($allowedTypes) {
+                    $query->where(function ($q) use ($allowedTypes) {
 
-                            $targetQuery->where('target_type', 'category')
+                        // Category banners
+                        $q->where('target_type', 'category')
 
-                                ->orWhere(function ($restaurantQuery) use ($allowedTypes) {
+                            // Restaurant banners
+                            ->orWhere(function ($q) use ($allowedTypes) {
 
-                                    $restaurantQuery->where('target_type', 'restaurant')
+                                $q->where('target_type', 'restaurant')
 
-                                        ->when(
-                                            $allowedTypes !== null,
-                                            function ($restaurantQuery) use ($allowedTypes) {
+                                    ->when(
+                                        $allowedTypes !== null,
+                                        function ($q) use ($allowedTypes) {
 
-                                                $restaurantQuery->whereHasMorph(
-                                                    'target',
-                                                    [Restaurant::class],
-                                                    function ($q) use ($allowedTypes) {
-                                                        $q->whereIn(
-                                                            'restroType',
-                                                            $allowedTypes
-                                                        );
-                                                    }
-                                                );
-                                            }
-                                        );
-                                });
-                        });
-                    }
-                )
+                                            $q->whereHasMorph(
+                                                'target',
+                                                [Restaurant::class],
+                                                function ($restaurantQuery) use ($allowedTypes) {
+                                                    $restaurantQuery->whereIn(
+                                                        'restroType',
+                                                        $allowedTypes
+                                                    );
+                                                }
+                                            );
+                                        }
+                                    );
+                            });
+                    });
+                })
 
-                ->when(
-                    $moduleId === 2,
-                    function ($query) {
-
-                        $query->where('target_type', 'category');
-                    }
-                )
+                ->when($moduleId === 2, function ($query) {
+                    $query->where('target_type', 'category');
+                })
 
                 ->orderBy('sort', 'asc')
                 ->get();
