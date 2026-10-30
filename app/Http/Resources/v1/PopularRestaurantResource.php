@@ -28,6 +28,7 @@ class PopularRestaurantResource extends JsonResource
             "avgRating"     => (float) ($this->avg_rating ?? 0),
             "avgRatingUser" => (int) ($this->total_reviews ?? 0),
             "coverImg"        =>  $this->coverImg,
+            "logo"                 => $this->logo,
             'estimated_delivery_time' => '30-40 mins',
             // 'restroType'   => 'veg',
             'restroType'   => $this->restroType,
