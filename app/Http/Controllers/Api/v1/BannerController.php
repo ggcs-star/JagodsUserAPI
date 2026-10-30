@@ -39,16 +39,17 @@ class BannerController extends BackendController
 
     public function index(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'module_id' => [
                 'required',
                 'integer',
-                'in:1,2',
+                'exists:modules,id',
             ],
         ]);
+
         try {
 
-            $moduleId = (int) $request->module_id;
+            $moduleId = (int) $validated['module_id'];
 
             $restroType = $this->restaurantTypeService
                 ->getHeaderType($request);
@@ -56,8 +57,8 @@ class BannerController extends BackendController
             $allowedTypes = $this->restaurantTypeService
                 ->getAllowedTypes($restroType);
 
-
             $banners = Banner::query()
+                ->where('module_id', $moduleId)
                 ->where('status', BannerStatus::ACTIVE)
                 ->where('show_on_landing', 1)
 
@@ -65,26 +66,32 @@ class BannerController extends BackendController
                     $moduleId === 1,
                     function ($query) use ($allowedTypes) {
 
-                        // Restaurant banners
-                        $query->where('target_type', 'restaurant')
+                        $query->where(function ($targetQuery) use ($allowedTypes) {
 
-                            ->when(
-                                $allowedTypes !== null,
-                                function ($query) use ($allowedTypes) {
+                            $targetQuery->where('target_type', 'category')
 
-                                    $query->whereHasMorph(
-                                        'target',
-                                        [Restaurant::class],
-                                        function ($restaurantQuery) use ($allowedTypes) {
+                                ->orWhere(function ($restaurantQuery) use ($allowedTypes) {
 
-                                            $restaurantQuery->whereIn(
-                                                'restroType',
-                                                $allowedTypes
-                                            );
-                                        }
-                                    );
-                                }
-                            );
+                                    $restaurantQuery->where('target_type', 'restaurant')
+
+                                        ->when(
+                                            $allowedTypes !== null,
+                                            function ($restaurantQuery) use ($allowedTypes) {
+
+                                                $restaurantQuery->whereHasMorph(
+                                                    'target',
+                                                    [Restaurant::class],
+                                                    function ($q) use ($allowedTypes) {
+                                                        $q->whereIn(
+                                                            'restroType',
+                                                            $allowedTypes
+                                                        );
+                                                    }
+                                                );
+                                            }
+                                        );
+                                });
+                        });
                     }
                 )
 
@@ -92,31 +99,28 @@ class BannerController extends BackendController
                     $moduleId === 2,
                     function ($query) {
 
-                        // Category banners
                         $query->where('target_type', 'category');
                     }
                 )
+
                 ->orderBy('sort', 'asc')
                 ->get();
+
             return $this->successResponse(
                 message: 'Banner list fetched successfully.',
                 data: [
-
                     'banners' => BannerResource::collection($banners),
                 ]
             );
         } catch (\Throwable $e) {
 
-            Log::error(
-                'Banner API Error',
-                [
-                    'module_id' => $request->module_id,
-                    'restro_type' => $request->header('restro_type'),
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                ]
-            );
+            Log::error('Banner API Error', [
+                'module_id' => $request->module_id,
+                'restro_type' => $request->header('restro_type'),
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
             return $this->serverErrorResponse(
                 message: config('app.debug')
