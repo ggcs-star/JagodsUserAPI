@@ -10,6 +10,7 @@ class BannerResource extends JsonResource
     {
         return [
             'id'              => $this->id,
+            'module_id'       => (int) $this->module_id,
             'target_type'     => $this->target_type,
             'target_id'       => (int) $this->target_id,
             'show_on_landing' => (int) $this->show_on_landing,
